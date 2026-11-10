@@ -8,7 +8,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test test/storage-cloud.test.js test/source-files.test.js test/responsive.test.js test/friends-arena.test.js && node test/run-auth-test.js"
+    "test": "node --test test/storage-cloud.test.js test/source-files.test.js test/responsive.test.js test/friends-arena.test.js test/part-batch.test.js && node test/run-auth-test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

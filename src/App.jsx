@@ -158,21 +158,56 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
   }, [])
 
   /* ---------------- exam construction ---------------- */
-  const buildPartExam = useCallback((id) => {
+  const buildPartExam = useCallback((id, opts = {}) => {
     const part = getPart(id)
     if (!part) return null
+
+    const totalCount = part.questions.length
+    const count = opts.count && opts.count !== 'all' ? Math.min(Number(opts.count), totalCount) : 'all'
+    const isRandom = Boolean(opts.isRandom || opts.batchIndex === 'random')
+    const batchIndex = typeof opts.batchIndex === 'number' ? opts.batchIndex : 0
+
+    let questions = part.questions
+    let key = `part:${id}`
+    let batchLabel = `ทั้งหมด (${totalCount} ข้อ)`
+
+    if (count !== 'all') {
+      if (isRandom) {
+        const seed = opts.seed || Math.random().toString(36).slice(2, 8)
+        const indexed = part.questions.map((q, idx) => ({ q, idx }))
+        indexed.sort((a, b) => {
+          const ha = (a.idx * 16807 + seed.charCodeAt(0) * 31) % 2147483647
+          const hb = (b.idx * 16807 + seed.charCodeAt(0) * 31) % 2147483647
+          return ha - hb
+        })
+        questions = indexed.slice(0, count).map((item) => item.q)
+        key = `part:${id}:random:${count}:${seed}`
+        batchLabel = `สุ่ม ${count} ข้อ`
+      } else {
+        const start = batchIndex * count
+        const end = Math.min(totalCount, start + count)
+        questions = part.questions.slice(start, end)
+        key = `part:${id}:b${count}:${batchIndex}`
+        batchLabel = `ชุดที่ ${batchIndex + 1} (ข้อ ${start + 1}–${end})`
+      }
+    }
+
     return {
-      key: `part:${id}`,
+      key: opts.examKey || key,
       kind: 'part',
-      title: part.title,
-      label: `พาร์ท ${part.label}`,
+      title: count === 'all' ? part.title : `${part.title} · ${batchLabel}`,
+      label: `พาร์ท ${part.label}${count === 'all' ? '' : ` · ${batchLabel}`}`,
       partId: id,
       partLabel: part.label,
       partTitle: part.title,
       color: part.color,
       minutes: part.minutes,
-      questions: part.questions,
+      questions,
       sections: null,
+      subsetCount: count,
+      batchIndex: isRandom ? 'random' : batchIndex,
+      batchLabel,
+      subsetSeed: isRandom ? (opts.seed || key.split(':').pop()) : null,
     }
   }, [])
 
@@ -217,8 +252,8 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
   )
 
   const startPart = useCallback(
-    (id, fresh = false) => {
-      const exam = buildPartExam(id)
+    (id, fresh = false, opts = {}) => {
+      const exam = buildPartExam(id, opts)
       openExam(exam, { fresh })
     },
     [buildPartExam, openExam],
@@ -269,7 +304,12 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
           { fresh: false },
         )
       } else if (attempt.partId) {
-        startPart(attempt.partId, false)
+        startPart(attempt.partId, false, {
+          count: attempt.subsetCount,
+          batchIndex: attempt.batchIndex,
+          seed: attempt.subsetSeed,
+          examKey: attempt.key,
+        })
       }
     },
     [buildPartExam, buildSetExam, openExam, startPart, startSet],
@@ -445,10 +485,26 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
           { fresh: true },
         )
       } else if (result.partId) {
-        startPart(result.partId, true)
+        startPart(result.partId, true, {
+          count: result.subsetCount,
+          batchIndex: result.batchIndex,
+          seed: result.subsetSeed,
+        })
       }
     },
     [startPart, startSet],
+  )
+
+  const handleNextBatch = useCallback(
+    (result) => {
+      if (!result.partId) return
+      const nextBatchIndex = (typeof result.batchIndex === 'number' ? result.batchIndex : 0) + 1
+      startPart(result.partId, true, {
+        count: result.subsetCount,
+        batchIndex: nextBatchIndex,
+      })
+    },
+    [startPart],
   )
 
   const toggleInstantReveal = useCallback(() => {
@@ -780,9 +836,10 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
             part={part}
             results={results}
             attempt={attemptForPart}
+            attempts={attempts}
             onBack={back}
-            onStart={(id) => startPart(id, false)}
-            onRestart={(id) => startPart(id, true)}
+            onStart={(id, opts) => startPart(id, false, opts)}
+            onRestart={(id, opts) => startPart(id, true, opts)}
             onReadDoc={(d) => setDoc(d)}
             onOpenSources={() => navigate('sources')}
             partFileName={fileNameFor(part)}
@@ -826,6 +883,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
             onOpenArena={() => navigate('friends')}
             onHome={goHome}
             onRetry={retry}
+            onNextBatch={handleNextBatch}
             onHistory={() => navigate('history')}
             onOpenSources={() => navigate('sources')}
             onToast={showToast}

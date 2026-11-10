@@ -215,38 +215,48 @@ export default function Home({
       )}
 
       <section className="hero">
-        <span className="hero__eyebrow">
-          <Icon name="spark" size={13} /> เตรียมความพร้อม · ปีบัญชี 2569
-        </span>
-        <Mascot variant={0} size={132} color="#1D4ED8" color2="#60A5FA" className="hero__mascot" />
-        <Mascot variant={1} size={64} color="#0E7490" color2="#67E8F9" className="hero__mascot hero__mascot--2" />
-        <h2 className="hero__title">{name ? `${name} พร้อมสอบแล้ว` : 'พร้อมสอบ ธ.ก.ส. ไปกับเรา'}</h2>
-        {name && (
-          <button type="button" className="hero__switch" onClick={onOpenAccount}>
-            <Icon name="user" size={12} /> ไม่ใช่ {name}? สลับบัญชี
-          </button>
-        )}
-        <p className="hero__desc">
-          ฝึกทำข้อสอบแยกตามพาร์ท สร้างข้อสอบเสมือนจริงใหม่ได้ไม่จำกัด หยุดพักแล้วกลับมาทำต่อได้
-          พร้อมเฉลยละเอียดและรายงานผลดาวน์โหลด
-        </p>
-        <div className="hero__row">
-          <div className="hero__stats">
-            <div>
-              <div className="hero__stat-num num">{TOTAL_QUESTIONS}</div>
-              <div className="hero__stat-label">ข้อสอบในระบบ</div>
+        <div className="hero__content">
+          <span className="hero__eyebrow">
+            <Icon name="spark" size={13} /> เตรียมความพร้อม · ปีบัญชี 2569
+          </span>
+          <h2 className="hero__title">{name ? `${name} พร้อมสอบแล้ว` : 'พร้อมสอบ ธ.ก.ส. ไปกับเรา'}</h2>
+          {name && (
+            <button type="button" className="hero__switch" onClick={onOpenAccount}>
+              <Icon name="user" size={12} /> ไม่ใช่ {name}? สลับบัญชี
+            </button>
+          )}
+          <p className="hero__desc">
+            ฝึกทำข้อสอบแยกตามพาร์ท สร้างข้อสอบเสมือนจริงใหม่ได้ไม่จำกัด หยุดพักแล้วกลับมาทำต่อได้
+            พร้อมเฉลยละเอียดและรายงานผลดาวน์โหลด
+          </p>
+          <div className="hero__row">
+            <div className="hero__stats">
+              <div>
+                <div className="hero__stat-num num">{TOTAL_QUESTIONS}</div>
+                <div className="hero__stat-label">ข้อสอบในระบบ</div>
+              </div>
+              <div>
+                <div className="hero__stat-num num">{PARTS.length}</div>
+                <div className="hero__stat-label">พาร์ทสอบ</div>
+              </div>
             </div>
-            <div>
-              <div className="hero__stat-num num">{PARTS.length}</div>
-              <div className="hero__stat-label">พาร์ทสอบ</div>
-            </div>
+            <Ring value={avg} size={82}>
+              <span className="num">
+                {avg}
+                <small>คะแนนเฉลี่ย</small>
+              </span>
+            </Ring>
           </div>
-          <Ring value={avg} size={82}>
-            <span className="num">
-              {avg}
-              <small>คะแนนเฉลี่ย</small>
-            </span>
-          </Ring>
+        </div>
+
+        <div className="hero__visual" aria-hidden="true">
+          <Mascot
+            activity="reading"
+            size={240}
+            color="#1D4ED8"
+            color2="#60A5FA"
+            className="hero__mascot hero__mascot--reading"
+          />
         </div>
       </section>
 
