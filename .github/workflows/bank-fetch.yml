@@ -3,6 +3,11 @@ name: bank-fetch
 # แล้วแตกข้อความ+รูปประกอบเป็น artifact ชื่อ bank-text
 on:
   workflow_dispatch:
+  push:
+    branches: [arena/e7ec0b0f-bacc-test-2026]
+    paths:
+      - .github/workflows/bank-fetch.yml
+      - tools/bank_extract.py
 
 jobs:
   fetch:
