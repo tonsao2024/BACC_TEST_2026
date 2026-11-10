@@ -198,6 +198,14 @@ export default function Home({
         </button>
       )}
 
+      {sync && sync.status === 'off' && (
+        <button type="button" className="sync-nudge" onClick={onOpenAccount}>
+          <Icon name="refresh" size={14} />
+          <span>อยากให้ประวัติ+เกียรติบัตรตามไปทุกเครื่อง? เชื่อม GitHub ครั้งเดียวที่นี่</span>
+          <Icon name="chevron" size={13} />
+        </button>
+      )}
+
       <section className="hero">
         <span className="hero__eyebrow">
           <Icon name="spark" size={13} /> เตรียมความพร้อม · ปีบัญชี 2569

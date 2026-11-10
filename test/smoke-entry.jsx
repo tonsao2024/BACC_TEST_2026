@@ -8,7 +8,13 @@ import { certTier, certificatesFromResults } from '../src/lib/certs.js'
 import { generateExam } from '../src/lib/generator.js'
 import { parseQuestionText } from '../src/lib/importer.js'
 import { exportExamPdf } from '../src/lib/pdf.js'
-import { clearGithubConfig, saveGithubConfig } from '../src/lib/remote.js'
+import {
+  buildSyncLink,
+  clearGithubConfig,
+  parseSyncLink,
+  saveGithubConfig,
+  stripSyncLinkParam,
+} from '../src/lib/remote.js'
 import { pullAndMerge, resetSyncState } from '../src/lib/sync.js'
 import {
   clearImportedQuestions,
@@ -99,6 +105,33 @@ async function run() {
   check(
     'cert tiers gold/silver/bronze',
     certTier(90).key === 'gold' && certTier(76).key === 'silver' && certTier(60).key === 'bronze',
+  )
+
+  /* sync auto-link */
+  const locOf = (search) => ({ search, pathname: '/app/', hash: '' })
+  const gistLink = parseSyncLink(locOf('?a=1&sync=gist:ghp_testtoken1234567890:0123456789abcdef01234567'))
+  check(
+    'sync link: parses gist:token:gistId',
+    gistLink?.mode === 'gist' && gistLink?.token === 'ghp_testtoken1234567890' && gistLink?.gistId === '0123456789abcdef01234567',
+  )
+  const repoLink = parseSyncLink(locOf('?sync=repo:github_pat_abcdefghij1234567890'))
+  check('sync link: parses repo:token', repoLink?.mode === 'repo' && repoLink?.token.startsWith('github_pat_'))
+  check('sync link: rejects junk', parseSyncLink(locOf('?sync=xyz')) === null && parseSyncLink(locOf('')) === null)
+  check(
+    'sync link: stripped from address bar',
+    stripSyncLinkParam(locOf('?sync=gist:aaaaaaaaaa&x=1')) === '/app/?x=1',
+  )
+  check(
+    'buildSyncLink: reproduces a parseable link',
+    (() => {
+      const link = buildSyncLink(
+        { mode: 'gist', token: 'ghp_roundtrip1234', gistId: '0123456789abcdef01234567' },
+        'https://x.th',
+        '/app/',
+      )
+      const u = new URL(link)
+      return parseSyncLink(u)?.token === 'ghp_roundtrip1234'
+    })(),
   )
 
   const official = generateExam({ seed: 'smoke-seed', sizeKey: 'official', name: 'ชุดทดสอบ' })

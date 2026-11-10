@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import Icon from './Icons.jsx'
-import { fetchLogin, getGithubConfig, normalizeGithubConfig, saveGithubConfig, testConnection } from '../lib/remote.js'
+import {
+  buildSyncLink,
+  fetchLogin,
+  getGithubConfig,
+  normalizeGithubConfig,
+  saveGithubConfig,
+  testConnection,
+  withTargetDefaults,
+} from '../lib/remote.js'
 import { exportSnapshot } from '../lib/storage.js'
 
 const STATUS = {
@@ -37,14 +45,17 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
   const [editing, setEditing] = useState(!saved)
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState(null)
-  const [form, setForm] = useState({
-    mode: saved?.mode || 'gist',
-    owner: saved?.owner || '',
-    repo: saved?.repo || '',
-    branch: saved?.branch || 'main',
-    path: saved?.path || 'bacc-data.json',
-    token: saved?.token || '',
-    gistId: saved?.gistId || '',
+  const [form, setForm] = useState(() => {
+    const d = withTargetDefaults(saved || {})
+    return {
+      mode: d.mode,
+      owner: d.owner,
+      repo: d.repo,
+      branch: d.branch,
+      path: d.path,
+      token: d.token,
+      gistId: d.gistId,
+    }
   })
 
   useEffect(() => {
@@ -181,6 +192,31 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
               <Icon name="close" size={14} /> ยกเลิกการเชื่อมต่อ
             </button>
           </div>
+          <div className="gh__share">
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              disabled={busy === 'link'}
+              onClick={async () => {
+                const link = buildSyncLink(saved, window.location.origin, window.location.pathname)
+                if (!link) return
+                try {
+                  await navigator.clipboard.writeText(link)
+                  onToast?.('คัดลอกลิงก์เชื่อมอัตโนมัติแล้ว — แชร์ให้เครื่องอื่นได้เลย')
+                } catch {
+                  onToast?.(`ลิงก์: ${link}`, 'info')
+                }
+              }}
+            >
+              <Icon name="share" size={14} /> {busy === 'link' ? 'กำลังคัดลอก…' : 'คัดลอกลิงก์เชื่อมอัตโนมัติ'}
+            </button>
+            <p className="gh__hint" style={{ marginTop: 6 }}>
+              ส่งลิงก์นี้ให้ตัวเองบนเครื่องอื่นหรือให้เพื่อน — เปิดปุ๊บเชื่อมทันที ไม่ต้องตั้งค่า
+              <br />
+              <Icon name="lock" size={11} /> ลิงก์มี token ฝังอยู่ ต้องเก็บเป็นความลับ
+              และคนที่ใช้ลิงก์เดียวกันจะแชร์ฐานข้อมูลเดียวกัน (เลือกชื่อตัวเองที่หน้าแรกได้)
+            </p>
+          </div>
           <p className="gh__hint">
             เมื่อเชื่อมต่อแล้ว ข้อมูลจะถูกบันทึกอัตโนมัติทุกครั้งที่มีการเปลี่ยนแปลง
             (ผลสอบ ความคืบหน้า ชุดข้อสอบ และโปรไฟล์)
@@ -190,6 +226,13 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
 
       {editing && (
         <div className="gh__form">
+          {!saved && (
+            <p className="gh__hint gh__hint--link">
+              <Icon name="share" size={13} /> มีลิงก์ <b>“เชื่อมอัตโนมัติ”</b> จากเจ้าของระบบหรือไม่?
+              เปิดลิงก์นั้นได้เลย — ระบบจะเชื่อมให้เองทันทีโดยไม่ต้องกรอกฟอร์มนี้
+              หรือถ้าเป็นครั้งแรกจริง ๆ ให้ใช้ token ด้านล่าง
+            </p>
+          )}
           <div className="gh__modes">
             <button
               type="button"

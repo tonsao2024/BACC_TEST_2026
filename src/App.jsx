@@ -28,7 +28,13 @@ import {
   uidPublic,
 } from './lib/storage.js'
 import { generateExam, newSeed } from './lib/generator.js'
-import { clearGithubConfig, getGithubConfig } from './lib/remote.js'
+import {
+  clearGithubConfig,
+  getGithubConfig,
+  parseSyncLink,
+  saveGithubConfig,
+  stripSyncLinkParam,
+} from './lib/remote.js'
 import {
   getSyncState,
   pullAndMerge,
@@ -136,6 +142,13 @@ export default function App() {
   useEffect(() => {
     if (hydratedRef.current) return undefined
     hydratedRef.current = true
+    /* ลิงก์เชื่อมอัตโนมัติ: ?sync=gist:{token}:{gistId?} — ไม่ต้องตั้งค่าอะไรเลย */
+    const autoCfg = parseSyncLink(window.location)
+    if (autoCfg) {
+      saveGithubConfig(autoCfg)
+      window.history.replaceState(null, '', stripSyncLinkParam(window.location))
+      setTimeout(() => showToast('เปิดซิงก์กับ GitHub ☁️ อัตโนมัติแล้ว'), 10)
+    }
     if (!getGithubConfig()) {
       setHydrated(true)
       return undefined

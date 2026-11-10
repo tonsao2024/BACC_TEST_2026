@@ -6,8 +6,25 @@
    หมายเหตุ: token เก็บไว้ในเบราว์เซอร์ของผู้ใช้เครื่องนี้เท่านั้น และส่งตรงถึง api.github.com
    ============================================================ */
 
+import { SYNC_TARGET } from '../data/sync-target.js'
+
 const CONFIG_KEY = 'bacc2569:github'
 const API = 'https://api.github.com'
+
+/** เติมค่าเริ่มต้นจาก sync-target.js เฉพาะช่องที่ยังว่าง */
+export function withTargetDefaults(cfg = {}) {
+  const t = SYNC_TARGET || {}
+  return {
+    mode: cfg.mode === 'gist' ? 'gist' : cfg.mode === 'repo' ? 'repo' : t.mode === 'repo' ? 'repo' : 'gist',
+    token: String(cfg.token || '').trim(),
+    owner: String(cfg.owner || t.owner || '').trim(),
+    repo: String(cfg.repo || t.repo || '').trim(),
+    branch: String(cfg.branch || t.branch || 'main').trim() || 'main',
+    path: String(cfg.path || t.path || 'bacc-data.json').trim() || 'bacc-data.json',
+    gistId: String(cfg.gistId || t.gistId || '').trim(),
+    savedAt: cfg.savedAt || null,
+  }
+}
 
 const b64encode = (str) => {
   const bytes = new TextEncoder().encode(str)
@@ -32,16 +49,7 @@ export function getGithubConfig() {
     if (!raw) return null
     const cfg = JSON.parse(raw)
     if (!cfg || !cfg.token) return null
-    return {
-      mode: cfg.mode === 'gist' ? 'gist' : 'repo',
-      token: cfg.token,
-      owner: cfg.owner || '',
-      repo: cfg.repo || '',
-      branch: cfg.branch || 'main',
-      path: cfg.path || 'bacc-data.json',
-      gistId: cfg.gistId || '',
-      savedAt: cfg.savedAt || null,
-    }
+    return withTargetDefaults(cfg)
   } catch {
     return null
   }
@@ -234,4 +242,43 @@ export async function ensureRemoteFile(cfg, data) {
   if (existing) return existing
   const res = await pushRemote(cfg, data, null)
   return { data, sha: res.sha }
+}
+
+/* ============================================================
+   ลิงก์เชื่อมอัตโนมัติ — ?sync=gist:{token}:{gistId?} | ?sync=repo:{token}
+   ผู้ใช้เปิดลิงก์นี้ → ระบบบันทึก config แล้วซิงก์เลย ไม่ต้องกรอกฟอร์ม
+   ============================================================ */
+export function parseSyncLink(loc) {
+  try {
+    const sp = new URLSearchParams(loc?.search || '')
+    const val = sp.get('sync')
+    if (!val) return null
+    const m = val.match(/^(gist|repo):([^:\s?#]{8,})(?::([0-9a-f]{16,64}))?$/)
+    if (!m) return null
+    const [, mode, token, gistId] = m
+    return withTargetDefaults({ mode, token, gistId: gistId || '' })
+  } catch {
+    return null
+  }
+}
+
+/** URL สะอาด (ลบพารามิเตอร์ sync ทิ้งหลังใช้งาน เพื่อไม่ให้ token ค้างในประวัติเบราว์เซอร์) */
+export function stripSyncLinkParam(loc) {
+  const sp = new URLSearchParams(loc.search)
+  sp.delete('sync')
+  const q = sp.toString()
+  return `${loc.pathname}${q ? `?${q}` : ''}${loc.hash || ''}`
+}
+
+/** สร้างลิงก์สำหรับแชร์ให้เครื่องอื่น/เพื่อน (ใช้ config ที่เชื่อมอยู่) */
+export function buildSyncLink(cfg, origin, pathname) {
+  const clean = getSafeConfig(cfg)
+  if (!clean) return ''
+  const param = clean.mode === 'gist' ? `gist:${clean.token}:${clean.gistId || ''}` : `repo:${clean.token}`
+  return `${origin}${pathname}?sync=${encodeURIComponent(param)}`
+}
+
+const getSafeConfig = (cfg) => {
+  if (!cfg?.token) return null
+  return withTargetDefaults(cfg)
 }
