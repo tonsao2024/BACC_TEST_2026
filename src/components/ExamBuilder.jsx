@@ -3,7 +3,7 @@ import { EXAM_SECTIONS, EXAM_SIZES, generateExam, newSeed } from '../lib/generat
 import { exportExamPdf } from '../lib/pdf.js'
 import { formatThaiDateTime, humanTime, makeShareCode, parseShareCode } from '../lib/storage.js'
 import { getGithubConfig } from '../lib/remote.js'
-import { PARTS } from '../data/index.js'
+import { PARTS, TOTAL_QUESTIONS } from '../data/index.js'
 import { parseQuestionText } from '../lib/importer.js'
 import { getQbank, saveImportedQuestions } from '../lib/storage.js'
 import Icon from './Icons.jsx'
@@ -237,7 +237,7 @@ export default function ExamBuilder({
               </div>
               <div className="struct-note">
                 <Icon name="info" size={13} />
-                คละข้อสอบจากคลัง 118 ข้อ + เทมเพลตคำนวณ/ความละเอียดที่สร้างใหม่ · ซ้ำกัน{' '}
+                คละข้อสอบจากคลัง {TOTAL_QUESTIONS} ข้อ + เทมเพลตคำนวณ/ความละเอียดที่สร้างใหม่ · ซ้ำกัน{' '}
                 {preview.repeats} ข้อ
               </div>
             </div>

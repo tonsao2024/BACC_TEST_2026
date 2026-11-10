@@ -4,3 +4,4 @@ dist
 *.local
 test/.smoke.mjs
 e2e/
+out_bank/

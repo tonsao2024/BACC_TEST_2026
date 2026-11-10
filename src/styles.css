@@ -955,6 +955,8 @@ select {
   padding-top: 3px;
   color: var(--ink-2);
   word-break: break-word;
+  /* พาร์ท 2 (ความละเอียดแม่นยำ) ใช้จำนวนช่องว่างเป็นสาระของคำตอบ */
+  white-space: pre-wrap;
 }
 .option.is-selected {
   border-color: var(--viol-500);
@@ -5045,3 +5047,16 @@ select {
   line-height: 1.6;
   color: #b45309;
 }
+
+/* ภาพประกอบโจทย์จากคลังข้อสอบ (มิติสัมพันธ์ ฯลฯ) */
+.q-figure img {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: var(--r-sm, 8px);
+  background: #fff;
+}
+.q-figure img + img { margin-top: 8px; }
+.explain { white-space: pre-line; }
