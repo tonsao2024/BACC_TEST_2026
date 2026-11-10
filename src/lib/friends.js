@@ -208,17 +208,20 @@ function harvestDeviceAccounts() {
       if (m) {
         const uid = m[1]
         const profiles = JSON.parse(localStorage.getItem(k) || '[]')
-        const p = Array.isArray(profiles) ? profiles[0] : null
-        if (p?.id && p?.name) {
+        if (!Array.isArray(profiles)) continue
+        // ทุกโปรไฟล์ของทุกบัญชีที่เคยใช้เครื่องนี้ต้องขึ้นในรายชื่อ ไม่ใช่แค่โปรไฟล์แรก
+        profiles.forEach((p, idx) => {
+          if (!p?.id || !p?.name) return
           const rKey = `bacc-user:${uid}:bacc2569:results:${p.id}`
           const rs = JSON.parse(localStorage.getItem(rKey) || '[]')
-          discovered[uid] = {
-            id: uid,
+          const id = idx === 0 ? uid : `local:${uid}:${p.id}`
+          discovered[id] = {
+            id,
             name: p.name,
             stats: computePublicStats(Array.isArray(rs) ? rs : []),
             updatedAt: p.createdAt || new Date(0).toISOString(),
           }
-        }
+        })
       }
     }
     // Also harvest current scope profiles & legacy profiles if non-cloud
@@ -298,33 +301,44 @@ function mergeMatchEntry(prev, next) {
   }
 }
 
-/** Deduplicate friends where local legacy profile has the exact same normalized name as a real cloud user */
+/** รวมรายชื่อเป็น directory เดียว
+ *  - บัญชีจริง (ไม่ใช่ local:) ต้องได้แถวของตัวเองเสมอ แม้ตั้งชื่อซ้ำกัน
+ *  - รายการ local: (โปรไฟล์เก่า/โปรไฟล์ในเครื่อง) จะยุบรวมกับ "คนเดียวกัน" ที่ชื่อตรงกันเท่านั้น
+ */
 export function normalizeFriendDirectory(friendsMap, onlineIds = new Set(), meId = null) {
   const entries = Object.values(friendsMap || {}).filter((f) => f && f.id && f.name)
-  const byNormName = new Map()
+  const isLocalMirror = (f) => String(f.id).startsWith('local:')
+  const byId = new Map()
 
-  entries.forEach((f) => {
-    const key = normalizeName(f.name)
-    const existing = byNormName.get(key)
-    if (!existing) {
-      byNormName.set(key, f)
-      return
-    }
-    // Prefer meId, then non-legacy cloud user_id, then higher exam count / newer timestamp
-    const existingIsCloud = !String(existing.id).startsWith('local:')
-    const nextIsCloud = !String(f.id).startsWith('local:')
-    if (f.id === meId || (nextIsCloud && !existingIsCloud)) {
-      byNormName.set(key, mergeFriendEntry(existing, f))
-    } else if (existing.id === meId || (existingIsCloud && !nextIsCloud)) {
-      byNormName.set(key, mergeFriendEntry(f, existing))
-    } else {
-      const c1 = existing.stats?.count || 0
-      const c2 = f.stats?.count || 0
-      byNormName.set(key, c2 >= c1 ? mergeFriendEntry(existing, f) : mergeFriendEntry(f, existing))
-    }
+  entries.filter((f) => !isLocalMirror(f)).forEach((f) => {
+    byId.set(f.id, f)
   })
 
-  return Array.from(byNormName.values())
+  entries.filter(isLocalMirror).forEach((f) => {
+    const key = normalizeName(f.name)
+    const me = meId ? byId.get(meId) : null
+    let targetId = me && normalizeName(me.name) === key ? meId : null
+    if (!targetId) {
+      for (const [id, entry] of byId) {
+        if (normalizeName(entry.name) === key) {
+          targetId = id
+          break
+        }
+      }
+    }
+    if (!targetId) {
+      byId.set(f.id, f)
+      return
+    }
+    const base = byId.get(targetId)
+    byId.set(targetId, {
+      ...mergeFriendEntry(base, { ...f, id: targetId, name: base.name }),
+      id: targetId,
+      name: base.name,
+    })
+  })
+
+  return Array.from(byId.values())
     .map((f) => {
       const stats = f.stats || computePublicStats([])
       const isMe = Boolean(meId && f.id === meId)
@@ -406,13 +420,22 @@ function dbRowToMatch(row, playerRows = []) {
 /* ============================================================
    Live Arena Session Controller
    ============================================================ */
-export function createArenaController({ userId, userName, getResults, onChange, client = supabase }) {
+export function createArenaController({
+  userId,
+  userName,
+  getResults,
+  onChange,
+  client = supabase,
+  profileId = null,
+}) {
   let destroyed = false
   let dbReady = Boolean(client)
   let channel = null
   let bc = null
   let currentName = userName || 'ผู้เข้าสอบ'
   let currentActivity = 'online'
+  let pulling = null
+  let directoryStatus = { syncing: false, source: client ? 'pending' : 'local', error: null, syncedAt: null }
   const onlineIds = new Set(userId ? [userId] : [])
 
   const state = (() => {
@@ -421,9 +444,12 @@ export function createArenaController({ userId, userName, getResults, onChange, 
     Object.entries(harvested).forEach(([id, entry]) => {
       initial.friends[id] = mergeFriendEntry(initial.friends[id], entry)
     })
-    // Also include non-scoped profiles if running without cloud auth
-    getProfiles().forEach((p) => {
-      const id = userId || p.id
+    // โปรไฟล์ในเครื่อง: ของตัวเองใช้ user id หลัก โปรไฟล์อื่นต้องมี id ของตัวเองเพื่อไม่ให้ยุบหาย
+    const localProfiles = getProfiles()
+    localProfiles.forEach((p) => {
+      if (!p?.id || !p?.name) return
+      const isSelfProfile = profileId ? p.id === profileId : localProfiles.length === 1
+      const id = userId ? (isSelfProfile ? userId : `local:${p.id}`) : p.id
       const rs = loadResults(p.id)
       initial.friends[id] = mergeFriendEntry(initial.friends[id], {
         id,
@@ -438,12 +464,18 @@ export function createArenaController({ userId, userName, getResults, onChange, 
 
   const emit = () => {
     if (destroyed) return
+    const friends = normalizeFriendDirectory(state.friends, onlineIds, userId)
     onChange?.({
-      friends: normalizeFriendDirectory(state.friends, onlineIds, userId),
+      friends,
       matches: Object.values(state.matches)
         .filter((m) => m && m.id && m.status !== 'cancelled')
         .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)),
       pref: getChallengePref(userId),
+      directory: {
+        ...directoryStatus,
+        count: friends.length,
+        cloudCount: friends.filter((f) => !String(f.id).startsWith('local:')).length,
+      },
     })
   }
 
@@ -547,66 +579,134 @@ export function createArenaController({ userId, userName, getResults, onChange, 
   }
 
   /* ---------- fetch full directory & matches from Supabase DB ---------- */
-  const pullFromDatabase = async () => {
-    if (!dbReady || !client?.from) return
-    try {
-      const profQuery = client
-        .from('friend_profiles')
-        .select('user_id, display_name, stats, last_seen_at, updated_at')
-      if (typeof profQuery?.then === 'function' || typeof profQuery?.order === 'function') {
-        const { data: rows, error } = await (profQuery.order
-          ? profQuery.order('updated_at', { ascending: false })
-          : profQuery)
-        if (error) {
-          if (error.code === '42P01' || error.code === 'PGRST205') dbReady = false
-          return
-        }
-        if (Array.isArray(rows)) {
-          rows.forEach((r) => {
-            applyIncomingFriend(
-              {
-                id: r.user_id,
-                name: r.display_name,
-                stats: r.stats || computePublicStats([]),
-                lastSeenAt: r.last_seen_at,
-                updatedAt: r.updated_at,
-              },
-              false,
-            )
-          })
-        }
-      }
-
-      if (!dbReady) return
-      const matchQuery = client
-        .from('friend_matches')
-        .select('*')
-        .order?.('updated_at', { ascending: false })
-        .limit?.(40)
-      if (matchQuery) {
-        const { data: mRows, error: mErr } = await matchQuery
-        if (!mErr && Array.isArray(mRows) && mRows.length > 0) {
-          const ids = mRows.map((m) => m.id)
-          const { data: pRows } = await client
-            .from('friend_match_players')
-            .select('*')
-            .in('match_id', ids)
-          const byMatch = new Map()
-          ;(pRows || []).forEach((p) => {
-            const arr = byMatch.get(p.match_id) || []
-            arr.push(p)
-            byMatch.set(p.match_id, arr)
-          })
-          mRows.forEach((m) => {
-            applyIncomingMatch(dbRowToMatch(m, byMatch.get(m.id) || []), false)
-          })
-        }
-      }
-      writeLocalArena(state)
-      emit()
-    } catch {
-      /* ignore in mocks / offline */
+  const directoryErrorText = (err) => {
+    if (!err) return null
+    if (err.code === '42P01' || err.code === 'PGRST205') {
+      return 'ยังไม่มีตาราง friend_profiles ในฐานข้อมูล (ต้องรัน migration friend_arena)'
     }
+    if (err.code === '42501' || /permission|policy|rls/i.test(String(err.message || ''))) {
+      return 'ฐานข้อมูลไม่อนุญาตให้อ่านรายชื่อเพื่อน (ตรวจ RLS ของ friend_profiles)'
+    }
+    return err.message || String(err)
+  }
+
+  const applyDirectoryRows = (rows) => {
+    let applied = 0
+    ;(Array.isArray(rows) ? rows : []).forEach((r) => {
+      const id = r?.user_id || r?.id
+      const name = r?.display_name || r?.name
+      if (!id || !name) return
+      applyIncomingFriend(
+        {
+          id,
+          name,
+          stats: r.stats || computePublicStats([]),
+          lastSeenAt: r.last_seen_at || r.updatedAt || null,
+          updatedAt: r.updated_at || r.updatedAt || new Date().toISOString(),
+        },
+        false,
+      )
+      applied += 1
+    })
+    return applied
+  }
+
+  const pullFromDatabase = () => {
+    if (pulling) return pulling
+    if (!client?.from) {
+      directoryStatus = { ...directoryStatus, syncing: false, source: 'local' }
+      return Promise.resolve(null)
+    }
+
+    pulling = (async () => {
+      directoryStatus = { ...directoryStatus, syncing: true, error: null }
+      emit()
+      let source = 'local'
+      let errorText = null
+      let otherAccounts = 0
+
+      try {
+        if (dbReady) {
+          const profQuery = client
+            .from('friend_profiles')
+            .select('user_id, display_name, stats, last_seen_at, updated_at')
+          const { data: rows, error } = await (profQuery?.order
+            ? profQuery.order('updated_at', { ascending: false })
+            : profQuery)
+          if (error) {
+            errorText = directoryErrorText(error)
+            if (error.code === '42P01' || error.code === 'PGRST205') dbReady = false
+          } else if (Array.isArray(rows)) {
+            applyDirectoryRows(rows)
+            otherAccounts = rows.filter((r) => r?.user_id && r.user_id !== userId).length
+            if (rows.length) source = 'cloud'
+          }
+        }
+
+        /* RPC สำรอง: การันตีรายชื่อทุกบัญชีในระบบ แม้ตาราง friend_profiles จะว่างหรือ backfill ไม่ครบ */
+        if (typeof client?.rpc === 'function') {
+          try {
+            const { data: dirRows, error: rpcErr } = await client.rpc('list_friend_directory')
+            if (!rpcErr && Array.isArray(dirRows) && dirRows.length) {
+              applyDirectoryRows(dirRows)
+              const fromRpc = dirRows.filter((r) => (r?.user_id || r?.id) !== userId).length
+              if (fromRpc > otherAccounts) otherAccounts = fromRpc
+              if (otherAccounts > 0) source = 'cloud-rpc'
+            } else if (rpcErr) {
+              const text = directoryErrorText(rpcErr)
+              if (!errorText && otherAccounts === 0) errorText = text
+            }
+          } catch (rpcThrown) {
+            if (!errorText && otherAccounts === 0) errorText = String(rpcThrown?.message || rpcThrown)
+          }
+        }
+
+        /* matches */
+        if (dbReady) {
+          const matchQuery = client
+            .from('friend_matches')
+            .select('*')
+            .order?.('updated_at', { ascending: false })
+            .limit?.(40)
+          if (matchQuery) {
+            const { data: mRows, error: mErr } = await matchQuery
+            if (!mErr && Array.isArray(mRows) && mRows.length > 0) {
+              const ids = mRows.map((m) => m.id)
+              const { data: pRows } = await client
+                .from('friend_match_players')
+                .select('*')
+                .in('match_id', ids)
+              const byMatch = new Map()
+              ;(pRows || []).forEach((p) => {
+                const arr = byMatch.get(p.match_id) || []
+                arr.push(p)
+                byMatch.set(p.match_id, arr)
+              })
+              mRows.forEach((m) => {
+                applyIncomingMatch(dbRowToMatch(m, byMatch.get(m.id) || []), false)
+              })
+            }
+          }
+        }
+
+        if (otherAccounts === 0 && source.startsWith('cloud')) source = 'cloud-me-only'
+      } catch (err) {
+        errorText = errorText || String(err?.message || err)
+      } finally {
+        pulling = null
+        directoryStatus = {
+          syncing: false,
+          source,
+          error: errorText,
+          syncedAt: new Date().toISOString(),
+        }
+        writeLocalArena(state)
+        emit()
+      }
+      return directoryStatus
+    })()
+
+    return pulling
   }
 
   /* ---------- persist match to DB + broadcast ---------- */

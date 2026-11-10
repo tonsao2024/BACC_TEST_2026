@@ -86,6 +86,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
     friends: [],
     matches: [],
     pref: getChallengePref(authUser?.id || profile?.id || null),
+    directory: null,
   }))
   const [homeInspectId, setHomeInspectId] = useState(null)
   const [homeCreateForIds, setHomeCreateForIds] = useState(null)
@@ -481,6 +482,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
     const ctrl = createArenaController({
       userId: meId,
       userName: profile.name || authUser?.user_metadata?.display_name || 'ผู้เข้าสอบ',
+      profileId: profile.id,
       getResults: () => loadResults(profile.id),
       onChange: (next) => setArena(next),
     })
@@ -499,6 +501,11 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
       activity: view === 'quiz' ? 'in-quiz' : 'online',
     })
   }, [profile, results, view])
+
+  const refreshFriends = useCallback(
+    () => arenaRef.current?.pullFromDatabase?.(),
+    [],
+  )
 
   useEffect(() => {
     const until = arena.pref?.snoozedUntil || 0
@@ -721,7 +728,12 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
             board={board}
             matches={arena.matches}
             meId={meId}
-            onOpenArena={() => navigate('friends')}
+            directory={arena.directory}
+            onRefreshFriends={refreshFriends}
+            onOpenArena={() => {
+              refreshFriends()
+              navigate('friends')
+            }}
             onChallengeFriend={(f) => setHomeCreateForIds(f?.id ? [f.id] : [])}
             onInspectFriend={(f) => setHomeInspectId(f?.id || null)}
             onCreateMatch={() => setHomeCreateForIds([])}
@@ -738,6 +750,8 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
             meId={meId}
             meStats={meStats}
             challengePref={arena.pref}
+            directory={arena.directory}
+            onRefreshFriends={refreshFriends}
             onBack={back}
             onCreateMatch={handleCreateArenaMatch}
             onAcceptMatch={handleAcceptChallenge}
