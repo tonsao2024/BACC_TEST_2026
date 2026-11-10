@@ -133,6 +133,8 @@ export default function Home({
   onInspectFriend,
   onCreateMatch,
   onOpenMatch,
+  directory = null,
+  onRefreshFriends,
 }) {
   const attempted = new Set(results.map((r) => r.partId))
   const done = PARTS.filter((p) => attempted.has(p.id)).length
@@ -304,6 +306,8 @@ export default function Home({
 
       <FriendBoard
         board={board}
+        directory={directory}
+        onRefreshFriends={onRefreshFriends}
         matches={matches}
         meId={meId}
         meName={name}

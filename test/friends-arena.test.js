@@ -165,3 +165,142 @@ test('multiplayer arena lists all system friends, preserves stats of non-competi
   charlieCtrl.destroy()
   dianaCtrl.destroy()
 })
+
+/* ------------------------------------------------------------------
+   Regression: "แข่งขันกับเพื่อน" ต้องเห็นเพื่อนทุกคนในระบบ ไม่ใช่แค่ตัวเอง
+   ------------------------------------------------------------------ */
+
+const uid = (n) => `00000000-0000-0000-0000-00000000000${n}`
+
+function mockClient({ profiles = [], profilesError = null, directory = null, directoryError = null } = {}) {
+  const make = (result) => {
+    const q = {
+      select: () => q,
+      order: () => q,
+      limit: () => q,
+      in: () => q,
+      upsert: () => Promise.resolve({ error: null }),
+      then: (res, rej) => Promise.resolve(result).then(res, rej),
+    }
+    return q
+  }
+  return {
+    from(table) {
+      if (table === 'friend_profiles') return make({ data: profiles, error: profilesError })
+      return make({ data: [], error: null })
+    },
+    rpc() {
+      return Promise.resolve({ data: directory, error: directoryError })
+    },
+    channel() {
+      return { on() { return this }, subscribe() { return this }, track: () => Promise.resolve(), send() {} }
+    },
+    removeChannel() {},
+  }
+}
+
+test('บัญชีต่างคนที่ตั้งชื่อซ้ำกันต้องไม่ถูกยุบหายจากรายชื่อเพื่อน', async () => {
+  localStorage.data.clear()
+  const duplicateName = 'ผู้เข้าสอบ'
+  const client = mockClient({
+    profiles: [
+      { user_id: uid(1), display_name: duplicateName, stats: { count: 1, avg: 50, best: 50 }, updated_at: '2026-11-10T01:00:00Z' },
+      { user_id: uid(2), display_name: duplicateName, stats: { count: 2, avg: 60, best: 70 }, updated_at: '2026-11-10T02:00:00Z' },
+      { user_id: uid(3), display_name: duplicateName, stats: { count: 3, avg: 70, best: 90 }, updated_at: '2026-11-10T03:00:00Z' },
+      { user_id: uid(4), display_name: 'เพื่อนสี่', stats: { count: 0, avg: 0, best: 0 }, updated_at: '2026-11-10T04:00:00Z' },
+    ],
+  })
+  let latest = null
+  const ctrl = createArenaController({
+    userId: uid(1),
+    userName: duplicateName,
+    getResults: () => [],
+    onChange: (s) => { latest = s },
+    client,
+  })
+  await new Promise((r) => setTimeout(r, 50))
+
+  assert.equal(latest.friends.length, 4, 'ทุกบัญชีต้องมีแถวของตัวเอง แม้ชื่อจะซ้ำกัน')
+  assert.equal(latest.friends.filter((f) => f.isMe).length, 1)
+  ctrl.destroy()
+})
+
+test('โปรไฟล์หลายโปรไฟล์ในเครื่องเดียวกันต้องขึ้นครบ ไม่ยุบเหลือแค่ของตัวเอง', async () => {
+  localStorage.data.clear()
+  localStorage.setItem(
+    'bacc-user:u-alice:bacc2569:profiles',
+    JSON.stringify([
+      { id: 'p1', name: 'อลิซ' },
+      { id: 'p2', name: 'เพื่อนร่วมเครื่อง 1' },
+      { id: 'p3', name: 'เพื่อนร่วมเครื่อง 2' },
+    ]),
+  )
+  let latest = null
+  const ctrl = createArenaController({
+    userId: 'u-alice',
+    userName: 'อลิซ',
+    profileId: 'p1',
+    getResults: () => [],
+    onChange: (s) => { latest = s },
+    client: null,
+  })
+  await new Promise((r) => setTimeout(r, 30))
+
+  const names = latest.friends.map((f) => f.name)
+  assert.equal(latest.friends.length, 3, `expected 3 friends, got ${JSON.stringify(names)}`)
+  assert.ok(latest.friends.find((f) => f.name === 'อลิซ' && f.isMe))
+  assert.ok(latest.friends.find((f) => f.name === 'เพื่อนร่วมเครื่อง 1'))
+  assert.ok(latest.friends.find((f) => f.name === 'เพื่อนร่วมเครื่อง 2'))
+  ctrl.destroy()
+})
+
+test('ถ้าตาราง friend_profiles มีแค่ตัวเอง ระบบจะดึงรายชื่อจาก RPC สำรองให้ครบ', async () => {
+  localStorage.data.clear()
+  const me = { user_id: uid(1), display_name: 'อลิซ', stats: { count: 1, avg: 70, best: 70 }, updated_at: '2026-11-10T01:00:00Z' }
+  const client = mockClient({
+    profiles: [me],
+    directory: [
+      me,
+      { user_id: uid(2), display_name: 'บ็อบ', stats: { count: 2, avg: 80, best: 85 }, updated_at: '2026-11-10T02:00:00Z' },
+      { user_id: uid(3), display_name: 'ชาร์ลี', stats: { count: 0, avg: 0, best: 0 }, updated_at: '2026-11-10T03:00:00Z' },
+    ],
+  })
+  let latest = null
+  const ctrl = createArenaController({
+    userId: uid(1),
+    userName: 'อลิซ',
+    getResults: () => [],
+    onChange: (s) => { latest = s },
+    client,
+  })
+  await new Promise((r) => setTimeout(r, 80))
+
+  assert.equal(latest.friends.length, 3)
+  assert.equal(latest.directory.source, 'cloud-rpc')
+  assert.equal(latest.directory.cloudCount, 3)
+  assert.equal(latest.directory.error, null)
+  ctrl.destroy()
+})
+
+test('ถ้าดึงรายชื่อจากคลาวด์ไม่สำเร็จ ต้องรายงานสถานะให้ผู้ใช้เห็น ไม่เงียบ', async () => {
+  localStorage.data.clear()
+  const client = mockClient({
+    profiles: [],
+    profilesError: { code: '42501', message: 'permission denied for table friend_profiles' },
+    directory: null,
+    directoryError: { message: 'permission denied for function list_friend_directory' },
+  })
+  let latest = null
+  const ctrl = createArenaController({
+    userId: uid(1),
+    userName: 'อลิซ',
+    getResults: () => [],
+    onChange: (s) => { latest = s },
+    client,
+  })
+  await new Promise((r) => setTimeout(r, 80))
+
+  assert.ok(latest.directory.error, 'ต้องมีข้อความบอกว่าซิงก์ไม่สำเร็จ')
+  assert.equal(latest.directory.syncing, false)
+  ctrl.destroy()
+})

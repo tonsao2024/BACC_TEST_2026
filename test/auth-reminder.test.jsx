@@ -9,6 +9,7 @@ import Quiz from '../src/components/Quiz.jsx'
 import PartDetail from '../src/components/PartDetail.jsx'
 import Result from '../src/components/Result.jsx'
 import FriendArena, { ChallengePopup } from '../src/components/FriendArena.jsx'
+import FriendBoard from '../src/components/FriendBoard.jsx'
 import { getPart, RECRUITMENT_NOTICE, SOURCE_FILES } from '../src/data/index.js'
 
 const { act, cleanup, fireEvent, render, screen, waitFor } = await import('@testing-library/react')
@@ -316,3 +317,43 @@ describe('responsive exam UI & figure zoom', () => {
   })
 })
 
+
+describe('friend directory sync status', () => {
+  afterEach(cleanup)
+
+  it('shows how many accounts the cloud directory returned and can be refreshed', () => {
+    let refreshed = 0
+    render(
+      <FriendBoard
+        board={[
+          { id: 'u1', name: 'สมชาย', isMe: true, online: true, count: 1, avg: 70, best: 70 },
+          { id: 'u2', name: 'สมหญิง', isMe: false, online: false, count: 2, avg: 80, best: 90 },
+        ]}
+        matches={[]}
+        meId="u1"
+        meName="สมชาย"
+        directory={{ syncing: false, source: 'cloud', error: null, cloudCount: 2, syncedAt: '2026-11-10T03:00:00Z' }}
+        onRefreshFriends={() => { refreshed += 1 }}
+        onOpenArena={() => {}}
+      />,
+    )
+    assert.ok(screen.getByText(/พบ 2 บัญชีในระบบ/))
+    fireEvent.click(screen.getByRole('button', { name: /รีเฟรชรายชื่อเพื่อน/ }))
+    assert.equal(refreshed, 1)
+  })
+
+  it('surfaces a sync failure instead of silently showing only your own row', () => {
+    render(
+      <FriendBoard
+        board={[{ id: 'u1', name: 'สมชาย', isMe: true, online: true, count: 1, avg: 70, best: 70 }]}
+        matches={[]}
+        meId="u1"
+        meName="สมชาย"
+        directory={{ syncing: false, source: 'local', error: 'ต้องรัน migration friend_arena', syncedAt: null }}
+        onOpenArena={() => {}}
+      />,
+    )
+    assert.ok(screen.getByText(/ซิงก์รายชื่อเพื่อนจากคลาวด์ไม่สำเร็จ/))
+    assert.ok(screen.getByText(/migration friend_arena/))
+  })
+})

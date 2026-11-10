@@ -791,6 +791,8 @@ export default function FriendArena({
   onInviteMore,
   onCancelMatch,
   onResetMute,
+  directory = null,
+  onRefreshFriends,
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -927,6 +929,29 @@ export default function FriendArena({
               <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
                 แตะ “ดูสถิติ” เพื่อดูคะแนนเฉลี่ย พาร์ทที่ถนัด และประวัติสอบของเพื่อน (ดูได้แม้เพื่อนไม่ได้ตอบรับคำท้า)
               </p>
+              {directory && (
+                <p className={`arena-dir-status board__status--${
+                  directory.error || !String(directory.source || '').startsWith('cloud') ? 'warn' : 'ok'
+                }`} role="status">
+                  {directory.syncing
+                    ? '⏳ กำลังอัปเดตรายชื่อเพื่อนจากคลาวด์…'
+                    : directory.error
+                      ? `⚠️ ซิงก์รายชื่อไม่สำเร็จ: ${directory.error}`
+                      : String(directory.source || '').startsWith('cloud')
+                        ? `☁️ ซิงก์จากคลาวด์แล้ว · ${directory.cloudCount ?? friends.length} บัญชีในระบบ`
+                        : '📱 ยังไม่ได้ซิงก์จากคลาวด์ · ใช้รายชื่อที่บันทึกไว้ในเครื่องนี้'}
+                  {onRefreshFriends && (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm arena-dir-status__btn"
+                      onClick={onRefreshFriends}
+                      disabled={Boolean(directory.syncing)}
+                    >
+                      รีเฟรช
+                    </button>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 

@@ -13,12 +13,43 @@ export default function FriendBoard({
   onInspectFriend,
   onCreateMatch,
   onOpenMatch,
+  directory = null,
+  onRefreshFriends,
 }) {
   const [showAll, setShowAll] = useState(false)
   const visible = showAll ? board : board.slice(0, 8)
   const activeMatches = matches.filter((m) => m.status === 'waiting' || m.status === 'active')
   const myActiveMatch =
     activeMatches.find((m) => (m.players || []).some((p) => p.userId === meId)) || activeMatches[0] || null
+
+  const directoryStatus = (() => {
+    if (!directory) return null
+    if (directory.syncing) return { icon: '⏳', text: 'กำลังอัปเดตรายชื่อเพื่อนจากคลาวด์…', tone: 'busy' }
+    if (!directory.source || directory.source === 'pending') {
+      return { icon: '⏳', text: 'กำลังเชื่อมต่อรายชื่อเพื่อนจากคลาวด์…', tone: 'busy' }
+    }
+    if (directory.error) {
+      return { icon: '⚠️', text: `ซิงก์รายชื่อเพื่อนจากคลาวด์ไม่สำเร็จ: ${directory.error}`, tone: 'warn' }
+    }
+    if (directory.source === 'cloud' || directory.source === 'cloud-rpc') {
+      const when = directory.syncedAt
+        ? new Date(directory.syncedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+        : ''
+      return {
+        icon: '☁️',
+        text: `ซิงก์รายชื่อจากคลาวด์แล้ว · พบ ${directory.cloudCount ?? board.length} บัญชีในระบบ${when ? ` · ${when} น.` : ''}`,
+        tone: 'ok',
+      }
+    }
+    if (directory.source === 'cloud-me-only') {
+      return {
+        icon: '☁️',
+        text: 'คลาวด์มีแค่บัญชีของคุณ · ยังไม่พบบัญชีอื่นในระบบ (หรือรายชื่อเดิมยังไม่ถูก backfill)',
+        tone: 'warn',
+      }
+    }
+    return { icon: '📱', text: 'ยังไม่ได้ซิงก์รายชื่อจากคลาวด์ · ใช้รายชื่อที่บันทึกไว้ในเครื่องนี้', tone: 'warn' }
+  })()
 
   return (
     <section className="section friend-board">
@@ -32,6 +63,17 @@ export default function FriendBoard({
           </p>
         </div>
         <div className="friend-board__head-actions">
+          {onRefreshFriends && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={onRefreshFriends}
+              disabled={Boolean(directory?.syncing)}
+              aria-label="รีเฟรชรายชื่อเพื่อนจากคลาวด์"
+            >
+              <Icon name="refresh" size={13} /> รีเฟรชรายชื่อ
+            </button>
+          )}
           <button type="button" className="btn btn--soft btn--sm" onClick={onOpenArena}>
             ดูเพิ่มเติม
           </button>
@@ -44,6 +86,12 @@ export default function FriendBoard({
           </button>
         </div>
       </div>
+
+      {directoryStatus && (
+        <p className={`board__status board__status--${directoryStatus.tone}`} role="status">
+          <span aria-hidden="true">{directoryStatus.icon}</span> {directoryStatus.text}
+        </p>
+      )}
 
       {myActiveMatch && (
         <button
