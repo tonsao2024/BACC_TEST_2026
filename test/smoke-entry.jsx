@@ -5,12 +5,16 @@ import { act } from 'react-dom/test-utils'
 import App from '../src/App.jsx'
 import { PARTS, MOCK_PART, TOTAL_QUESTIONS } from '../src/data/index.js'
 import { generateExam } from '../src/lib/generator.js'
+import { parseQuestionText } from '../src/lib/importer.js'
 import { exportExamPdf } from '../src/lib/pdf.js'
 import { clearGithubConfig, saveGithubConfig } from '../src/lib/remote.js'
 import { pullAndMerge, resetSyncState } from '../src/lib/sync.js'
 import {
+  clearImportedQuestions,
   exportSnapshot,
   getProfiles,
+  importedQuestions,
+  saveImportedQuestions,
   getSettings,
   listAttempts,
   makeShareCode,
@@ -28,7 +32,11 @@ function byText(selector, needle) {
 }
 
 const type = (input, value) => {
-  const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value').set
+  const proto =
+    input.tagName === 'TEXTAREA'
+      ? dom.window.HTMLTextAreaElement.prototype
+      : dom.window.HTMLInputElement.prototype
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value').set
   setter.call(input, value)
   input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
 }
@@ -123,6 +131,42 @@ async function run() {
   check('settings persist', saveSettings({ sound: true }).sound === true && getSettings().sound === true)
   saveSettings({ sound: false })
 
+  /* importer: parse the real DOCX text format */
+  const SAMPLE_BANK = `ข้อ 1. จงหาจำนวนถัดไปของอนุกรม  3  6  11  18  27  ?
+คณิตศาสตร์ › อนุกรมและลำดับ
+1)  36
+2)  37
+3)  38
+4)  39
+
+ข้อ 2. ถ้าซื้อสินค้าราคา 250 บาท ลด 20% ต้องจ่ายกี่บาท
+คณิตศาสตร์ › ดอกเบี้ยและการเงิน
+1)  180
+2)  200
+3)  210
+4)  220
+
+เฉลย
+1. 2 — อนุกรมเพิ่มขึ้นทีละ 3, 5, 7, 9 ดังนั้นถัดไป 36
+2. 2`
+  const parsedBank = parseQuestionText(SAMPLE_BANK)
+  check(
+    'importer parses DOCX-style questions',
+    parsedBank.questions.length === 2 && parsedBank.questions[0].o[1] === '37',
+    `${parsedBank.questions.length} ข้อ`,
+  )
+  check(
+    'importer maps answer key + explanation',
+    parsedBank.questions[0].a === 1 && parsedBank.questions[0].e.includes('อนุกรม'),
+    `a=${parsedBank.questions[0].a}`,
+  )
+  const savedImport = saveImportedQuestions('part11', parsedBank.questions)
+  check('imported questions stored per part', savedImport.added === 2 && importedQuestions('part11').length === 2)
+  const dupe = saveImportedQuestions('part11', parsedBank.questions)
+  check('importer skips duplicates', dupe.added === 0 && dupe.total === 2)
+  clearImportedQuestions('part11')
+  check('imported bank can be cleared', importedQuestions('part11').length === 0)
+
   /* ================= 2. profile gate ================= */
   await act(async () => {
     root.render(<App />)
@@ -149,11 +193,38 @@ async function run() {
   check('home lists all parts', document.querySelectorAll('.part-card').length >= 12)
   check('bottom nav has 5 items', document.querySelectorAll('.nav-item').length === 5)
   check('exam-set hero rendered', !!document.querySelector('.set-hero'))
+  check('hero mascot rendered', document.querySelectorAll('.hero__mascot svg, svg.hero__mascot').length >= 1)
+  check(
+    'part cards carry animated mascots',
+    document.querySelectorAll('.part-mascot .mascot').length >= 11 &&
+      document.querySelectorAll('svg.mascot').length >= 12,
+    `${document.querySelectorAll('svg.mascot').length} mascots`,
+  )
+  check('friend leaderboard rendered', !!document.querySelector('.friend-board'))
+  check(
+    'leaderboard lists testers',
+    document.querySelectorAll('.board__row').length >= 1,
+    `${document.querySelectorAll('.board__row').length} rows`,
+  )
   check(
     'copyright credit shown',
     (document.querySelector('.copyright')?.textContent || '').includes('Ton Skywalker') &&
       (document.querySelector('.copyright')?.textContent || '').includes('ห้ามเผยแพร่'),
   )
+
+  /* quick account switch from home */
+  check('hero offers account switch', !!document.querySelector('.hero__switch'))
+  await tap(document.querySelector('.hero__switch'), 50)
+  check('quick switch opens account sheet', !!document.querySelector('.acct'))
+  await tap(document.querySelector('.acct__head-actions .btn'), 40)
+  check(
+    'account sheet jumps to switcher',
+    Array.from(document.querySelectorAll('.seg__item')).some(
+      (el) => el.getAttribute('aria-selected') === 'true' && (el.textContent || '').includes('สลับผู้ใช้'),
+    ),
+  )
+  await tap(document.querySelector('.sheet-backdrop'), 40)
+  check('account sheet closed', !document.querySelector('.acct'))
 
   /* toggle dark mode */
   await tap(document.querySelector('.topbar__theme'), 30)
@@ -278,6 +349,21 @@ async function run() {
   )
   check('set owner recorded', sets[0]?.owner === 'สมชาย ใจดี', sets[0]?.owner)
 
+  /* importer UI */
+  const importArea = document.querySelector('.import-area')
+  check('exam builder offers question importer', !!importArea)
+  await act(async () => {
+    type(importArea, SAMPLE_BANK)
+    await sleep(30)
+  })
+  await tap(byText('.import-actions button', 'ตรวจสอบข้อความ'), 60)
+  check('import preview shows parsed items', document.querySelectorAll('.import-preview__row').length >= 2)
+  check(
+    'import preview counts questions',
+    (document.querySelector('.import-count')?.textContent || '').includes('พบ 2 ข้อ'),
+    (document.querySelector('.import-count')?.textContent || '').slice(0, 30),
+  )
+
   /* exam pdf export (direct, full set) */
   await act(async () => {
     await exportExamPdf(mini, { examinee: 'สมชาย ใจดี', includeAnswers: true })
@@ -333,6 +419,7 @@ async function run() {
   await tap(byText('.btn', 'กลับหน้าแรก'), 60)
   await tap(byText('.nav-item', 'ผลสอบ'), 40)
   check('history lists both results', document.querySelectorAll('.hist-card').length === 2)
+
   check('history has type filter', document.querySelectorAll('.seg__item').length === 3)
   await tap(byText('.seg__item', 'ชุดสอบ'), 30)
   check('history filter works', document.querySelectorAll('.hist-card').length === 1)
@@ -385,6 +472,12 @@ async function run() {
 
   /* ================= 9. github sync ================= */
   await tap(byText('.nav-item', 'หน้าแรก'), 50)
+  check(
+    'leaderboard reflects results',
+    Array.from(document.querySelectorAll('.board__row')).some((r) =>
+      (r.textContent || '').includes('%'),
+    ),
+  )
   await tap(document.querySelector('.avatar--btn'), 50)
   check('github panel rendered in settings', !!document.querySelector('.gh'))
   check('github panel explains storage', text().includes('คลังข้อมูล GitHub'))

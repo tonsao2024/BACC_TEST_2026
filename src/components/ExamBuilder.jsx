@@ -3,6 +3,9 @@ import { EXAM_SECTIONS, EXAM_SIZES, generateExam, newSeed } from '../lib/generat
 import { exportExamPdf } from '../lib/pdf.js'
 import { formatThaiDateTime, humanTime, makeShareCode, parseShareCode } from '../lib/storage.js'
 import { getGithubConfig } from '../lib/remote.js'
+import { PARTS } from '../data/index.js'
+import { parseQuestionText } from '../lib/importer.js'
+import { getQbank, saveImportedQuestions } from '../lib/storage.js'
 import Icon from './Icons.jsx'
 import { Sheet } from './ui.jsx'
 
@@ -86,6 +89,35 @@ export default function ExamBuilder({
     setCreated(set)
     setName(`ชุดสอบเสมือนจริง ชุดที่ ${sets.length + 2}`)
     setSeed(newSeed())
+  }
+
+  const [importPart, setImportPart] = useState('part11')
+  const [importText, setImportText] = useState('')
+  const [importPreview, setImportPreview] = useState(null)
+
+  const qbankCounts = getQbank()
+
+  const runImport = () => {
+    const parsed = parseQuestionText(importText)
+    setImportPreview(parsed)
+    if (!parsed.questions.length) {
+      onToast?.('ไม่พบข้อสอบในข้อความที่วาง', 'info')
+    }
+  }
+
+  const commitImport = () => {
+    if (!importPreview?.questions?.length) return
+    const res = saveImportedQuestions(importPart, importPreview.questions)
+    onToast?.(`นำเข้าสำเร็จ ${res.added} ข้อ · คลังพาร์ทนี้มี ${res.total} ข้อ`)
+    setImportPreview(null)
+    setImportText('')
+    setTimeout(() => {
+      try {
+        window.location.reload()
+      } catch {
+        /* ignore */
+      }
+    }, 900)
   }
 
   const exportPdf = async (set) => {
@@ -350,6 +382,85 @@ export default function ExamBuilder({
           </div>
         </section>
       </div>
+
+      <section className="section">
+        <div className="section__head">
+          <div>
+            <h3 className="section__title">3 · นำเข้าข้อสอบจากไฟล์ (DOCX / PDF)</h3>
+            <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+              คัดลอกข้อความจากไฟล์คลังข้อสอบมาวาง ระบบจะแยกโจทย์ ตัวเลือก และเฉลยให้อัตโนมัติ
+            </p>
+          </div>
+        </div>
+
+        <div className="info-card import-card">
+          <label className="field">
+            <span className="field__label">พาร์ทปลายทาง</span>
+            <select
+              className="field__input"
+              value={importPart}
+              onChange={(e) => setImportPart(e.target.value)}
+            >
+              {PARTS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} · {p.title} ({(qbankCounts[p.id] || []).length} ข้อที่นำเข้าแล้ว)
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field__label">วางข้อความข้อสอบ</span>
+            <textarea
+              className="field__input import-area"
+              rows={6}
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder={'ข้อ 1. จงหาจำนวนถัดไป ...\n1) 36\n2) 37\n3) 38\n4) 39\n...\nเฉลย\n1. 2'}
+            />
+          </label>
+
+          <div className="import-actions">
+            <button type="button" className="btn btn--soft btn--sm" onClick={runImport} disabled={!importText.trim()}>
+              <Icon name="target" size={14} /> ตรวจสอบข้อความ
+            </button>
+            {importPreview && (
+              <span className="import-count">
+                พบ {importPreview.questions.length} ข้อ
+                {importPreview.warnings.length ? ` · มีปัญหา ${importPreview.warnings.length} จุด` : ' · ครบถ้วน'}
+              </span>
+            )}
+          </div>
+
+          {importPreview && importPreview.questions.length > 0 && (
+            <>
+              <div className="import-preview">
+                {importPreview.questions.slice(0, 3).map((q, i) => (
+                  <div key={i} className="import-preview__row">
+                    <b>{i + 1}.</b> {q.q.slice(0, 90)}
+                    <span>
+                      เฉลย: {q.o[q.a]?.slice(0, 40)}
+                    </span>
+                  </div>
+                ))}
+                {importPreview.questions.length > 3 && (
+                  <p className="import-preview__more">
+                    … และอีก {importPreview.questions.length - 3} ข้อ
+                  </p>
+                )}
+              </div>
+              {importPreview.warnings.length > 0 && (
+                <p className="import-warn">
+                  <Icon name="info" size={12} /> {importPreview.warnings.slice(0, 3).join(' · ')}
+                </p>
+              )}
+              <button type="button" className="btn btn--primary btn--block" onClick={commitImport}>
+                <Icon name="check" size={15} /> บันทึก {importPreview.questions.length} ข้อเข้าคลัง
+              </button>
+            </>
+          )}
+        </div>
+      </section>
 
       {created && (
         <Sheet

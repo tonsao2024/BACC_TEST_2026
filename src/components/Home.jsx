@@ -1,9 +1,11 @@
 import { GROUPS, MOCK_PART, PARTS, TOTAL_QUESTIONS } from '../data/index.js'
 import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
 import Icon from './Icons.jsx'
+import Mascot from './Mascot.jsx'
+import FriendBoard from './FriendBoard.jsx'
 import { MiniRing, Ring } from './ui.jsx'
 
-function PartCard({ part, results, onOpen, index }) {
+function PartCard({ part, results, onOpen, index, variant = 0 }) {
   const best = bestFor(part.id, results)
   return (
     <button
@@ -37,6 +39,15 @@ function PartCard({ part, results, onOpen, index }) {
       </span>
       <span className="part-right">
         {best ? <MiniRing value={best.score} /> : <Icon name="chevron" size={18} className="part-chev" />}
+        <span className="part-mascot" aria-hidden="true">
+          <Mascot
+            variant={variant}
+            size={44}
+            color={part.color}
+            color2={part.color2}
+            className="mascot--card"
+          />
+        </span>
       </span>
     </button>
   )
@@ -84,6 +95,9 @@ export default function Home({
   onNewSet,
   onResume,
   sync = null,
+  board = [],
+  onChallenge,
+  onCreateMatch,
 }) {
   const attempted = new Set(results.map((r) => r.partId))
   const done = PARTS.filter((p) => attempted.has(p.id)).length
@@ -159,7 +173,14 @@ export default function Home({
         <span className="hero__eyebrow">
           <Icon name="spark" size={13} /> เตรียมความพร้อม · ปีบัญชี 2569
         </span>
+        <Mascot variant={0} size={132} color="#1D4ED8" color2="#60A5FA" className="hero__mascot" />
+        <Mascot variant={1} size={64} color="#0E7490" color2="#67E8F9" className="hero__mascot hero__mascot--2" />
         <h2 className="hero__title">{name ? `${name} พร้อมสอบแล้ว` : 'พร้อมสอบ ธ.ก.ส. ไปกับเรา'}</h2>
+        {name && (
+          <button type="button" className="hero__switch" onClick={onOpenAccount}>
+            <Icon name="user" size={12} /> ไม่ใช่ {name}? สลับบัญชี
+          </button>
+        )}
         <p className="hero__desc">
           ฝึกทำข้อสอบแยกตามพาร์ท สร้างข้อสอบเสมือนจริงใหม่ได้ไม่จำกัด หยุดพักแล้วกลับมาทำต่อได้
           พร้อมเฉลยละเอียดและรายงานผลดาวน์โหลด
@@ -228,6 +249,13 @@ export default function Home({
           </div>
         </section>
       )}
+
+      <FriendBoard
+        board={board}
+        meName={name}
+        onChallenge={onChallenge}
+        onCreate={onCreateMatch}
+      />
 
       <section className="section">
         <div className="section__head">
@@ -336,7 +364,14 @@ export default function Home({
           </div>
           <div className="part-list">
             {PARTS.filter((p) => p.group === group.key).map((part, i) => (
-              <PartCard key={part.id} part={part} results={results} onOpen={onOpenPart} index={i} />
+              <PartCard
+                key={part.id}
+                part={part}
+                results={results}
+                onOpen={onOpenPart}
+                index={i}
+                variant={i}
+              />
             ))}
           </div>
         </section>

@@ -156,17 +156,27 @@ export function AccountSheet({
             )}
           </div>
           {!editing && (
-            <button
-              className="icon-btn"
-              type="button"
-              onClick={() => {
-                setDraftName(profile?.name || '')
-                setEditing(true)
-              }}
-              aria-label="แก้ไขชื่อ"
-            >
-              <Icon name="edit" size={17} />
-            </button>
+            <div className="acct__head-actions">
+              <button
+                className="btn btn--soft btn--xs"
+                type="button"
+                onClick={() => setTab('profiles')}
+                title="สลับไปบัญชีอื่น"
+              >
+                <Icon name="user" size={12} /> สลับบัญชี
+              </button>
+              <button
+                className="icon-btn"
+                type="button"
+                onClick={() => {
+                  setDraftName(profile?.name || '')
+                  setEditing(true)
+                }}
+                aria-label="แก้ไขชื่อ"
+              >
+                <Icon name="edit" size={17} />
+              </button>
+            </div>
           )}
         </div>
 

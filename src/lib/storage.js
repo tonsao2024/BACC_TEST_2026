@@ -11,6 +11,7 @@ const K = {
   results: (pid) => `bacc2569:results:${pid}`,
   attempts: (pid) => `bacc2569:attempts:${pid}`,
   sets: 'bacc2569:sets',
+  qbank: 'bacc2569:qbank',
   theme: 'bacc2569:theme',
   settings: 'bacc2569:settings',
 }
@@ -200,6 +201,34 @@ export function deleteSet(id) {
   )
 }
 
+/* ---------------- คลังข้อสอบที่นำเข้าเอง (ต่อพาร์ท) ---------------- */
+export function getQbank() {
+  const data = read(K.qbank, {})
+  return data && typeof data === 'object' && !Array.isArray(data) ? data : {}
+}
+
+export const importedQuestions = (partId) => {
+  const list = getQbank()[partId]
+  return Array.isArray(list) ? list : []
+}
+
+export function saveImportedQuestions(partId, questions = []) {
+  const bank = getQbank()
+  const existing = Array.isArray(bank[partId]) ? bank[partId] : []
+  const seen = new Set(existing.map((q) => q.q))
+  const fresh = questions.filter((q) => q?.q && !seen.has(q.q))
+  bank[partId] = [...existing, ...fresh]
+  write(K.qbank, bank)
+  return { added: fresh.length, total: bank[partId].length }
+}
+
+export function clearImportedQuestions(partId) {
+  const bank = getQbank()
+  if (partId) delete bank[partId]
+  write(K.qbank, partId ? bank : {})
+  return getQbank()
+}
+
 export const makeShareCode = (set) => {
   const payload = { s: set.seed, n: set.name, z: set.sizeKey }
   try {
@@ -278,6 +307,7 @@ export function exportSnapshot() {
     results,
     attempts,
     sets: getSets(),
+    qbank: getQbank(),
     settings: getSettings(),
     theme: (() => {
       try {
@@ -303,6 +333,7 @@ export function importSnapshot(data) {
       )
     }
     if (Array.isArray(data.sets)) write(K.sets, data.sets)
+    if (data.qbank && typeof data.qbank === 'object') write(K.qbank, data.qbank)
     if (data.settings && typeof data.settings === 'object') write(K.settings, { ...DEFAULT_SETTINGS, ...data.settings })
     if (data.theme === 'dark' || data.theme === 'light') {
       try {
@@ -361,6 +392,16 @@ export function mergeSnapshots(local, remote) {
       (x, y) => new Date(y.date || 0) - new Date(x.date || 0),
     )
   })
+  const qbank = {}
+  const qpids = new Set([...Object.keys(a.qbank || {}), ...Object.keys(b.qbank || {})])
+  qpids.forEach((pid) => {
+    const map = new Map()
+    ;[...(a.qbank?.[pid] || []), ...(b.qbank?.[pid] || [])].forEach((q) => {
+      if (q?.q && !map.has(q.q)) map.set(q.q, q)
+    })
+    qbank[pid] = Array.from(map.values())
+  })
+
   const apids = new Set([...Object.keys(a.attempts || {}), ...Object.keys(b.attempts || {})])
   apids.forEach((pid) => {
     attempts[pid] = mergeAttempts(a.attempts?.[pid], b.attempts?.[pid])
@@ -374,6 +415,7 @@ export function mergeSnapshots(local, remote) {
     results,
     attempts,
     sets: byId(a.sets, b.sets),
+    qbank,
     settings: { ...DEFAULT_SETTINGS, ...(a.settings || {}), ...(b.settings || {}) },
     theme: b.theme || a.theme || '',
   }

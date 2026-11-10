@@ -17,6 +17,7 @@ import {
   listAttempts,
   loadResults,
   renameProfile,
+  makeShareCode,
   saveAttempt,
   saveResult,
   saveSet,
@@ -25,7 +26,7 @@ import {
   setTheme,
   uidPublic,
 } from './lib/storage.js'
-import { generateExam } from './lib/generator.js'
+import { generateExam, newSeed } from './lib/generator.js'
 import { clearGithubConfig, getGithubConfig } from './lib/remote.js'
 import {
   getSyncState,
@@ -505,6 +506,53 @@ export default function App() {
     window.scrollTo({ top: 0 })
   }, [view])
 
+  const board = useMemo(() => {
+    const list = getProfiles().map((p) => {
+      const rs = loadResults(p.id)
+      const scores = rs.map((r) => r.score)
+      const count = scores.length
+      return {
+        id: p.id,
+        name: p.name,
+        count,
+        best: count ? Math.round(Math.max(...scores)) : 0,
+        avg: count ? Math.round(scores.reduce((a, b) => a + b, 0) / count) : 0,
+        isMe: p.id === profile?.id,
+      }
+    })
+    return list.sort((a, b) => b.avg - a.avg || b.best - a.best || b.count - a.count)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profiles, results, profile])
+
+  const copyToClipboard = (value) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(value)
+        return true
+      }
+    } catch {
+      /* fall through */
+    }
+    return false
+  }
+
+  const createMatchSet = useCallback(() => {
+    const set =
+      sets[0] ||
+      handleCreateSet({
+        name: `ชุดแข่งกับเพื่อน ${new Date().toLocaleDateString('th-TH')}`,
+        seed: newSeed(),
+        sizeKey: 'mini',
+      })
+    const code = makeShareCode(set)
+    const ok = copyToClipboard(code)
+    showToast(
+      ok ? `คัดลอกรหัสชุดแข่งแล้ว · ส่งให้เพื่อนได้เลย` : `รหัสชุดแข่ง: ${code}`,
+      ok ? 'checkCircle' : 'info',
+    )
+    return set
+  }, [sets, handleCreateSet, showToast])
+
   if (!profile) {
     return (
       <div className="app">
@@ -522,6 +570,7 @@ export default function App() {
       </div>
     )
   }
+
 
   const navItems = [
     { key: 'home', label: 'หน้าแรก', icon: 'home' },
@@ -586,6 +635,9 @@ export default function App() {
             onOpenSets={() => navigate('sets')}
             onNewSet={() => navigate('sets')}
             sync={sync}
+            board={board}
+            onChallenge={createMatchSet}
+            onCreateMatch={createMatchSet}
             onResume={resumeAttempt}
           />
         )}
@@ -707,6 +759,9 @@ export default function App() {
           syncPanel={
             <GitHubPanel
               sync={sync}
+            board={board}
+            onChallenge={createMatchSet}
+            onCreateMatch={createMatchSet}
               onSaved={connectAndSync}
               onDisconnected={disconnectGithub}
               onToast={showToast}

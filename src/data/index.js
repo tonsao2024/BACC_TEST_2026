@@ -1,6 +1,7 @@
 import { part11, part12, part13, part14, part15 } from './set1.js'
 import { part2 } from './set2.js'
 import { part31, part32, part33, part34, part35 } from './set3.js'
+import { importedQuestions } from '../lib/storage.js'
 
 /* ไฟล์ต้นฉบับทั้งหมดบน Google Drive (โฟลเดอร์กลางของชุดเอกสารเตรียมสอบ ธ.ก.ส. 2569) */
 export const DRIVE_FOLDER_ID = '1zcaLIPT0u6estLdIFIm-0PPyF2ACkh7f'
@@ -252,6 +253,25 @@ export const MOCK_PART = {
   file: '1Ke0jdg_g4H3AoDvQ5P9iyBHw72uKDwnm',
   topics: ['คละทุกพาร์ท 1.1 – 3.5', 'จับเวลา 35 นาที', 'คิดคะแนนรวม'],
   questions: MOCK_QUESTIONS,
+}
+
+/* รวมข้อสอบที่ผู้นำเข้าจากไฟล์ DOCX/PDF เพิ่มเข้าคลังของแต่ละพาร์ท */
+try {
+  PARTS.forEach((part) => {
+    const extra = importedQuestions(part.id)
+    if (!extra.length) return
+    const seen = new Set(part.questions.map((q) => q.q))
+    const merged = [...part.questions]
+    extra.forEach((q) => {
+      if (q?.q && !seen.has(q.q)) {
+        seen.add(q.q)
+        merged.push(q)
+      }
+    })
+    part.questions = merged
+  })
+} catch {
+  /* localStorage อาจถูกปิด — ใช้คลังมาตรฐาน */
 }
 
 export const ALL_PARTS = [...PARTS, MOCK_PART]
