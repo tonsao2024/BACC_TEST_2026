@@ -419,7 +419,7 @@ function paintCover(exam, meta) {
     470,
   )
   ctx.fillText(`สร้างเมื่อ: ${meta.dateText}`, pad, 512)
-  ctx.fillText(`เวลาทำข้อสอบ: ${exam.minutes} นาที`, pad, 554)
+  ctx.fillText(`รูปแบบเวลา: ไม่จำกัดเวลา (นับเวลาสะสมตามจริง)`, pad, 554)
   ctx.fillText(`รหัสชุดข้อสอบ: ${exam.seed}`, pad, 596)
 
   /* structure table */

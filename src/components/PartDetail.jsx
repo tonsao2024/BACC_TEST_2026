@@ -1,13 +1,13 @@
 import { driveDownload, driveView } from '../data/index.js'
-import { bestFor, formatThaiDateTime } from '../lib/storage.js'
+import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
 import { certTier } from '../lib/certs.js'
 import Icon from './Icons.jsx'
 import { MiniRing } from './ui.jsx'
 
 const RULES = [
   'แต่ละข้อมี 4 ตัวเลือก เลือกได้เพียงคำตอบเดียว ไม่มีคะแนนติดลบ',
-  'ระบบจะจับเวลาและส่งคำตอบอัตโนมัติเมื่อหมดเวลา',
-  'สามารถย้อนกลับไปแก้ไขข้อก่อนหน้าได้ก่อนกดส่งคำตอบ',
+  'ไม่จำกัดเวลาทำข้อสอบ ระบบจะนับเวลาสะสมไปเรื่อยๆ จนกว่าจะทำครบและกดส่งคำตอบ',
+  'สามารถหยุดพักหรือย้อนกลับไปแก้ไขข้อก่อนหน้าได้ก่อนกดส่งคำตอบ',
   'หลังส่งคำตอบจะเห็นเฉลยและคำอธิบายทุกข้อ พร้อมดาวน์โหลดรายงานผล',
 ]
 
@@ -59,8 +59,8 @@ export default function PartDetail({
               <span>ข้อสอบ</span>
             </div>
             <div className="part-hero__cell">
-              <b className="num">{part.minutes}</b>
-              <span>นาที</span>
+              <b className="num">∞</b>
+              <span>ไม่จำกัดเวลา</span>
             </div>
             <div className="part-hero__cell">
               <b className="num">100</b>
@@ -70,18 +70,9 @@ export default function PartDetail({
         </div>
 
         {best && (
-          <div
-            className="info-card"
-            style={{
-              marginTop: 14,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              animation: 'fadeUp .5s var(--ease) both',
-            }}
-          >
+          <div className="info-card best-card">
             <MiniRing value={best.score} size={56} />
-            <div style={{ flex: 1 }}>
+            <div className="best-card__body">
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>ผลดีที่สุดของคุณ</p>
               <p className="sub" style={{ fontSize: 11.5, marginTop: 3 }}>
                 {best.correct}/{best.total} ข้อ · {formatThaiDateTime(best.date)}
@@ -101,39 +92,89 @@ export default function PartDetail({
               </p>
             </div>
             <span
-              className={`result-badge ${best.score >= 60 ? 'result-badge--pass' : 'result-badge--fail'}`}
-              style={{ marginTop: 0, padding: '6px 11px', fontSize: 11 }}
+              className={`result-badge best-card__badge ${best.score >= 60 ? 'result-badge--pass' : 'result-badge--fail'}`}
             >
               {Math.round(best.score)} คะแนน
             </span>
           </div>
         )}
 
-        <section className="section" style={{ marginTop: 18 }}>
-          <div className="section__head">
-            <h3 className="section__title">คำชี้แจงก่อนเริ่มทำข้อสอบ</h3>
-          </div>
-          <div className="info-card">
-            <div className="info-list">
-              {RULES.map((r, i) => (
-                <div className="info-item" key={i}>
+        <div className="detail-grid">
+          <section className="section" style={{ marginTop: 18 }}>
+            <div className="section__head">
+              <h3 className="section__title">คำชี้แจงก่อนเริ่มทำข้อสอบ</h3>
+            </div>
+            <div className="info-card">
+              <div className="info-list">
+                {RULES.map((r, i) => (
+                  <div className="info-item" key={i}>
+                    <span className="info-item__ico">
+                      <Icon name="check" size={13} stroke={2.2} />
+                    </span>
+                    <span>{r}</span>
+                  </div>
+                ))}
+                <div className="info-item">
                   <span className="info-item__ico">
-                    <Icon name="check" size={13} stroke={2.2} />
+                    <Icon name="clock" size={13} />
                   </span>
-                  <span>{r}</span>
+                  <span>
+                    รูปแบบเวลา: <b>นับเวลาสะสมต่อเนื่อง ไม่จำกัดเวลา</b> · คะแนนผ่านเกณฑ์ 60 คะแนน
+                  </span>
                 </div>
-              ))}
-              <div className="info-item">
-                <span className="info-item__ico">
-                  <Icon name="clock" size={13} />
-                </span>
-                <span>
-                  เวลาที่ใช้: <b className="num">{part.minutes} นาที</b> · คะแนนผ่านเกณฑ์ 60 คะแนน
-                </span>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <section className="section">
+            <div className="section__head">
+              <h3 className="section__title">เอกสารต้นฉบับ</h3>
+            </div>
+            <div className="download-card">
+              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ไฟล์ข้อสอบฉบับเต็ม</p>
+              <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
+                {partFileName || `${part.label}_ข้อสอบ_${part.officialCount}ข้อ.pdf`}
+                {part.id === '2' ? ' · พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? ' · เฉลย Mock Exam อยู่ในไฟล์แยกที่หน้าเอกสาร' : ' · เฉลยพร้อมคำอธิบาย'}
+              </p>
+              <button
+                type="button"
+                className="download-row"
+                onClick={() =>
+                  onReadDoc?.({
+                    id: part.file,
+                    name: partFileName || `พาร์ท ${part.label}`,
+                    type: 'PDF',
+                  })
+                }
+              >
+                <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
+                  <Icon name="book" size={18} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="download-row__title">อ่านเอกสารในเว็บไซต์</span>
+                  <span className="download-row__desc">เปิดอ่านได้ทันที ไม่ต้องออกไปที่ Google Drive</span>
+                </span>
+                <Icon name="chevron" size={16} className="part-chev" />
+              </button>
+              <a
+                className="download-row"
+                href={driveDownload(part.file)}
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: 'none' }}
+              >
+                <span className="download-row__ico" style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}>
+                  <Icon name="download" size={18} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="download-row__title">ดาวน์โหลดไฟล์ PDF ต้นฉบับ</span>
+                  <span className="download-row__desc">เปิดจาก Google Drive · ต้นฉบับไม่มีการแก้ไข</span>
+                </span>
+                <Icon name="external" size={16} className="part-chev" />
+              </a>
+            </div>
+          </section>
+        </div>
 
         <section className="section">
           <div className="section__head">
@@ -148,55 +189,6 @@ export default function PartDetail({
                 {t}
               </span>
             ))}
-          </div>
-        </section>
-
-        <section className="section">
-          <div className="section__head">
-            <h3 className="section__title">เอกสารต้นฉบับ</h3>
-          </div>
-          <div className="download-card">
-            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ไฟล์ข้อสอบฉบับเต็ม</p>
-            <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
-              {partFileName || `${part.label}_ข้อสอบ_${part.officialCount}ข้อ.pdf`}
-              {part.id === '2' ? ' · พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? ' · เฉลย Mock Exam อยู่ในไฟล์แยกที่หน้าเอกสาร' : ' · เฉลยพร้อมคำอธิบาย'}
-            </p>
-            <button
-              type="button"
-              className="download-row"
-              onClick={() =>
-                onReadDoc?.({
-                  id: part.file,
-                  name: partFileName || `พาร์ท ${part.label}`,
-                  type: 'PDF',
-                })
-              }
-            >
-              <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
-                <Icon name="book" size={18} />
-              </span>
-              <span style={{ flex: 1 }}>
-                <span className="download-row__title">อ่านเอกสารในเว็บไซต์</span>
-                <span className="download-row__desc">เปิดอ่านได้ทันที ไม่ต้องออกไปที่ Google Drive</span>
-              </span>
-              <Icon name="chevron" size={16} className="part-chev" />
-            </button>
-            <a
-              className="download-row"
-              href={driveDownload(part.file)}
-              target="_blank"
-              rel="noreferrer"
-              style={{ textDecoration: 'none' }}
-            >
-              <span className="download-row__ico" style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}>
-                <Icon name="download" size={18} />
-              </span>
-              <span style={{ flex: 1 }}>
-                <span className="download-row__title">ดาวน์โหลดไฟล์ PDF ต้นฉบับ</span>
-                <span className="download-row__desc">เปิดจาก Google Drive · ต้นฉบับไม่มีการแก้ไข</span>
-              </span>
-              <Icon name="external" size={16} className="part-chev" />
-            </a>
           </div>
         </section>
 
@@ -215,7 +207,7 @@ export default function PartDetail({
                 </span>
                 <div>
                   <div className="source-item__title">
-                    {r.correct}/{r.total} ข้อ · ใช้เวลา {r.timeUsedText}
+                    {r.correct}/{r.total} ข้อ · ใช้เวลา {r.timeUsedText || humanTime(r.timeUsedSec)}
                   </div>
                   <div className="source-item__meta">{formatThaiDateTime(r.date)}</div>
                 </div>
@@ -225,7 +217,7 @@ export default function PartDetail({
         )}
       </div>
 
-      <div className="quiz-foot quiz-foot--split" style={{ position: 'sticky', bottom: 0 }}>
+      <div className="quiz-foot quiz-foot--split">
         {attempt && (
           <button className="btn btn--soft" onClick={() => onRestart?.(part.id)}>
             <Icon name="refresh" size={15} /> เริ่มใหม่

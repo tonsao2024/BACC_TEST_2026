@@ -38,6 +38,17 @@ import History from './components/History.jsx'
 import Sources from './components/Sources.jsx'
 import ExamBuilder from './components/ExamBuilder.jsx'
 import DocReader from './components/DocReader.jsx'
+import FriendArena, {
+  ChallengePopup,
+  CreateMatchSheet,
+  FriendStatsSheet,
+} from './components/FriendArena.jsx'
+import {
+  computePublicStats,
+  createArenaController,
+  getChallengePref,
+  shouldShowChallengePopup,
+} from './lib/friends.js'
 import { ProfileGate } from './components/Profile.jsx'
 import Icon from './components/Icons.jsx'
 import { Toast, Sheet } from './components/ui.jsx'
@@ -47,7 +58,7 @@ const fileNameFor = (part) => {
   return file ? `${file.name}.pdf` : null
 }
 
-export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscardLocal }) {
+export default function App({ authUser = null, cloudSync, onCloudSignOut, onCloudRetry, onDiscardLocal }) {
   const [profiles, setProfiles] = useState(() => getProfiles())
   const [profile, setProfile] = useState(() => getCurrentProfile())
   const [results, setResults] = useState(() => {
@@ -71,7 +82,17 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
   const [legacyId, setLegacyId] = useState('')
   const [toast, setToast] = useState(null)
   const [stack, setStack] = useState([])
+  const [arena, setArena] = useState(() => ({
+    friends: [],
+    matches: [],
+    pref: getChallengePref(authUser?.id || profile?.id || null),
+  }))
+  const [homeInspectId, setHomeInspectId] = useState(null)
+  const [homeCreateForIds, setHomeCreateForIds] = useState(null)
+  const [popupTick, setPopupTick] = useState(0)
+  const arenaRef = useRef(null)
   const toastTimer = useRef(null)
+  const meId = authUser?.id || profile?.id || null
 
   /* ---------------- theme ---------------- */
   useEffect(() => {
@@ -210,6 +231,32 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
   const resumeAttempt = useCallback(
     (attempt) => {
       if (!attempt) return
+      if (attempt.matchId && arenaRef.current) {
+        const m = arenaRef.current.getMatch(attempt.matchId)
+        if (m) {
+          const exam =
+            m.examSpec?.kind === 'part'
+              ? {
+                  ...buildPartExam(m.examSpec.partId || 'mock'),
+                  key: `match:${m.id}`,
+                  matchId: m.id,
+                  label: `แข่งกับเพื่อน · ${m.examSpec.label || ''}`,
+                }
+              : {
+                  ...buildSetExam({
+                    id: m.examSpec?.setId || m.id,
+                    seed: m.examSpec?.seed || attempt.seed,
+                    sizeKey: m.examSpec?.sizeKey || attempt.sizeKey || 'mini',
+                    name: m.examSpec?.setName || m.title,
+                  }),
+                  key: `match:${m.id}`,
+                  matchId: m.id,
+                  label: 'แข่งกับเพื่อน · ชุดสอบเสมือนจริง',
+                }
+          openExam(exam, { fresh: false })
+          return
+        }
+      }
       if (attempt.kind === 'set') {
         startSet(
           {
@@ -224,7 +271,7 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
         startPart(attempt.partId, false)
       }
     },
-    [startPart, startSet],
+    [buildPartExam, buildSetExam, openExam, startPart, startSet],
   )
 
   /* ---------------- attempt persistence ---------------- */
@@ -244,6 +291,9 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
       if (session?.exam?.key) deleteAttempt(profile.id, session.exam.key)
       setResults(loadResults(profile.id))
       setAttempts(listAttempts(profile.id))
+      if (result.matchId) {
+        arenaRef.current?.finishMatchPlayer(result.matchId, result)
+      }
       setActiveResult(result)
       setView('result')
       window.scrollTo({ top: 0 })
@@ -425,52 +475,160 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
     window.scrollTo({ top: 0 })
   }, [view])
 
+  /* ---------------- Friend Arena live controller ---------------- */
+  useEffect(() => {
+    if (!meId || !profile) return undefined
+    const ctrl = createArenaController({
+      userId: meId,
+      userName: profile.name || authUser?.user_metadata?.display_name || 'ผู้เข้าสอบ',
+      getResults: () => loadResults(profile.id),
+      onChange: (next) => setArena(next),
+    })
+    arenaRef.current = ctrl
+    return () => {
+      ctrl.destroy()
+      if (arenaRef.current === ctrl) arenaRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meId, profile?.id])
+
+  useEffect(() => {
+    if (!arenaRef.current || !profile) return
+    arenaRef.current.syncMyProfile({
+      name: profile.name,
+      activity: view === 'quiz' ? 'in-quiz' : 'online',
+    })
+  }, [profile, results, view])
+
+  useEffect(() => {
+    const until = arena.pref?.snoozedUntil || 0
+    if (!until || arena.pref?.muted || until >= Number.MAX_SAFE_INTEGER) return undefined
+    const wait = until - Date.now()
+    if (wait <= 0) return undefined
+    const id = setTimeout(() => setPopupTick((t) => t + 1), wait + 60)
+    return () => clearTimeout(id)
+  }, [arena.pref?.snoozedUntil, arena.pref?.muted])
+
+  const meStats = useMemo(() => computePublicStats(results), [results])
+
   const board = useMemo(() => {
+    if (arena.friends.length > 0) return arena.friends
     const list = getProfiles().map((p) => {
       const rs = loadResults(p.id)
-      const scores = rs.map((r) => r.score)
-      const count = scores.length
+      const st = computePublicStats(rs)
       return {
         id: p.id,
         name: p.name,
-        count,
-        best: count ? Math.round(Math.max(...scores)) : 0,
-        avg: count ? Math.round(scores.reduce((a, b) => a + b, 0) / count) : 0,
+        online: p.id === profile?.id,
+        activity: 'online',
         isMe: p.id === profile?.id,
+        ...st,
       }
     })
     return list.sort((a, b) => b.avg - a.avg || b.best - a.best || b.count - a.count)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profiles, results, profile])
+  }, [arena.friends, profiles, results, profile])
 
-  const copyToClipboard = (value) => {
-    try {
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(value)
-        return true
+  const buildMatchExam = useCallback(
+    (match) => {
+      if (!match?.examSpec) return null
+      const spec = match.examSpec
+      const base =
+        spec.kind === 'part'
+          ? buildPartExam(spec.partId || 'mock')
+          : buildSetExam({
+              id: spec.setId || match.id,
+              seed: spec.seed || newSeed(),
+              sizeKey: spec.sizeKey || 'mini',
+              name: spec.setName || spec.title || match.title,
+            })
+      if (!base) return null
+      return {
+        ...base,
+        key: `match:${match.id}`,
+        matchId: match.id,
+        label: `แข่งกับเพื่อน · ${base.label}`,
       }
-    } catch {
-      /* fall through */
-    }
-    return false
-  }
+    },
+    [buildPartExam, buildSetExam],
+  )
 
-  const createMatchSet = useCallback(() => {
-    const set =
-      sets[0] ||
-      handleCreateSet({
-        name: `ชุดแข่งกับเพื่อน ${new Date().toLocaleDateString('th-TH')}`,
-        seed: newSeed(),
-        sizeKey: 'mini',
-      })
-    const code = makeShareCode(set)
-    const ok = copyToClipboard(code)
-    showToast(
-      ok ? `คัดลอกรหัสชุดแข่งแล้ว · ส่งให้เพื่อนได้เลย` : `รหัสชุดแข่ง: ${code}`,
-      ok ? 'checkCircle' : 'info',
-    )
-    return set
-  }, [sets, handleCreateSet, showToast])
+  const startMatchExam = useCallback(
+    async (match) => {
+      if (!match) return
+      await arenaRef.current?.startMatch(match.id)
+      const exam = buildMatchExam(match)
+      if (exam) openExam(exam, { fresh: false })
+    },
+    [buildMatchExam, openExam],
+  )
+
+  const handleMatchProgress = useCallback((matchId, progress) => {
+    arenaRef.current?.updateMatchProgress(matchId, progress)
+  }, [])
+
+  const handleCreateArenaMatch = useCallback(
+    async (payload) => {
+      if (!arenaRef.current) return
+      const match = await arenaRef.current.createMatch(payload)
+      const count = payload.invitedFriends?.length || 0
+      showToast(
+        count > 0
+          ? `ส่งคำท้าให้เพื่อน ${count} คนแล้ว! รอเพื่อนกดตอบรับได้เลย`
+          : 'เปิดห้องแข่งขันแล้ว!',
+      )
+      if (view !== 'friends') navigate('friends')
+      return match
+    },
+    [navigate, showToast, view],
+  )
+
+  const handleAcceptChallenge = useCallback(
+    async (match) => {
+      if (!arenaRef.current || !match) return
+      const updated = await arenaRef.current.acceptMatch(match.id)
+      showToast(`ยอมรับคำท้าจาก ${match.hostName} แล้ว! ลุยเลย 🔥`)
+      if (updated?.status === 'active') {
+        await startMatchExam(updated)
+      } else if (view !== 'friends') {
+        navigate('friends')
+      }
+    },
+    [navigate, showToast, startMatchExam, view],
+  )
+
+  const handleDeclineChallenge = useCallback(
+    async (match) => {
+      if (!arenaRef.current || !match) return
+      const res = await arenaRef.current.declineMatch(match.id)
+      const cnt = res?.pref?.declineCount || 1
+      if (res?.pref?.muted) {
+        showToast('กดไม่แข่งครบ 3 ครั้งแล้ว · ระบบจะไม่เด้งเตือนคำท้าอีก', 'info')
+      } else {
+        showToast(`เลือกไม่แข่ง (${cnt}/3 ครั้ง) · หากเพื่อนยังรอจะเตือนอีก ${3 - cnt} ครั้ง`, 'info')
+      }
+    },
+    [showToast],
+  )
+
+  const pendingChallengeMatch = useMemo(
+    () =>
+      arena.matches.find((m) =>
+        shouldShowChallengePopup({
+          match: m,
+          userId: meId,
+          pref: arena.pref,
+          activeMatchId: session?.exam?.matchId || null,
+          now: Date.now(),
+        }),
+      ) || null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [arena.matches, arena.pref, meId, session?.exam?.matchId, popupTick],
+  )
+
+  const homeInspectFriend = useMemo(
+    () => board.find((f) => f.id === homeInspectId) || null,
+    [board, homeInspectId],
+  )
 
   if (!profile) {
     return (
@@ -500,7 +658,7 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
   ]
 
   const navActive =
-    view === 'home'
+    view === 'home' || view === 'friends'
       ? 'home'
       : view === 'history'
         ? 'history'
@@ -523,7 +681,12 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
     if (key === 'sources') navigate('sources')
   }
 
-  const showNav = view === 'home' || view === 'history' || view === 'sources' || view === 'sets'
+  const showNav =
+    view === 'home' ||
+    view === 'friends' ||
+    view === 'history' ||
+    view === 'sources' ||
+    view === 'sets'
 
   return (
     <div className="app">
@@ -556,9 +719,45 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
             onNewSet={() => navigate('sets')}
             sync={cloudSync}
             board={board}
-            onChallenge={createMatchSet}
-            onCreateMatch={createMatchSet}
+            matches={arena.matches}
+            meId={meId}
+            onOpenArena={() => navigate('friends')}
+            onChallengeFriend={(f) => setHomeCreateForIds(f?.id ? [f.id] : [])}
+            onInspectFriend={(f) => setHomeInspectId(f?.id || null)}
+            onCreateMatch={() => setHomeCreateForIds([])}
+            onOpenMatch={() => navigate('friends')}
             onResume={resumeAttempt}
+          />
+        )}
+
+        {view === 'friends' && (
+          <FriendArena
+            friends={board}
+            matches={arena.matches}
+            sets={sets}
+            meId={meId}
+            meStats={meStats}
+            challengePref={arena.pref}
+            onBack={back}
+            onCreateMatch={handleCreateArenaMatch}
+            onAcceptMatch={handleAcceptChallenge}
+            onStartMatchExam={startMatchExam}
+            onNudgeMatch={(id) => {
+              arenaRef.current?.nudgeMatch(id)
+              showToast('ส่งสัญญาณเตือนเพื่อนที่ยังไม่ตอบรับแล้ว 🔔')
+            }}
+            onInviteMore={(id, extra) => {
+              arenaRef.current?.inviteFriendsToMatch(id, extra)
+              showToast(`ส่งคำท้าเพิ่มให้ ${extra.map((x) => x.name).join(', ')} แล้ว!`)
+            }}
+            onCancelMatch={(id) => {
+              arenaRef.current?.cancelMatch(id)
+              showToast('ปิดห้องแข่งขันแล้ว', 'info')
+            }}
+            onResetMute={() => {
+              arenaRef.current?.resetMute()
+              showToast('เปิดรับการแจ้งเตือนคำท้าจากเพื่อนอีกครั้งแล้ว 🔔')
+            }}
           />
         )}
 
@@ -588,6 +787,13 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
             onExit={() => back()}
             onFinish={handleFinish}
             cloudSync={cloudSync}
+            match={
+              session.exam.matchId
+                ? arena.matches.find((m) => m.id === session.exam.matchId) || null
+                : null
+            }
+            meId={meId}
+            onMatchProgress={handleMatchProgress}
           />
         )}
 
@@ -596,6 +802,14 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
             result={activeResult}
             part={activeResult.partId ? getPart(activeResult.partId) : null}
             profileName={profile.name}
+            match={
+              activeResult.matchId
+                ? arena.matches.find((m) => m.id === activeResult.matchId) || null
+                : null
+            }
+            meId={meId}
+            allFriends={board}
+            onOpenArena={() => navigate('friends')}
             onHome={goHome}
             onRetry={retry}
             onHistory={() => navigate('history')}
@@ -662,25 +876,97 @@ export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscard
 
       {toast && <Toast message={toast.message} icon={toast.icon} />}
 
+      {pendingChallengeMatch && !homeInspectFriend && (
+        <ChallengePopup
+          match={pendingChallengeMatch}
+          declineCount={arena.pref?.declineCount || 0}
+          onAccept={handleAcceptChallenge}
+          onDecline={handleDeclineChallenge}
+          onInspectHost={(uid) => setHomeInspectId(uid)}
+        />
+      )}
+
+      {homeInspectFriend && (
+        <FriendStatsSheet
+          friend={homeInspectFriend}
+          meStats={meStats}
+          onClose={() => setHomeInspectId(null)}
+          onChallengeFriend={(f) => setHomeCreateForIds(f?.id ? [f.id] : [])}
+        />
+      )}
+
+      {homeCreateForIds !== null && (
+        <CreateMatchSheet
+          friends={board}
+          sets={sets}
+          initialSelectedIds={homeCreateForIds}
+          onClose={() => setHomeCreateForIds(null)}
+          onSubmit={(payload) => {
+            setHomeCreateForIds(null)
+            handleCreateArenaMatch(payload)
+          }}
+        />
+      )}
+
       {accountOpen && (
         <Sheet onClose={() => setAccountOpen(false)} title="บัญชีของฉัน">
-          <div className="acct__panel">
-            <h2>{profile.name}</h2>
-            <p>ข้อมูลและประวัติการสอบบันทึกแยกตามบัญชีนี้</p>
-            <p role="status">{cloudSync?.status === 'saved' || cloudSync?.status === 'idle' ? '☁️ ซิงก์กับ Supabase แล้ว' : cloudSync?.error || 'กำลังบันทึกข้อมูล…'}</p>
-            {cloudSync?.status === 'error' && <><button className="btn btn--soft" onClick={onCloudRetry}>ลองซิงก์อีกครั้ง</button>{cloudSync.error?.includes('อุปกรณ์อื่น') && <button className="btn btn--soft" onClick={onDiscardLocal}>ใช้ข้อมูลล่าสุดจากคลาวด์</button>}</>}
-            <button className="btn btn--soft btn--block" onClick={toggleTheme}>เปลี่ยนธีม</button>
-            <button className="btn btn--soft btn--block" onClick={toggleInstantReveal}>เฉลยทันที: {settings.instantReveal ? 'เปิด' : 'ปิด'}</button>
-            {legacyProfiles().length > 0 && <div style={{ margin: '16px 0' }}>
-              <p>มีประวัติจากแอปเดิมบนเครื่องนี้ เลือกโปรไฟล์ที่ต้องการนำเข้า (ข้อมูลเดิมจะไม่ถูกลบ)</p>
-              <select className="field__input" value={legacyId} onChange={e => setLegacyId(e.target.value)} aria-label="เลือกโปรไฟล์เดิม">
-                <option value="">เลือกโปรไฟล์เดิม</option>{legacyProfiles().map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <button className="btn btn--soft btn--block" disabled={!legacyId} onClick={() => {
-                if (!window.confirm('นำเข้าประวัติของโปรไฟล์ที่เลือกมายังบัญชีนี้ใช่หรือไม่?')) return
-                if (importLegacyProfile(legacyId, profile.id)) { setResults(loadResults(profile.id)); setAttempts(listAttempts(profile.id)); setSets(getSets()); showToast('นำเข้าประวัติแล้ว กำลังซิงก์'); setLegacyId('') }
-              }}>นำเข้าประวัติจากเครื่องนี้</button>
-            </div>}
+          <div className="acct__panel acct__panel--stack">
+            <div className="acct__head">
+              <span className="avatar avatar--lg">{profile.name ? profile.name.trim().charAt(0).toUpperCase() : 'ผ'}</span>
+              <div className="acct__id">
+                <b className="acct__name">{profile.name}</b>
+                <span className="acct__meta">ข้อมูลและประวัติการสอบบันทึกแยกตามบัญชีนี้</span>
+              </div>
+            </div>
+            <p role="status" className="acct__sync-status">
+              {cloudSync?.status === 'saved' || cloudSync?.status === 'idle'
+                ? '☁️ ซิงก์กับ Supabase แล้ว'
+                : cloudSync?.error || 'กำลังบันทึกข้อมูล…'}
+            </p>
+            {cloudSync?.status === 'error' && (
+              <div className="acct__sync-actions">
+                <button className="btn btn--soft btn--sm" onClick={onCloudRetry}>ลองซิงก์อีกครั้ง</button>
+                {cloudSync.error?.includes('อุปกรณ์อื่น') && (
+                  <button className="btn btn--soft btn--sm" onClick={onDiscardLocal}>ใช้ข้อมูลล่าสุดจากคลาวด์</button>
+                )}
+              </div>
+            )}
+            <button className="btn btn--soft btn--block" onClick={toggleTheme}>
+              เปลี่ยนธีม ({theme === 'dark' ? 'โหมดมืด' : 'โหมดสว่าง'})
+            </button>
+            <button className="btn btn--soft btn--block" onClick={toggleInstantReveal}>
+              เฉลยทันที: {settings.instantReveal ? 'เปิด' : 'ปิด'}
+            </button>
+            {legacyProfiles().length > 0 && (
+              <div className="acct__legacy">
+                <p>มีประวัติจากแอปเดิมบนเครื่องนี้ เลือกโปรไฟล์ที่ต้องการนำเข้า (ข้อมูลเดิมจะไม่ถูกลบ)</p>
+                <select
+                  className="field__input"
+                  value={legacyId}
+                  onChange={e => setLegacyId(e.target.value)}
+                  aria-label="เลือกโปรไฟล์เดิม"
+                >
+                  <option value="">เลือกโปรไฟล์เดิม</option>
+                  {legacyProfiles().map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button
+                  className="btn btn--soft btn--block"
+                  disabled={!legacyId}
+                  onClick={() => {
+                    if (!window.confirm('นำเข้าประวัติของโปรไฟล์ที่เลือกมายังบัญชีนี้ใช่หรือไม่?')) return
+                    if (importLegacyProfile(legacyId, profile.id)) {
+                      setResults(loadResults(profile.id))
+                      setAttempts(listAttempts(profile.id))
+                      setSets(getSets())
+                      showToast('นำเข้าประวัติแล้ว กำลังซิงก์')
+                      setLegacyId('')
+                    }
+                  }}
+                >
+                  นำเข้าประวัติจากเครื่องนี้
+                </button>
+              </div>
+            )}
             <button className="btn btn--soft btn--block" onClick={onCloudSignOut}>ออกจากระบบ / สลับบัญชี</button>
             <p className="acct__hint">ใช้ชื่อและ PIN เดิมเมื่อเข้าสู่ระบบบนอุปกรณ์อื่น รอให้ซิงก์เสร็จก่อนเปลี่ยนอุปกรณ์</p>
           </div>

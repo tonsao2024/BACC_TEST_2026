@@ -49,7 +49,7 @@ function PartCard({ part, results, attempt, onOpen, index, variant = 0 }) {
         <span className="part-meta">
           {total} ข้อ
           <span className="dot" />
-          {part.minutes} นาที
+          นับเวลาสะสม
           {count > 0 && (
             <>
               <span className="dot" />
@@ -126,8 +126,13 @@ export default function Home({
   onResume,
   sync = null,
   board = [],
-  onChallenge,
+  matches = [],
+  meId = null,
+  onOpenArena,
+  onChallengeFriend,
+  onInspectFriend,
   onCreateMatch,
+  onOpenMatch,
 }) {
   const attempted = new Set(results.map((r) => r.partId))
   const done = PARTS.filter((p) => attempted.has(p.id)).length
@@ -299,9 +304,14 @@ export default function Home({
 
       <FriendBoard
         board={board}
+        matches={matches}
+        meId={meId}
         meName={name}
-        onChallenge={onChallenge}
-        onCreate={onCreateMatch}
+        onOpenArena={onOpenArena}
+        onChallengeFriend={onChallengeFriend}
+        onInspectFriend={onInspectFriend}
+        onCreateMatch={onCreateMatch}
+        onOpenMatch={onOpenMatch}
       />
 
       <section className="section">
@@ -332,21 +342,25 @@ export default function Home({
           </span>
         </button>
 
-        {sets.slice(0, 2).map((s) => (
-          <button key={s.id} className="set-mini" onClick={onOpenSets}>
-            <span className="set-mini__icon">
-              <Icon name="layers" size={17} />
-            </span>
-            <span className="set-mini__body">
-              <b>{s.name}</b>
-              <i>
-                {s.sizeKey === 'mini' ? '60 ข้อ · 65 คะแนน' : '230 ข้อ · 250 คะแนน'} ·{' '}
-                {formatThaiDateTime(s.createdAt)}
-              </i>
-            </span>
-            <Icon name="chevron" size={16} className="part-chev" />
-          </button>
-        ))}
+        {sets.length > 0 && (
+          <div className="set-mini-grid">
+            {sets.slice(0, 2).map((s) => (
+              <button key={s.id} className="set-mini" onClick={onOpenSets}>
+                <span className="set-mini__icon">
+                  <Icon name="layers" size={17} />
+                </span>
+                <span className="set-mini__body">
+                  <b>{s.name}</b>
+                  <i>
+                    {s.sizeKey === 'mini' ? '60 ข้อ · 65 คะแนน' : '230 ข้อ · 250 คะแนน'} ·{' '}
+                    {formatThaiDateTime(s.createdAt)}
+                  </i>
+                </span>
+                <Icon name="chevron" size={16} className="part-chev" />
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <div className="section">
@@ -371,9 +385,9 @@ export default function Home({
             <span className="part-meta" style={{ color: 'rgba(255,255,255,.72)' }}>
               {MOCK_PART.questions.length} ข้อ
               <span className="dot" style={{ background: 'rgba(255,255,255,.4)' }} />
-              {MOCK_PART.minutes} นาที
+              ไม่จำกัดเวลา
               <span className="dot" style={{ background: 'rgba(255,255,255,.4)' }} />
-              จับเวลาเสมือนจริง
+              นับเวลาสะสมต่อเนื่อง
               {bestFor('mock', results) && (
                 <>
                   <span className="dot" style={{ background: 'rgba(255,255,255,.4)' }} />
@@ -442,33 +456,35 @@ export default function Home({
               ดูทั้งหมด
             </button>
           </div>
-          {latest.map((r, i) => (
-            <button
-              key={r.id}
-              className="hist-card"
-              style={{ '--i': i, width: '100%', textAlign: 'left' }}
-              onClick={() => onOpenResult(r)}
-            >
-              <span
-                className="hist-score"
-                style={{
-                  background: r.score >= 60 ? 'var(--mint-soft)' : 'var(--coral-soft)',
-                  color: r.score >= 60 ? '#067a55' : '#b42318',
-                }}
+          <div className="hist-list">
+            {latest.map((r, i) => (
+              <button
+                key={r.id}
+                className="hist-card"
+                style={{ '--i': i, width: '100%', textAlign: 'left' }}
+                onClick={() => onOpenResult(r)}
               >
-                {Math.round(r.score)}
-              </span>
-              <span className="hist-body">
-                <span className="hist-title">
-                  {r.kind === 'set' ? r.setName || 'ชุดสอบเสมือนจริง' : `${r.partLabel} · ${r.partTitle}`}
+                <span
+                  className="hist-score"
+                  style={{
+                    background: r.score >= 60 ? 'var(--mint-soft)' : 'var(--coral-soft)',
+                    color: r.score >= 60 ? '#067a55' : '#b42318',
+                  }}
+                >
+                  {Math.round(r.score)}
                 </span>
-                <span className="hist-sub">
-                  <Icon name="clock" size={12} /> {formatThaiDateTime(r.date)}
+                <span className="hist-body">
+                  <span className="hist-title">
+                    {r.kind === 'set' ? r.setName || 'ชุดสอบเสมือนจริง' : `${r.partLabel} · ${r.partTitle}`}
+                  </span>
+                  <span className="hist-sub">
+                    <Icon name="clock" size={12} /> {formatThaiDateTime(r.date)}
+                  </span>
                 </span>
-              </span>
-              <Icon name="chevron" size={16} className="part-chev" />
-            </button>
-          ))}
+                <Icon name="chevron" size={16} className="part-chev" />
+              </button>
+            ))}
+          </div>
         </section>
       )}
 

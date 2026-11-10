@@ -258,7 +258,7 @@ export const MOCK_PART = {
   label: 'MOCK',
   group: 'mock',
   title: 'Mock Exam รวมทุกพาร์ท',
-  desc: 'จำลองการสอบจริง 30 ข้อจากทุกพาร์ท จับเวลาต่อเนื่อง',
+  desc: 'จำลองการสอบจริง 30 ข้อจากทุกพาร์ท นับเวลาสะสมต่อเนื่อง ไม่จำกัดเวลา',
   icon: 'trophy',
   color: '#0B2149',
   color2: '#2563EB',
@@ -266,7 +266,7 @@ export const MOCK_PART = {
   officialCount: 230,
   officialMinutes: 250,
   file: '1Ke0jdg_g4H3AoDvQ5P9iyBHw72uKDwnm',
-  topics: ['คละทุกพาร์ท 1.1 – 3.5', 'จับเวลา 35 นาที', 'คิดคะแนนรวม'],
+  topics: ['คละทุกพาร์ท 1.1 – 3.5', 'นับเวลาสะสม ไม่จำกัดเวลา', 'คิดคะแนนรวม'],
   questions: MOCK_QUESTIONS,
 }
 

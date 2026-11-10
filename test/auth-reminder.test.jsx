@@ -5,7 +5,11 @@ import CloudApp from '../src/components/CloudApp.jsx'
 import Sources from '../src/components/Sources.jsx'
 import Home from '../src/components/Home.jsx'
 import DocReader from '../src/components/DocReader.jsx'
-import { RECRUITMENT_NOTICE, SOURCE_FILES } from '../src/data/index.js'
+import Quiz from '../src/components/Quiz.jsx'
+import PartDetail from '../src/components/PartDetail.jsx'
+import Result from '../src/components/Result.jsx'
+import FriendArena, { ChallengePopup } from '../src/components/FriendArena.jsx'
+import { getPart, RECRUITMENT_NOTICE, SOURCE_FILES } from '../src/data/index.js'
 
 const { act, cleanup, fireEvent, render, screen, waitFor } = await import('@testing-library/react')
 
@@ -111,3 +115,204 @@ describe('home recruitment notice shortcut', () => {
     assert.equal(screen.queryByRole('dialog'), null)
   })
 })
+
+
+describe('responsive exam UI & figure zoom', () => {
+  afterEach(cleanup)
+
+  it('opens a zoomable lightbox for spatial figures and places quiz actions inside quiz-main', () => {
+    const part14 = getPart('1-4')
+    const figIndex = part14.questions.findIndex((q) => q.fig)
+    assert.ok(figIndex >= 0)
+    const exam = {
+      key: 'part:1-4',
+      kind: 'part',
+      title: part14.title,
+      label: `พาร์ท ${part14.label}`,
+      partId: '1-4',
+      minutes: part14.minutes,
+      questions: [part14.questions[figIndex]],
+    }
+    const { container } = render(<Quiz exam={exam} name="ผู้ทดสอบ" onSave={() => {}} onExit={() => {}} onFinish={() => {}} />)
+    assert.ok(container.querySelector('.quiz-main .quiz-foot'))
+    const fig = container.querySelector('.q-figure--zoomable')
+    assert.ok(fig)
+    fireEvent.click(fig)
+    const dialog = screen.getByRole('dialog', { name: 'ขยายภาพประกอบโจทย์' })
+    assert.ok(dialog)
+    fireEvent.click(screen.getByRole('button', { name: 'ซูม 2×' }))
+    assert.ok(dialog.querySelector('.fig-modal__stage.is-zoomed'))
+    fireEvent.click(screen.getByRole('button', { name: 'ปิดภาพขยาย' }))
+    assert.equal(screen.queryByRole('dialog', { name: 'ขยายภาพประกอบโจทย์' }), null)
+  })
+
+  it('keeps PartDetail footer CSS-controlled and Result examinee input theme-safe', () => {
+    const part = getPart('1-1')
+    const { container: detailContainer } = render(
+      <PartDetail
+        part={part}
+        results={[{ id: 'r1', partId: '1-1', score: 82, correct: 82, total: 100, date: '2026-11-10T00:00:00Z' }]}
+        attempt={null}
+        onBack={() => {}}
+        onStart={() => {}}
+        onRestart={() => {}}
+        onReadDoc={() => {}}
+        onOpenSources={() => {}}
+        partFileName="test.pdf"
+      />,
+    )
+    const foot = detailContainer.querySelector('.quiz-foot')
+    assert.equal(foot.style.position, '')
+    assert.ok(detailContainer.querySelector('.detail-grid'))
+    assert.ok(detailContainer.querySelector('.best-card'))
+    cleanup()
+
+    const { container: resContainer } = render(
+      <Result
+        result={{
+          id: 'r1',
+          kind: 'part',
+          partId: '1-1',
+          partLabel: '1.1',
+          partTitle: 'คณิตศาสตร์',
+          score: 82,
+          correct: 82,
+          wrong: 18,
+          skipped: 0,
+          total: 100,
+          timeUsedSec: 1200,
+          durationSec: 5400,
+          date: '2026-11-10T00:00:00Z',
+          topics: [{ name: 'อนุกรม', correct: 8, total: 10 }],
+          items: [],
+        }}
+        part={part}
+        profileName="ผู้ทดสอบ"
+        onHome={() => {}}
+        onRetry={() => {}}
+        onHistory={() => {}}
+        onOpenSources={() => {}}
+      />,
+    )
+    const input = resContainer.querySelector('.examinee-row__input')
+    assert.ok(input.classList.contains('field__input'))
+    assert.equal(input.style.background, '')
+  })
+
+  it('accumulates unlimited time without auto-submitting and updates PartDetail rules', () => {
+    const part = getPart('1-1')
+    let finished = false
+    const exam = {
+      key: 'part:1-1',
+      kind: 'part',
+      title: part.title,
+      label: `พาร์ท ${part.label}`,
+      partId: '1-1',
+      minutes: 1,
+      questions: part.questions.slice(0, 2),
+    }
+    const { container } = render(
+      <Quiz
+        exam={exam}
+        name="ผู้ทดสอบ"
+        attempt={{ answers: [null, null], idx: 0, usedSec: 7205 }}
+        onSave={() => {}}
+        onExit={() => {}}
+        onFinish={() => { finished = true }}
+      />,
+    )
+    assert.equal(finished, false)
+    assert.equal(container.querySelector('.timer-chip .num').textContent, '2:00:05')
+    cleanup()
+
+    const { container: detail } = render(
+      <PartDetail
+        part={part}
+        results={[]}
+        attempt={null}
+        onBack={() => {}}
+        onStart={() => {}}
+        onRestart={() => {}}
+        onReadDoc={() => {}}
+        onOpenSources={() => {}}
+        partFileName="test.pdf"
+      />,
+    )
+    assert.doesNotMatch(detail.textContent, /ส่งคำตอบอัตโนมัติเมื่อหมดเวลา/)
+    assert.match(detail.textContent, /ไม่จำกัดเวลาทำข้อสอบ/)
+  })
+
+  it('renders ChallengePopup 3-strike copy and FriendArena stats for non-competing friends', () => {
+    let accepted = 0
+    let declined = 0
+    const sampleMatch = {
+      id: 'M-UI-1',
+      hostUserId: 'u1',
+      hostName: 'สมชาย',
+      title: 'Mock Exam รวมทุกพาร์ท',
+      message: 'มาดวลกัน!',
+      examSpec: { kind: 'part', partId: 'mock', title: 'Mock Exam รวมทุกพาร์ท', totalQuestions: 30 },
+      players: [
+        { userId: 'u1', name: 'สมชาย', role: 'host', status: 'accepted' },
+        { userId: 'u2', name: 'สมหญิง', role: 'guest', status: 'invited' },
+        { userId: 'u3', name: 'ก้อง', role: 'guest', status: 'accepted' },
+      ],
+    }
+
+    const { rerender } = render(
+      <ChallengePopup
+        match={sampleMatch}
+        declineCount={2}
+        onAccept={() => { accepted += 1 }}
+        onDecline={() => { declined += 1 }}
+      />,
+    )
+    assert.ok(screen.getByText(/คำเตือนครั้งสุดท้าย/))
+    fireEvent.click(screen.getByRole('button', { name: /ไม่แข่งจริงๆ \(ครบ 3\/3/ }))
+    assert.equal(declined, 1)
+    rerender(
+      <ChallengePopup
+        match={sampleMatch}
+        declineCount={0}
+        onAccept={() => { accepted += 1 }}
+        onDecline={() => { declined += 1 }}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /ยอมรับคำท้า/ }))
+    assert.equal(accepted, 1)
+    cleanup()
+
+    render(
+      <FriendArena
+        friends={[
+          { id: 'u1', name: 'สมชาย', isMe: true, online: true, count: 3, avg: 78, best: 85, passedParts: 2, totalTimeSec: 1800, partStats: {}, recentResults: [] },
+          {
+            id: 'u4',
+            name: 'พิมพ์ชนก',
+            isMe: false,
+            online: false,
+            count: 5,
+            avg: 91,
+            best: 96,
+            passedParts: 4,
+            totalTimeSec: 3600,
+            partStats: { '1-1': { partId: '1-1', bestScore: 96, attempts: 2, bestTimeSec: 800 } },
+            recentResults: [{ id: 'rr1', kind: 'part', partId: '1-1', partLabel: '1.1', partTitle: 'คณิต', score: 96, correct: 96, total: 100, timeUsedSec: 800, date: '2026-11-10T00:00:00Z' }],
+          },
+        ]}
+        matches={[]}
+        sets={[]}
+        meId="u1"
+        meStats={{ avg: 78, best: 85, passedParts: 2, partStats: {} }}
+        challengePref={{ declineCount: 0, muted: false }}
+        onBack={() => {}}
+      />,
+    )
+    assert.ok(screen.getByText('พิมพ์ชนก'))
+    const statButtons = screen.getAllByRole('button', { name: /ดูสถิติ/ })
+    fireEvent.click(statButtons[1])
+    assert.ok(screen.getByRole('dialog', { name: 'สถิติของ พิมพ์ชนก' }))
+    assert.ok(screen.getByText(/เปรียบเทียบตัวต่อตัว/))
+  })
+})
+
