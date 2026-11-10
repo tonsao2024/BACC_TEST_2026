@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { humanTime, mmss } from '../lib/storage.js'
 import Icon from './Icons.jsx'
-import { Sheet } from './ui.jsx'
+import { FigureModal, Sheet } from './ui.jsx'
 
 const LETTERS = ['ก', 'ข', 'ค', 'ง']
 
@@ -17,24 +17,24 @@ export default function Quiz({
   onExit,
   onFinish,
   cloudSync,
+  match = null,
+  meId = null,
+  onMatchProgress,
 }) {
   const questions = exam.questions
   const total = questions.length
-  const duration = exam.minutes * 60
   const sections = exam.sections || null
 
   const [answers, setAnswers] = useState(() => attempt?.answers || emptyAnswers(total))
   const [flagged, setFlagged] = useState(() => new Set(attempt?.flagged || []))
   const [revealed, setRevealed] = useState(() => new Set(attempt?.revealed || []))
   const [idx, setIdx] = useState(() => Math.min(attempt?.idx || 0, total - 1))
-  const [remaining, setRemaining] = useState(() =>
-    typeof attempt?.remaining === 'number' ? attempt.remaining : duration,
-  )
   const [sectionSec, setSectionSec] = useState(() => attempt?.sectionSec || {})
   const [usedSec, setUsedSec] = useState(() => attempt?.usedSec || 0)
   const [paused, setPaused] = useState(false)
   const [sheet, setSheet] = useState(null)
   const [flash, setFlash] = useState(null)
+  const [zoomSrc, setZoomSrc] = useState(null)
 
   const feedbackRef = useRef(null)
   const submitted = useRef(false)
@@ -67,17 +67,17 @@ export default function Quiz({
       setId: exam.setId || null,
       seed: exam.seed || null,
       sizeKey: exam.sizeKey || null,
+      matchId: exam.matchId || null,
       total,
       answers,
       flagged: Array.from(flagged),
       revealed: Array.from(revealed),
       idx,
-      remaining,
       usedSec,
       sectionSec,
       updatedAt: new Date().toISOString(),
     }),
-    [answers, exam, flagged, idx, remaining, revealed, sectionSec, total, usedSec],
+    [answers, exam, flagged, idx, revealed, sectionSec, total, usedSec],
   )
 
   const snapshotRef = useRef(snapshot)
@@ -108,16 +108,37 @@ export default function Quiz({
     }
   }, [flush])
 
-  /* ---------- timer ---------- */
+  /* ---------- count-up accumulated timer (unlimited time, never auto-submits) ---------- */
   useEffect(() => {
     if (paused) return undefined
     const id = setInterval(() => {
       setUsedSec((u) => u + 1)
       setSectionSec((prev) => ({ ...prev, [sectionKey]: (prev[sectionKey] || 0) + 1 }))
-      setRemaining((r) => (r > 0 ? r - 1 : 0))
     }, 1000)
     return () => clearInterval(id)
   }, [paused, sectionKey])
+
+  /* ---------- live multiplayer progress sync ---------- */
+  const usedSecRef = useRef(usedSec)
+  usedSecRef.current = usedSec
+  useEffect(() => {
+    if (!exam.matchId || !onMatchProgress || submitted.current) return undefined
+    onMatchProgress(exam.matchId, {
+      answeredCount,
+      totalQuestions: total,
+      timeUsedSec: usedSecRef.current,
+    })
+    const id = setInterval(() => {
+      if (!paused && !submitted.current) {
+        onMatchProgress(exam.matchId, {
+          answeredCount,
+          totalQuestions: total,
+          timeUsedSec: usedSecRef.current,
+        })
+      }
+    }, 4000)
+    return () => clearInterval(id)
+  }, [answeredCount, exam.matchId, onMatchProgress, paused, total])
 
   /* ---------- flash effect auto-clear ---------- */
   useEffect(() => {
@@ -132,7 +153,7 @@ export default function Quiz({
 
   /* ---------- build result ---------- */
   const buildResult = useCallback(
-    (auto = false) => {
+    () => {
       const details = questions.map((item, i) => ({
         q: item.q,
         o: item.o,
@@ -179,6 +200,7 @@ export default function Quiz({
 
       const maxPoints = sections ? sections.reduce((sum, s) => sum + s.points, 0) : total
       const points = sections ? secStats.reduce((sum, s) => sum + s.points, 0) : correct
+      const finalUsedSec = usedSec < 1 ? 1 : usedSec
 
       return {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -191,6 +213,7 @@ export default function Quiz({
         setName: exam.setName || null,
         seed: exam.seed || null,
         sizeKey: exam.sizeKey || null,
+        matchId: exam.matchId || null,
         date: new Date().toISOString(),
         name: name || '',
         score: Math.round((points / maxPoints) * 1000) / 10,
@@ -200,34 +223,25 @@ export default function Quiz({
         wrong,
         skipped,
         total,
-        durationSec: duration,
-        timeUsedSec: usedSec < 1 ? 1 : usedSec,
-        autoSubmitted: auto,
+        durationSec: null,
+        timeUsedSec: finalUsedSec,
+        timeUsedText: humanTime(finalUsedSec),
+        autoSubmitted: false,
         sections: sections ? secStats : null,
         sectionTimes: sectionSec,
         topics: Array.from(topicMap.values()),
         items: details,
       }
     },
-    [answers, duration, exam, name, questions, sectionSec, sections, total, usedSec],
+    [answers, exam, name, questions, sectionSec, sections, total, usedSec],
   )
 
-  const submitRef = useRef(buildResult)
-  submitRef.current = buildResult
-
-  const submit = useCallback(
-    (auto = false) => {
-      if (submitted.current) return
-      submitted.current = true
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      onFinish(buildResult(auto))
-    },
-    [buildResult, onFinish],
-  )
-
-  useEffect(() => {
-    if (remaining <= 0 && !submitted.current) submit(true)
-  }, [remaining, submit])
+  const submit = useCallback(() => {
+    if (submitted.current) return
+    submitted.current = true
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    onFinish(buildResult())
+  }, [buildResult, onFinish])
 
   /* ---------- navigation & answering ---------- */
   const select = useCallback(
@@ -271,7 +285,7 @@ export default function Quiz({
   /* ---------- keyboard ---------- */
   useEffect(() => {
     const onKey = (e) => {
-      if (sheet) return
+      if (sheet || zoomSrc) return
       const tag = e.target?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       if (['1', '2', '3', '4'].includes(e.key)) select(Number(e.key) - 1)
@@ -280,10 +294,9 @@ export default function Quiz({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, idx, select, sheet])
+  }, [go, idx, select, sheet, zoomSrc])
 
-  const timerClass =
-    remaining <= 60 ? 'timer-chip is-danger' : remaining <= 300 ? 'timer-chip is-warn' : 'timer-chip'
+  const timerClass = 'timer-chip'
   const progress = ((idx + 1) / total) * 100
   const answeredPct = Math.round((answeredCount / total) * 100)
 
@@ -318,7 +331,11 @@ export default function Quiz({
 
   return (
     <>
-      {cloudSync?.status === 'error' && <div role="alert" style={{ padding: '10px 16px', background: '#fff3df', color: '#9a3412', fontSize: 13 }}>☁️ {cloudSync.error} · กลับหน้าแรกเพื่อจัดการการซิงก์</div>}
+      {cloudSync?.status === 'error' && (
+        <div role="alert" className="sync-banner-alert">
+          ☁️ {cloudSync.error} · กลับหน้าแรกเพื่อจัดการการซิงก์
+        </div>
+      )}
       <header className="topbar topbar--sticky">
         <button
           className="icon-btn icon-btn--ghost"
@@ -331,9 +348,9 @@ export default function Quiz({
           <p>{exam.label}</p>
           <h2>{exam.title}</h2>
         </div>
-        <div className={timerClass} role="timer" aria-live="off">
+        <div className={timerClass} role="timer" aria-live="off" title="เวลาที่ใช้สะสม (ไม่จำกัดเวลา)">
           <span className="timer-chip__dot" />
-          <span className="num">{mmss(remaining)}</span>
+          <span className="num">{mmss(usedSec)}</span>
         </div>
         <button
           className="icon-btn icon-btn--ghost"
@@ -343,6 +360,35 @@ export default function Quiz({
           <Icon name="pause" size={18} />
         </button>
       </header>
+
+      {match && Array.isArray(match.players) && match.players.length > 0 && (
+        <div className="quiz-match-strip" aria-label="สถานะผู้ร่วมแข่งขันสด">
+          <span className="quiz-match-strip__label">
+            <Icon name="trophy" size={13} /> แข่งสด {match.players.length} คน:
+          </span>
+          <div className="quiz-match-strip__list">
+            {match.players.map((p) => (
+              <span
+                key={p.userId}
+                className={`quiz-match-pill ${p.userId === meId ? 'is-me' : ''} is-${p.status}`}
+              >
+                <b>{p.name}</b>
+                <small className="num">
+                  {p.status === 'finished'
+                    ? `🏁 ${Math.round(p.score || 0)}%`
+                    : p.status === 'playing'
+                      ? `${p.answeredCount || 0}/${p.totalQuestions || total}`
+                      : p.status === 'accepted'
+                        ? 'พร้อม'
+                        : p.status === 'declined'
+                          ? 'ไม่แข่ง'
+                          : 'รอตอบรับ'}
+                </small>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {sections && (
         <div className="sec-strip">
@@ -437,7 +483,21 @@ export default function Quiz({
               <p className="q-num">ข้อที่ {idx + 1}</p>
               <p className="q-text">{q.q}</p>
 
-              {q.fig && <div className="q-figure" dangerouslySetInnerHTML={{ __html: q.fig }} />}
+              {q.fig && (
+                <div
+                  className="q-figure q-figure--zoomable"
+                  onClick={(e) => {
+                    const img = e.target.closest?.('img') || e.currentTarget.querySelector('img')
+                    if (img?.src) setZoomSrc(img.getAttribute('src'))
+                  }}
+                  title="แตะเพื่อขยายภาพ"
+                >
+                  <div className="q-figure__content" dangerouslySetInnerHTML={{ __html: q.fig }} />
+                  <span className="q-figure__zoom-hint" aria-hidden="true">
+                    <Icon name="eye" size={12} /> แตะเพื่อขยายภาพ
+                  </span>
+                </div>
+              )}
 
               <div className="options">
                 {q.o.map((opt, i) => {
@@ -547,6 +607,34 @@ export default function Quiz({
               )}
             </div>
           </div>
+
+          <div className="quiz-foot">
+            <button
+              className="btn btn--ghost btn--icon"
+              onClick={() => go(idx - 1)}
+              disabled={idx === 0}
+              aria-label="ข้อก่อนหน้า"
+            >
+              <Icon name="back" size={18} />
+            </button>
+            <button
+              className="btn btn--ghost btn--icon"
+              onClick={() => setSheet('palette')}
+              aria-label="รายการข้อสอบ"
+            >
+              <Icon name="grid" size={18} />
+              {flaggedCount > 0 && <i className="btn__dot" />}
+            </button>
+            {idx === total - 1 ? (
+              <button className="btn btn--primary" onClick={() => setSheet('submit')}>
+                <Icon name="check" size={17} stroke={2.4} /> ส่งคำตอบ
+              </button>
+            ) : (
+              <button className="btn btn--primary" onClick={() => go(idx + 1)}>
+                ข้อถัดไป <Icon name="chevron" size={17} />
+              </button>
+            )}
+          </div>
         </div>
 
         <aside className="quiz-aside" aria-label="ภาพรวมการทำข้อสอบ">
@@ -604,33 +692,7 @@ export default function Quiz({
         </aside>
       </div>
 
-      <div className="quiz-foot">
-        <button
-          className="btn btn--ghost btn--icon"
-          onClick={() => go(idx - 1)}
-          disabled={idx === 0}
-          aria-label="ข้อก่อนหน้า"
-        >
-          <Icon name="back" size={18} />
-        </button>
-        <button
-          className="btn btn--ghost btn--icon"
-          onClick={() => setSheet('palette')}
-          aria-label="รายการข้อสอบ"
-        >
-          <Icon name="grid" size={18} />
-          {flaggedCount > 0 && <i className="btn__dot" />}
-        </button>
-        {idx === total - 1 ? (
-          <button className="btn btn--primary" onClick={() => setSheet('submit')}>
-            <Icon name="check" size={17} stroke={2.4} /> ส่งคำตอบ
-          </button>
-        ) : (
-          <button className="btn btn--primary" onClick={() => go(idx + 1)}>
-            ข้อถัดไป <Icon name="chevron" size={17} />
-          </button>
-        )}
-      </div>
+      {zoomSrc && <FigureModal src={zoomSrc} onClose={() => setZoomSrc(null)} />}
 
       {sheet === 'exit' && (
         <Sheet
@@ -659,7 +721,7 @@ export default function Quiz({
       {sheet === 'pause' && (
         <Sheet
           title="หยุดพักการทำข้อสอบ"
-          desc="ไม่ต้องทำจบในครั้งเดียว — คำตอบและเวลาที่ใช้จะถูกเก็บไว้ และเวลาจะหยุดนับระหว่างพัก"
+          desc="ไม่จำกัดเวลาทำข้อสอบ — คำตอบและเวลาสะสมจะถูกเก็บไว้ และเวลาจะหยุดนับระหว่างพัก"
           onClose={() => setSheet(null)}
         >
           <div className="pause-card">
@@ -670,12 +732,12 @@ export default function Quiz({
               </b>
             </div>
             <div>
-              <span>เวลาที่ใช้ไป</span>
-              <b>{humanTime(usedSec)}</b>
+              <span>ยังไม่ได้ตอบ</span>
+              <b>{total - answeredCount} ข้อ</b>
             </div>
             <div>
-              <span>เวลาที่เหลือ</span>
-              <b>{mmss(remaining)}</b>
+              <span>เวลาสะสมที่ใช้</span>
+              <b>{humanTime(usedSec)}</b>
             </div>
           </div>
           <div className="sheet__actions">
@@ -700,7 +762,9 @@ export default function Quiz({
       {sheet === 'submit' && (
         <Sheet
           title="ยืนยันการส่งคำตอบ"
-          desc={`ตอบแล้ว ${answeredCount} จาก ${total} ข้อ · เหลือเวลา ${mmss(remaining)}${
+          desc={`ตอบแล้ว ${answeredCount} จาก ${total} ข้อ${
+            total - answeredCount > 0 ? ` (ยังไม่ได้ตอบ ${total - answeredCount} ข้อ)` : ' (ครบทุกข้อแล้ว)'
+          } · เวลาสะสม ${humanTime(usedSec)}${
             flaggedCount ? ` · ปักธงไว้ ${flaggedCount} ข้อ` : ''
           }`}
           onClose={() => setSheet(null)}
@@ -709,7 +773,7 @@ export default function Quiz({
               <button className="btn btn--ghost" onClick={() => setSheet(null)}>
                 ตรวจทานอีกครั้ง
               </button>
-              <button className="btn btn--primary" onClick={() => submit(false)}>
+              <button className="btn btn--primary" onClick={() => submit()}>
                 ส่งคำตอบ
               </button>
             </>

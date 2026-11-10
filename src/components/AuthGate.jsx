@@ -36,7 +36,7 @@ export default function AuthGate({ onRegistrationStart, onRegistrationSuccess, o
       <label className="field"><span className="field__label">ชื่อผู้ใช้งาน</span><input className="field__input" value={name} onChange={e => setName(e.target.value)} maxLength={60} required autoComplete="username" placeholder="ชื่อที่ต้องการใช้เข้าสู่ระบบ" /></label>
       <label className="field"><span className="field__label">PIN (ตัวเลข 8–12 หลัก)</span><input className="field__input" type="password" inputMode="numeric" pattern="[0-9]{8,12}" maxLength={12} value={pin} onChange={e => setPin(e.target.value)} required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
       {mode === 'register' && <label className="field"><span className="field__label">ยืนยัน PIN</span><input className="field__input" type="password" inputMode="numeric" value={confirm} onChange={e => setConfirm(e.target.value)} maxLength={12} required autoComplete="new-password" /></label>}
-      {error && <p role="alert" style={{ color: '#c2410c' }}>{error}</p>}
+      {error && <p role="alert" className="gate__alert">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'กำลังดำเนินการ…' : mode === 'login' ? 'เข้าสู่ระบบ' : 'สร้างบัญชี'}</button>
       <button type="button" className="btn btn--soft btn--block" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setPin(''); setConfirm('') }}>{mode === 'login' ? 'ผู้ใช้ใหม่ · สร้างบัญชี' : 'มีบัญชีแล้ว · เข้าสู่ระบบ'}</button>
       <p className="gate__note"><Icon name="lock" size={14} /> จดจำชื่อและ PIN ไว้ให้ดี หากลืมจะไม่สามารถกู้บัญชีหรือประวัติเดิมได้ ต้องสมัครใหม่ · ไม่ควรใช้ PIN ซ้ำกับบริการสำคัญ</p>

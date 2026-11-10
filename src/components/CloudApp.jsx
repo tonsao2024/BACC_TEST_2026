@@ -85,7 +85,7 @@ function AccountApp({ user, onSignOut }) {
     await onSignOut()
   }
   if (!ready) return <div className="gate"><div className="gate__card"><h1 className="gate__title">กำลังเตรียมข้อมูล</h1><p role="status">{sync.error || 'กำลังดึงข้อมูลล่าสุดจาก Supabase…'}</p>{sync.error && <button className="btn btn--primary" onClick={() => setReload(x => x + 1)}>ลองอีกครั้ง</button>}</div></div>
-  return <App key={`${user.id}-${reload}`} cloudSync={sync} onCloudSignOut={signOut} onCloudRetry={() => controller.current?.retry()} onDiscardLocal={() => { if (window.confirm('ข้อมูลที่ยังไม่ซิงก์ในเครื่องนี้จะถูกแทนที่ด้วยข้อมูลบนคลาวด์ ต้องการดำเนินการหรือไม่?')) controller.current?.discardLocal() }} />
+  return <App key={`${user.id}-${reload}`} authUser={user} cloudSync={sync} onCloudSignOut={signOut} onCloudRetry={() => controller.current?.retry()} onDiscardLocal={() => { if (window.confirm('ข้อมูลที่ยังไม่ซิงก์ในเครื่องนี้จะถูกแทนที่ด้วยข้อมูลบนคลาวด์ ต้องการดำเนินการหรือไม่?')) controller.current?.discardLocal() }} />
 }
 
 export default function CloudApp() {

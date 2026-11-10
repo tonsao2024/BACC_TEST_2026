@@ -10,8 +10,9 @@ try {
     plugins: [{
       name: 'mock-cloud-dependencies',
       setup(build) {
-        build.onResolve({ filter: /(?:lib\/supabase\.js|\/App\.jsx)$/ }, args => ({ path: args.path, namespace: 'mock' }))
+        build.onResolve({ filter: /(?:(?:^|\/)supabase\.js|\/App\.jsx)$/ }, args => ({ path: args.path, namespace: 'mock' }))
         build.onLoad({ filter: /supabase\.js$/, namespace: 'mock' }, () => ({ contents: `
+          export const normalizeName = (n) => String(n || '').normalize('NFKC').trim().replace(/\\s+/g, ' ').toLowerCase();
           export const loginEmail = async () => 'user@example.invalid';
           export const supabase = { auth: {
             getSession: async () => ({data:{session:null}}),

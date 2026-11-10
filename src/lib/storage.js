@@ -483,7 +483,7 @@ export const downloadBlob = (blob, filename) => {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1500)
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
 export const uidPublic = uid

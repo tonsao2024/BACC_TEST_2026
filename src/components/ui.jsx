@@ -60,22 +60,84 @@ export function Sheet({ title, desc, children, onClose, actions }) {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose?.()
     }
+    const prev = document.body.style.overflow
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
+      document.body.style.overflow = prev
     }
   }, [onClose])
 
   return createPortal(
     <div className="sheet-backdrop" onClick={onClose} role="presentation">
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="sheet"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || undefined}
+      >
         <div className="sheet__grab" />
         {title && <h3 className="sheet__title">{title}</h3>}
         {desc && <p className="sheet__desc">{desc}</p>}
         {children}
         {actions && <div className="sheet__actions">{actions}</div>}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+export function FigureModal({ src, alt = 'ภาพประกอบโจทย์', onClose }) {
+  const [zoomed, setZoomed] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.()
+    }
+    const prev = document.body.style.overflow
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  if (!src) return null
+
+  return createPortal(
+    <div className="fig-modal" onClick={onClose} role="dialog" aria-modal="true" aria-label="ขยายภาพประกอบโจทย์">
+      <div className="fig-modal__bar" onClick={(e) => e.stopPropagation()}>
+        <span className="fig-modal__hint">
+          {zoomed ? 'เลื่อนซ้าย–ขวาเพื่อดูรายละเอียด · แตะภาพเพื่อย่อ' : 'แตะที่ภาพเพื่อซูมขยาย · เลื่อนดูได้ทุกส่วน'}
+        </span>
+        <button
+          type="button"
+          className="btn btn--soft btn--xs"
+          onClick={() => setZoomed((z) => !z)}
+        >
+          {zoomed ? 'พอดีจอ' : 'ซูม 2×'}
+        </button>
+        <button type="button" className="fig-modal__close" onClick={onClose} aria-label="ปิดภาพขยาย">
+          <Icon name="close" size={18} />
+        </button>
+      </div>
+      <div
+        className={`fig-modal__stage ${zoomed ? 'is-zoomed' : ''}`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose?.()
+        }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          onClick={(e) => {
+            e.stopPropagation()
+            setZoomed((z) => !z)
+          }}
+        />
       </div>
     </div>,
     document.body,

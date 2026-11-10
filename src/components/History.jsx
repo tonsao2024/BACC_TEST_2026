@@ -35,7 +35,7 @@ export default function History({
         ...r,
         dateText: formatThaiDateTime(r.date),
         timeUsedText: `${Math.floor(r.timeUsedSec / 60)} นาที ${r.timeUsedSec % 60} วินาที`,
-        durationText: `${Math.floor(r.durationSec / 60)} นาที`,
+        durationText: '',
         name: r.name || 'ผู้เข้าสอบ',
       },
       `BACC-ผลสอบ-${(r.setName || r.partLabel || 'exam').replace(/\s+/g, '-')}-${Math.round(r.score)}คะแนน.pdf`,
@@ -155,54 +155,58 @@ export default function History({
                 </div>
               )}
 
-              {shown.map((r, i) => (
-                <div className="hist-card" key={r.id} style={{ '--i': i }}>
-                  <button
-                    className="hist-score"
-                    style={{
-                      background: r.score >= 60 ? 'var(--mint-soft)' : 'var(--coral-soft)',
-                      color: r.score >= 60 ? '#067a55' : '#b42318',
-                      border: 'none',
-                    }}
-                    onClick={() => onOpenResult(r)}
-                  >
-                    {Math.round(r.score)}
-                  </button>
-                  <button
-                    className="hist-body"
-                    onClick={() => onOpenResult(r)}
-                    style={{ background: 'none', textAlign: 'left' }}
-                  >
-                    <span className="hist-title">
-                      {r.kind === 'set' && <em className="hist-tag">ชุดสอบ</em>}
-                      {label(r)}
-                    </span>
-                    <span className="hist-sub">
-                      <Icon name="clock" size={12} /> {formatThaiDateTime(r.date)}
-                    </span>
-                    <span className="hist-sub">
-                      <Icon name="check" size={12} stroke={2.4} /> {r.correct}/{r.total} ข้อ · ใช้เวลา{' '}
-                      {mmss(r.timeUsedSec)}
-                    </span>
-                  </button>
-                  <button
-                    className="icon-btn"
-                    onClick={() => download(r)}
-                    aria-label="ดาวน์โหลด PDF"
-                    style={{ width: 36, height: 36, borderRadius: 12 }}
-                  >
-                    <Icon name="download" size={16} />
-                  </button>
-                  <button
-                    className="icon-btn"
-                    onClick={() => onDelete?.(r.id)}
-                    aria-label="ลบผลสอบนี้"
-                    style={{ width: 36, height: 36, borderRadius: 12 }}
-                  >
-                    <Icon name="close" size={15} />
-                  </button>
+              {shown.length > 0 && (
+                <div className="hist-list">
+                  {shown.map((r, i) => (
+                    <div className="hist-card" key={r.id} style={{ '--i': i }}>
+                      <button
+                        className="hist-score"
+                        style={{
+                          background: r.score >= 60 ? 'var(--mint-soft)' : 'var(--coral-soft)',
+                          color: r.score >= 60 ? '#067a55' : '#b42318',
+                          border: 'none',
+                        }}
+                        onClick={() => onOpenResult(r)}
+                      >
+                        {Math.round(r.score)}
+                      </button>
+                      <button
+                        className="hist-body"
+                        onClick={() => onOpenResult(r)}
+                        style={{ background: 'none', textAlign: 'left' }}
+                      >
+                        <span className="hist-title">
+                          {r.kind === 'set' && <em className="hist-tag">ชุดสอบ</em>}
+                          {label(r)}
+                        </span>
+                        <span className="hist-sub">
+                          <Icon name="clock" size={12} /> {formatThaiDateTime(r.date)}
+                        </span>
+                        <span className="hist-sub">
+                          <Icon name="check" size={12} stroke={2.4} /> {r.correct}/{r.total} ข้อ · ใช้เวลา{' '}
+                          {mmss(r.timeUsedSec)}
+                        </span>
+                      </button>
+                      <button
+                        className="icon-btn"
+                        onClick={() => download(r)}
+                        aria-label="ดาวน์โหลด PDF"
+                        style={{ width: 36, height: 36, borderRadius: 12 }}
+                      >
+                        <Icon name="download" size={16} />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        onClick={() => onDelete?.(r.id)}
+                        aria-label="ลบผลสอบนี้"
+                        style={{ width: 36, height: 36, borderRadius: 12 }}
+                      >
+                        <Icon name="close" size={15} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </section>
 
             <p style={{ textAlign: 'center', fontSize: 10.5, color: 'var(--muted)', marginTop: 12, lineHeight: 1.7 }}>

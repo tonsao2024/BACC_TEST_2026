@@ -219,7 +219,7 @@ export default function ExamBuilder({
                 >
                   <b>{s.label}</b>
                   <span>{s.desc}</span>
-                  <i>{s.minutes} นาที</i>
+                  <i>ไม่จำกัดเวลา · นับเวลาสะสม</i>
                 </button>
               ))}
             </div>

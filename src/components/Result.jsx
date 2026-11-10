@@ -4,8 +4,9 @@ import { formatThaiDateTime, humanTime, mmss } from '../lib/storage.js'
 import { downloadResultImage, downloadResultPdf } from '../lib/pdf.js'
 import { certTier } from '../lib/certs.js'
 import { CertificateView, CertSheet } from './Certificate.jsx'
+import { MatchRoomCard } from './FriendArena.jsx'
 import Icon from './Icons.jsx'
-import { Confetti } from './ui.jsx'
+import { Confetti, FigureModal } from './ui.jsx'
 
 const LETTERS = ['ก', 'ข', 'ค', 'ง']
 
@@ -30,6 +31,10 @@ export default function Result({
   result,
   part,
   profileName,
+  match = null,
+  meId = null,
+  allFriends = [],
+  onOpenArena,
   onHome,
   onRetry,
   onHistory,
@@ -40,6 +45,7 @@ export default function Result({
   const [open, setOpen] = useState(-1)
   const [busy, setBusy] = useState('')
   const [certOpen, setCertOpen] = useState(false)
+  const [zoomSrc, setZoomSrc] = useState(null)
   const [examinee, setExaminee] = useState(result.name || profileName || '')
   const isSet = result.kind === 'set'
   const title = isSet ? result.setName || 'ชุดสอบเสมือนจริง' : `${result.partLabel} · ${result.partTitle}`
@@ -71,7 +77,7 @@ export default function Result({
 
   const dateText = formatThaiDateTime(result.date)
   const timeUsedText = humanTime(result.timeUsedSec)
-  const durationText = humanTime(result.durationSec)
+  const durationText = ''
 
   const pdfPayload = {
     ...result,
@@ -225,9 +231,25 @@ export default function Result({
             <div className="stat-box__num num" style={{ fontSize: 14, paddingTop: 3 }}>
               {mmss(result.timeUsedSec)}
             </div>
-            <div className="stat-box__label">เวลาที่ใช้</div>
+            <div className="stat-box__label">เวลาสะสมที่ใช้</div>
           </div>
         </div>
+
+        {match && (
+          <section className="section">
+            <div className="section__head">
+              <h3 className="section__title">
+                <Icon name="trophy" size={15} /> ตารางคะแนนห้องแข่งกับเพื่อน
+              </h3>
+              {onOpenArena && (
+                <button type="button" className="section__link" onClick={onOpenArena}>
+                  ดูห้องแข่งเต็ม
+                </button>
+              )}
+            </div>
+            <MatchRoomCard match={match} meId={meId} allFriends={allFriends} />
+          </section>
+        )}
 
         {result.sections && result.sections.length > 0 && (
           <section className="section">
@@ -264,105 +286,98 @@ export default function Result({
           </section>
         )}
 
-        <section className="section">
-          <div className="section__head">
-            <h3 className="section__title">สรุปตามหัวข้อ</h3>
-            <span className="section__link" style={{ color: 'var(--muted)' }}>
-              ถูก / ทั้งหมด
-            </span>
-          </div>
-          <div className="info-card">
-            {(result.topics || []).map((t, i) => (
-              <div className="topic-row" key={i}>
-                <span className="topic-row__name">{t.name}</span>
-                <span className="topic-row__val">
-                  {t.correct}/{t.total}
-                </span>
-                <span className="topic-row__bar">
-                  <span
-                    className="topic-row__fill"
-                    style={{
-                      width: `${t.total ? (t.correct / t.total) * 100 : 0}%`,
-                      display: 'block',
-                      animationDelay: `${i * 80}ms`,
-                    }}
-                  />
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="section">
-          <div className="section__head">
-            <h3 className="section__title">ดาวน์โหลดผลการทดสอบ</h3>
-          </div>
-          <div className="download-card">
-            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>รายงานผลอย่างเป็นทางการ</p>
-            <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
-              ไฟล์ PDF ขนาด A4 ภาษาไทย พร้อมคะแนน สรุปหัวข้อ และวันที่ทดสอบ
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <span style={{ fontSize: 11.5, color: 'var(--muted)', flex: 'none' }}>ชื่อผู้เข้าสอบ</span>
-              <input
-                value={examinee}
-                onChange={(e) => setExaminee(e.target.value)}
-                placeholder="ระบุชื่อ–นามสกุล"
-                maxLength={60}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  padding: '9px 12px',
-                  borderRadius: 12,
-                  border: '1.5px solid var(--line)',
-                  background: '#f8fbff',
-                  fontSize: 12.5,
-                  outline: 'none',
-                }}
-              />
+        <div className="result-summary-grid">
+          <section className="section">
+            <div className="section__head">
+              <h3 className="section__title">สรุปตามหัวข้อ</h3>
+              <span className="section__link" style={{ color: 'var(--muted)' }}>
+                ถูก / ทั้งหมด
+              </span>
             </div>
-            <button className="download-row" onClick={handlePdf} disabled={busy === 'pdf'}>
-              <span className="download-row__ico" style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}>
-                <Icon name="download" size={18} />
-              </span>
-              <span style={{ flex: 1 }}>
-                <span className="download-row__title">
-                  {busy === 'pdf' ? 'กำลังสร้างไฟล์…' : 'ดาวน์โหลดผลการทดสอบ (PDF)'}
+            <div className="info-card">
+              {(result.topics || []).map((t, i) => (
+                <div className="topic-row" key={i}>
+                  <span className="topic-row__name">{t.name}</span>
+                  <span className="topic-row__val">
+                    {t.correct}/{t.total}
+                  </span>
+                  <span className="topic-row__bar">
+                    <span
+                      className="topic-row__fill"
+                      style={{
+                        width: `${t.total ? (t.correct / t.total) * 100 : 0}%`,
+                        display: 'block',
+                        animationDelay: `${i * 80}ms`,
+                      }}
+                    />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="section">
+            <div className="section__head">
+              <h3 className="section__title">ดาวน์โหลดผลการทดสอบ</h3>
+            </div>
+            <div className="download-card">
+              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>รายงานผลอย่างเป็นทางการ</p>
+              <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
+                ไฟล์ PDF ขนาด A4 ภาษาไทย พร้อมคะแนน สรุปหัวข้อ และวันที่ทดสอบ
+              </p>
+              <div className="examinee-row">
+                <span className="examinee-row__label">ชื่อผู้เข้าสอบ</span>
+                <input
+                  className="field__input field__input--sm examinee-row__input"
+                  value={examinee}
+                  onChange={(e) => setExaminee(e.target.value)}
+                  placeholder="ระบุชื่อ–นามสกุล"
+                  maxLength={60}
+                />
+              </div>
+              <button className="download-row" onClick={handlePdf} disabled={busy === 'pdf'}>
+                <span className="download-row__ico" style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}>
+                  <Icon name="download" size={18} />
                 </span>
-                <span className="download-row__desc">A4 · พร้อมพิมพ์หรือส่งต่อ</span>
-              </span>
-              <Icon name="external" size={15} className="part-chev" />
-            </button>
-            <button className="download-row" onClick={handlePng} disabled={busy === 'png'}>
-              <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
-                <Icon name="share" size={18} />
-              </span>
-              <span style={{ flex: 1 }}>
-                <span className="download-row__title">บันทึกเป็นรูปภาพ (PNG)</span>
-                <span className="download-row__desc">เหมาะสำหรับแชร์ในโซเชียล</span>
-              </span>
-              <Icon name="external" size={15} className="part-chev" />
-            </button>
-            {part?.file && !isSet && (
-              <a
-                className="download-row"
-                href={driveDownload(part.file)}
-                target="_blank"
-                rel="noreferrer"
-                style={{ textDecoration: 'none' }}
-              >
-                <span className="download-row__ico" style={{ background: '#eef6ff', color: '#2563eb' }}>
-                  <Icon name="docs" size={18} />
-                </span>
-                <span style={{ flex: 1 }}>
-                  <span className="download-row__title">ดาวน์โหลดข้อสอบต้นฉบับ (Google Drive)</span>
-                  <span className="download-row__desc">{part.id === '2' ? 'พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? 'ไฟล์ Mock Exam · เฉลยอยู่ในไฟล์แยก' : 'ไฟล์ PDF ฉบับเต็มพร้อมเฉลยจาก Drive'}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="download-row__title">
+                    {busy === 'pdf' ? 'กำลังสร้างไฟล์…' : 'ดาวน์โหลดผลการทดสอบ (PDF)'}
+                  </span>
+                  <span className="download-row__desc">A4 · พร้อมพิมพ์หรือส่งต่อ</span>
                 </span>
                 <Icon name="external" size={15} className="part-chev" />
-              </a>
-            )}
-          </div>
-        </section>
+              </button>
+              <button className="download-row" onClick={handlePng} disabled={busy === 'png'}>
+                <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
+                  <Icon name="share" size={18} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="download-row__title">บันทึกเป็นรูปภาพ (PNG)</span>
+                  <span className="download-row__desc">เหมาะสำหรับแชร์ในโซเชียล</span>
+                </span>
+                <Icon name="external" size={15} className="part-chev" />
+              </button>
+              {part?.file && !isSet && (
+                <a
+                  className="download-row"
+                  href={driveDownload(part.file)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <span className="download-row__ico" style={{ background: '#eef6ff', color: '#2563eb' }}>
+                    <Icon name="docs" size={18} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="download-row__title">ดาวน์โหลดข้อสอบต้นฉบับ (Google Drive)</span>
+                    <span className="download-row__desc">{part.id === '2' ? 'พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? 'ไฟล์ Mock Exam · เฉลยอยู่ในไฟล์แยก' : 'ไฟล์ PDF ฉบับเต็มพร้อมเฉลยจาก Drive'}</span>
+                  </span>
+                  <Icon name="external" size={15} className="part-chev" />
+                </a>
+              )}
+            </div>
+          </section>
+        </div>
 
         <section className="section">
           <div className="section__head">
@@ -389,7 +404,20 @@ export default function Result({
                 {isOpen && (
                   <div className="review-body">
                     {item.fig && (
-                      <div className="q-figure" style={{ marginTop: 0 }} dangerouslySetInnerHTML={{ __html: item.fig }} />
+                      <div
+                        className="q-figure q-figure--zoomable"
+                        style={{ marginTop: 0 }}
+                        onClick={(e) => {
+                          const img = e.target.closest?.('img') || e.currentTarget.querySelector('img')
+                          if (img?.src) setZoomSrc(img.getAttribute('src'))
+                        }}
+                        title="แตะเพื่อขยายภาพ"
+                      >
+                        <div className="q-figure__content" dangerouslySetInnerHTML={{ __html: item.fig }} />
+                        <span className="q-figure__zoom-hint" aria-hidden="true">
+                          <Icon name="eye" size={12} /> แตะเพื่อขยายภาพ
+                        </span>
+                      </div>
                     )}
                     {item.o.map((opt, oi) => (
                       <div
@@ -448,6 +476,7 @@ export default function Result({
       {certOpen && earnedCert && (
         <CertSheet cert={earnedCert} name={examinee.trim() || profileName} onClose={() => setCertOpen(false)} onToast={onToast} />
       )}
+      {zoomSrc && <FigureModal src={zoomSrc} onClose={() => setZoomSrc(null)} />}
     </>
   )
 }

@@ -15,5 +15,6 @@
 - โปรเจกต์: `oqigdiwdblppeombecyi` (Singapore); frontend ใช้ URL และ **publishable key** ใน `src/lib/supabase.js` ซึ่งไม่ใช่ secret และสามารถ override ด้วย `VITE_SUPABASE_URL` และ `VITE_SUPABASE_PUBLISHABLE_KEY` ตอน build ห้ามใส่ service-role key ใน frontend
 - Auth ใช้ email/password ภายใน โดยแปลงชื่อที่ normalize แล้วเป็น SHA-256 เพื่อสร้างที่อยู่อีเมลภายใน `@accounts.bacc.invalid` ไม่ใช่อีเมลรับข้อความจริง และเปิด auto-confirm สำหรับโปรเจกต์แยกนี้ จึงไม่มีการกู้บัญชีผ่านอีเมล
 - ตาราง `public.exam_user_state` และ RLS อยู่ใน `supabase/migrations/20261110000000_exam_user_state.sql` แต่ละบัญชีอ่าน/เพิ่ม/แก้ไขได้เฉพาะแถวที่ `user_id = auth.uid()` การซิงก์ใช้ revision เพื่อตรวจพบการแก้ไขพร้อมกัน
+- ตารางรายชื่อเพื่อน สถิติสาธารณะ และห้องแข่งขันหลายคน (`public.friend_profiles`, `public.friend_matches`, `public.friend_match_players` พร้อม trigger ดึงรายชื่อบัญชีเดิมจาก `auth.users` และ `exam_user_state`) อยู่ใน `supabase/migrations/20261110010000_friend_arena.sql`
 - Supabase Auth มีการจำกัดอัตราคำขอตามการตั้งค่าโครงการ แต่ PIN ที่คาดเดาง่ายยังเสี่ยงถูกเดา ควรติดตามการใช้งาน ตั้งค่า rate limit/CAPTCHA เพิ่มตามความเหมาะสม และใช้วิธีเข้าสู่ระบบที่แข็งแรงกว่านี้หากข้อมูลมีความอ่อนไหว
 - ตรวจด้วย `npm test` และ `npm run build` การตั้งค่า URL/key อย่างเดียวไม่สร้างตารางหรือเปิด auto-confirm ให้โปรเจกต์ใหม่ ต้องใช้ migration และตั้งค่า Auth ด้วย
