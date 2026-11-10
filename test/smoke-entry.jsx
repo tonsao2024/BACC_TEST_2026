@@ -1,4 +1,4 @@
-import { dom, fetchCalls, getLastBlob } from './env.js'
+import { dom, fetchCalls, getLastBlob, setRemotePayload } from './env.js'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
@@ -6,8 +6,11 @@ import App from '../src/App.jsx'
 import { PARTS, MOCK_PART, TOTAL_QUESTIONS } from '../src/data/index.js'
 import { generateExam } from '../src/lib/generator.js'
 import { exportExamPdf } from '../src/lib/pdf.js'
+import { clearGithubConfig, saveGithubConfig } from '../src/lib/remote.js'
+import { pullAndMerge, resetSyncState } from '../src/lib/sync.js'
 import {
   exportSnapshot,
+  getProfiles,
   getSettings,
   listAttempts,
   makeShareCode,
@@ -168,6 +171,15 @@ async function run() {
   await tap(byText('.quiz-foot button', 'เริ่มทำข้อสอบ'), 40)
   check('quiz screen opens', text().includes('ข้อที่ 1'))
   check('timer running', /\d\d:\d\d/.test(text()))
+
+  await tap(document.querySelector('.quiz-foot .btn--icon[aria-label="รายการข้อสอบ"]'), 50)
+  check('instant-reveal toggle available in quiz', !!document.querySelector('.toggle-row .switch'))
+  await tap(document.querySelector('.toggle-row .switch'), 40)
+  check('instant reveal can be turned off', getSettings().instantReveal === false)
+  await tap(document.querySelector('.toggle-row .switch'), 40)
+  check('instant reveal turned back on', getSettings().instantReveal === true)
+  await tap(document.querySelector('.sheet-backdrop'), 50)
+  check('palette sheet closed', !document.querySelector('.sheet'))
 
   const partTotal = PARTS[0].questions.length
   /* instant reveal + detailed explanation */
@@ -422,6 +434,40 @@ async function run() {
     'connected view shows repo target',
     (document.querySelector('.gh__meta')?.textContent || '').includes('tester/BACC_TEST_2026'),
   )
+
+  /* pull + merge from a pre-existing remote snapshot */
+  const remoteSnap = {
+    app: 'bacc-exam-2569',
+    version: 2,
+    updatedAt: '2026-01-02T00:00:00.000Z',
+    profiles: [
+      ...getProfiles(),
+      { id: 'remote-tester', name: 'เพื่อนร่วมทีม', createdAt: '2026-01-02T00:00:00.000Z' },
+    ],
+    results: {},
+    attempts: {},
+    sets: [],
+    settings: { instantReveal: true },
+    theme: 'light',
+  }
+  setRemotePayload(remoteSnap)
+  saveGithubConfig({ mode: 'repo', token: 'ghp_smoke_token', owner: 'tester', repo: 'BACC_TEST_2026' })
+  let pulled = false
+  await act(async () => {
+    pulled = await pullAndMerge()
+  })
+  check('pull from github succeeds', pulled === true)
+  check(
+    'pull merges remote profiles without dropping local ones',
+    getProfiles().length === 3 && !!getProfiles().find((p) => p.id === 'remote-tester'),
+    `${getProfiles().length} profiles`,
+  )
+  setRemotePayload(null)
+  await act(async () => {
+    clearGithubConfig()
+    resetSyncState()
+    await sleep(20)
+  })
 
   const failed = results.filter((r) => !r.ok)
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`)

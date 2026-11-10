@@ -60,6 +60,10 @@ dom.window.HTMLAnchorElement.prototype.click = function click() {}
 
 /* --- GitHub API mock (no real network in jsdom) --- */
 const fetchCalls = []
+let remotePayload = null
+const setRemotePayload = (obj) => {
+  remotePayload = obj
+}
 const mockFetch = async (url, options = {}) => {
   const method = (options.method || 'GET').toUpperCase()
   const target = String(url)
@@ -73,8 +77,16 @@ const mockFetch = async (url, options = {}) => {
     payload = { id: 'gist-mock', files: { 'bacc-data.json': { content: '{}' } } }
   } else if (target.includes('/contents/')) {
     if (method === 'GET') {
-      status = 404
-      payload = { message: 'Not Found' }
+      if (remotePayload) {
+        payload = {
+          sha: 'sha-remote',
+          encoding: 'base64',
+          content: Buffer.from(JSON.stringify(remotePayload), 'utf8').toString('base64'),
+        }
+      } else {
+        status = 404
+        payload = { message: 'Not Found' }
+      }
     } else {
       payload = { content: { sha: `sha-${fetchCalls.length}` }, commit: { sha: 'commit-mock' } }
     }
@@ -93,5 +105,5 @@ const mockFetch = async (url, options = {}) => {
 globalThis.fetch = mockFetch
 dom.window.fetch = mockFetch
 
-export { dom, lastBlob, fetchCalls }
+export { dom, lastBlob, fetchCalls, setRemotePayload }
 export const getLastBlob = () => lastBlob
