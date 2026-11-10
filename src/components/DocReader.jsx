@@ -35,8 +35,9 @@ export default function DocReader({ doc, files = [], onSelect, onClose }) {
   return (
     <div className="reader" role="dialog" aria-modal="true" aria-label={`อ่านเอกสาร ${doc.name}`}>
       <header className="reader__bar">
-        <button className="icon-btn icon-btn--ghost" onClick={onClose} aria-label="ปิดเอกสาร">
-          <Icon name="close" size={20} />
+        <button className="reader__back" onClick={onClose} aria-label="ย้อนกลับไปหน้ารายการเอกสาร">
+          <Icon name="back" size={18} />
+          <span>ย้อนกลับ</span>
         </button>
         <div className="reader__title">
           <p>อ่านในเว็บไซต์</p>
@@ -61,6 +62,9 @@ export default function DocReader({ doc, files = [], onSelect, onClose }) {
         >
           <Icon name="external" size={16} />
         </a>
+        <button className="reader__close" onClick={onClose} aria-label="ปิดเอกสาร">
+          <Icon name="close" size={18} />
+        </button>
       </header>
 
       <div className="reader__body">
@@ -107,9 +111,13 @@ export default function DocReader({ doc, files = [], onSelect, onClose }) {
                 src={`https://drive.google.com/file/d/${doc.id}/preview`}
                 title={doc.name}
                 onLoad={() => setStatus('ready')}
-                allow="autoplay; fullscreen"
+                allow="autoplay"
                 referrerPolicy="no-referrer"
               />
+
+              <span className="reader__hint" aria-hidden="true">
+                <Icon name="info" size={12} /> ถ้าเอกสารไม่แสดง ให้แตะปุ่ม ↗ เปิดในแท็บใหม่
+              </span>
 
               {status === 'slow' && (
                 <div className="reader__slow">
@@ -129,6 +137,9 @@ export default function DocReader({ doc, files = [], onSelect, onClose }) {
         <span>
           <Icon name="book" size={14} /> เลื่อน/สองนิ้วเพื่อซูมในกรอบได้ · เอกสารต้นฉบับไม่ถูกแก้ไข
         </span>
+        <button type="button" className="btn btn--soft btn--sm reader__foot-close" onClick={onClose}>
+          <Icon name="close" size={14} /> ปิดเอกสาร
+        </button>
         <span className="reader__copy">© 2569 Ton Skywalker · ห้ามเผยแพร่</span>
       </footer>
     </div>

@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import App from '../src/App.jsx'
 import { PARTS, MOCK_PART, TOTAL_QUESTIONS } from '../src/data/index.js'
+import { certTier, certificatesFromResults } from '../src/lib/certs.js'
 import { generateExam } from '../src/lib/generator.js'
 import { parseQuestionText } from '../src/lib/importer.js'
 import { exportExamPdf } from '../src/lib/pdf.js'
@@ -75,6 +76,30 @@ async function run() {
   })
   check(`question bank valid (${TOTAL_QUESTIONS} items)`, invalid.length === 0, invalid.slice(0, 4).join(', '))
   check('mock exam composed', MOCK_PART.questions.length === 30, `${MOCK_PART.questions.length} items`)
+
+  /* certificates */
+  const mkRes = (partId, score, date) => ({ id: `${partId}-${score}`, kind: 'part', partId, score, date, correct: score, total: 100 })
+  const certList = certificatesFromResults([
+    mkRes('1-1', 45, '2026-01-01'),
+    mkRes('1-1', 73, '2026-01-02'),
+    mkRes('1-2', 88, '2026-01-03'),
+    mkRes('1-2', 61, '2026-01-01'),
+    { ...mkRes('set-x', 90, '2026-01-04'), kind: 'set' },
+  ])
+  check(
+    'certificates: only passing parts, best score kept',
+    certList.length === 2 && certList.find((c) => c.partId === '1-2')?.score === 88,
+    `${certList.length} certs`,
+  )
+  check(
+    'certificates: pass threshold at 60%',
+    certificatesFromResults([mkRes('2', 59.9, '2026-01-01')]).length === 0 &&
+      certificatesFromResults([mkRes('2', 60, '2026-01-01')]).length === 1,
+  )
+  check(
+    'cert tiers gold/silver/bronze',
+    certTier(90).key === 'gold' && certTier(76).key === 'silver' && certTier(60).key === 'bronze',
+  )
 
   const official = generateExam({ seed: 'smoke-seed', sizeKey: 'official', name: 'ชุดทดสอบ' })
   check(
@@ -175,6 +200,11 @@ async function run() {
     await sleep(40)
   })
   check('profile gate shown on first visit', !!document.querySelector('.gate__card'))
+
+  /* ถ้ามีช่องเลือกชื่อสำเร็จรูป (roster.js) ให้เปิดโหมดพิมพ์ชื่อใหม่ก่อน */
+  if (!document.querySelector('.gate__card input')) {
+    await tap(byText('.gate__card button', 'ใช้ชื่อใหม่'), 60)
+  }
   check('gate asks for name', text().includes('ชื่อ–นามสกุลผู้เข้าทดสอบ'))
 
   const nameInput = document.querySelector('.gate__card input')

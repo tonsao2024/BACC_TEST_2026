@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { driveDownload } from '../data/index.js'
 import { formatThaiDateTime, humanTime, mmss } from '../lib/storage.js'
 import { downloadResultImage, downloadResultPdf } from '../lib/pdf.js'
+import { certTier } from '../lib/certs.js'
+import { CertificateView, CertSheet } from './Certificate.jsx'
 import Icon from './Icons.jsx'
 import { Confetti } from './ui.jsx'
 
@@ -37,6 +39,7 @@ export default function Result({
 }) {
   const [open, setOpen] = useState(-1)
   const [busy, setBusy] = useState('')
+  const [certOpen, setCertOpen] = useState(false)
   const [examinee, setExaminee] = useState(result.name || profileName || '')
   const isSet = result.kind === 'set'
   const title = isSet ? result.setName || 'ชุดสอบเสมือนจริง' : `${result.partLabel} · ${result.partTitle}`
@@ -49,6 +52,22 @@ export default function Result({
   }, [result.score])
   const passed = result.score >= 60
   const excellent = result.score >= 85
+  const earnedCert =
+    !isSet && passed && result.partId
+      ? {
+          partId: result.partId,
+          partLabel: result.partLabel,
+          partTitle: result.partTitle,
+          partColor: result.partColor || part?.color || '#2563EB',
+          score: result.score,
+          correct: result.correct,
+          total: result.total,
+          name: examinee.trim() || result.name || profileName || 'ผู้เข้าสอบ',
+          date: result.date,
+          earnedDate: result.date,
+          ...certTier(result.score),
+        }
+      : null
 
   const dateText = formatThaiDateTime(result.date)
   const timeUsedText = humanTime(result.timeUsedSec)
@@ -165,6 +184,24 @@ export default function Result({
             </p>
           )}
         </div>
+
+        {earnedCert && (
+          <button
+            type="button"
+            className="cert-banner"
+            onClick={() => setCertOpen(true)}
+            aria-label="เปิดดูเกียรติบัตรฉบับเต็ม"
+          >
+            <span className="cert-banner__party" aria-hidden="true">🎉</span>
+            <span className="cert-banner__body">
+              <b>เก่งมาก! คุณได้รับเกียรติบัตร {certTier(result.score).medal}</b>
+              <span>สอบผ่านพาร์ท {result.partLabel} · {result.partTitle} — แตะเพื่อดู/ดาวน์โหลดเกียรติบัตร</span>
+            </span>
+            <span className="cert-banner__cta">
+              <Icon name="medal" size={17} /> เปิดดู
+            </span>
+          </button>
+        )}
 
         <div className="stat-grid">
           <div className="stat-box" style={{ '--i': 0 }}>
@@ -408,6 +445,9 @@ export default function Result({
         </p>
       </div>
 
+      {certOpen && earnedCert && (
+        <CertSheet cert={earnedCert} name={examinee.trim() || profileName} onClose={() => setCertOpen(false)} onToast={onToast} />
+      )}
     </>
   )
 }

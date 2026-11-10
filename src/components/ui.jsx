@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Icon from './Icons.jsx'
 
 function useAnimatedValue(value, delay = 90) {
@@ -67,7 +68,7 @@ export function Sheet({ title, desc, children, onClose, actions }) {
     }
   }, [onClose])
 
-  return (
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose} role="presentation">
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="sheet__grab" />
@@ -76,16 +77,18 @@ export function Sheet({ title, desc, children, onClose, actions }) {
         {children}
         {actions && <div className="sheet__actions">{actions}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
 export function Toast({ message, icon = 'checkCircle' }) {
-  return (
+  return createPortal(
     <div className="toast" role="status">
       <Icon name={icon} size={16} />
       <span>{message}</span>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

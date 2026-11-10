@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { PARTS } from '../data/index.js'
 import { formatThaiDateTime, mmss } from '../lib/storage.js'
 import { downloadResultPdf } from '../lib/pdf.js'
+import { certificatesFromResults } from '../lib/certs.js'
+import { CertMiniCard, CertSheet } from './Certificate.jsx'
 import Icon from './Icons.jsx'
 import { Sheet } from './ui.jsx'
 
@@ -17,6 +20,8 @@ export default function History({
 }) {
   const [confirm, setConfirm] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [cert, setCert] = useState(null)
+  const certs = certificatesFromResults(results).filter((c) => c.partId !== 'mock')
   const shown = results.filter((r) =>
     filter === 'all' ? true : filter === 'set' ? r.kind === 'set' : r.kind !== 'set',
   )
@@ -95,6 +100,30 @@ export default function History({
                 </div>
               </div>
             </div>
+
+            {certs.length > 0 && (
+              <section className="section">
+                <div className="section__head">
+                  <div>
+                    <h3 className="section__title">เกียรติบัตรของฉัน ({certs.length}/{PARTS.length})</h3>
+                    <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+                      ได้รับเมื่อสอบผ่านเกณฑ์ 60% ในแต่ละวิชาย่อย · แตะเพื่อดูและดาวน์โหลด
+                    </p>
+                  </div>
+                </div>
+                <div className="cert-grid">
+                  {certs.map((c, i) => (
+                    <CertMiniCard key={c.key} cert={c} index={i} onOpen={setCert} />
+                  ))}
+                </div>
+                {certs.length < PARTS.length && (
+                  <p className="cert-grid__hint">
+                    <Icon name="target" size={13} /> เหลืออีก {PARTS.length - certs.length} พาร์ท —
+                    สอบให้ผ่านเกณฑ์เพื่อเก็บเกียรติบัตรให้ครบ!
+                  </p>
+                )}
+              </section>
+            )}
 
             <section className="section">
               <div className="section__head">
@@ -184,6 +213,10 @@ export default function History({
           </>
         )}
       </div>
+
+      {cert && (
+        <CertSheet cert={cert} name={profileName} onClose={() => setCert(null)} onToast={onToast} />
+      )}
 
       {confirm && (
         <Sheet

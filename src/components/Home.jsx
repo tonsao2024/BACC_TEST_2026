@@ -1,18 +1,39 @@
 import { GROUPS, MOCK_PART, PARTS, TOTAL_QUESTIONS } from '../data/index.js'
 import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
+import { PASS_SCORE, certTier } from '../lib/certs.js'
 import Icon from './Icons.jsx'
 import Mascot from './Mascot.jsx'
 import FriendBoard from './FriendBoard.jsx'
 import { MiniRing, Ring } from './ui.jsx'
 
-function PartCard({ part, results, onOpen, index, variant = 0 }) {
+function PartCard({ part, results, attempt, onOpen, index, variant = 0 }) {
   const best = bestFor(part.id, results)
+  const count = results.filter((r) => r.partId === part.id).length
+  const total = part.questions.length
+  const answered = attempt ? (attempt.answers || []).filter((a) => a !== null).length : 0
+  const bestPct = best ? Math.round(best.score) : null
+  const inPct = total ? Math.round((answered / total) * 100) : 0
+  const passed = bestPct !== null && bestPct >= PASS_SCORE
+
+  const status = passed
+    ? {
+        cls: 'pass',
+        icon: 'checkCircle',
+        text: `${certTier(bestPct).medal} ผ่านเกณฑ์แล้ว · ดีที่สุด ${bestPct}%`,
+        bar: bestPct,
+      }
+    : best
+      ? { cls: 'try', icon: 'target', text: `ดีที่สุด ${bestPct}% · อีก ${PASS_SCORE - bestPct}% ถึงเกณฑ์ผ่าน`, bar: bestPct }
+      : answered > 0
+        ? { cls: 'doing', icon: 'clock', text: `ทำค้างไว้ ${answered}/${total} ข้อ (${inPct}%)`, bar: inPct }
+        : { cls: 'new', icon: 'play', text: 'ยังไม่เริ่มทำ · ลองเลย!', bar: 0 }
+
   return (
     <button
-      className="part-card"
-      style={{ '--i': index }}
+      className={`part-card part-card--${status.cls}`}
+      style={{ '--i': index, '--pc': part.color }}
       onClick={() => onOpen(part.id)}
-      aria-label={`เริ่มพาร์ท ${part.title}`}
+      aria-label={`เริ่มพาร์ท ${part.title} — ${status.text}`}
     >
       <span
         className="part-icon"
@@ -22,19 +43,27 @@ function PartCard({ part, results, onOpen, index, variant = 0 }) {
       </span>
       <span className="part-body">
         <span className="part-title">
-          {part.title}
           <em>{part.label}</em>
+          {part.title}
         </span>
         <span className="part-meta">
-          {part.questions.length} ข้อ
+          {total} ข้อ
           <span className="dot" />
           {part.minutes} นาที
-          {best && (
+          {count > 0 && (
             <>
               <span className="dot" />
-              ดีที่สุด {Math.round(best.score)}%
+              สอบแล้ว {count} ครั้ง
             </>
           )}
+        </span>
+        <span className={`part-status part-status--${status.cls}`}>
+          <Icon name={status.icon} size={12} stroke={2.2} />
+          {status.text}
+        </span>
+        <span className="part-progress" aria-hidden="true">
+          <i style={{ width: `${status.bar}%` }} />
+          <b className="part-progress__goal" style={{ left: `${PASS_SCORE}%` }} title="เกณฑ์ผ่าน 60%" />
         </span>
       </span>
       <span className="part-right">
@@ -304,7 +333,7 @@ export default function Home({
 
       <div className="section">
         <button
-          className="part-card"
+          className={`part-card ${bestFor('mock', results)?.score >= PASS_SCORE ? 'part-card--pass' : ''}`}
           onClick={onStartMock}
           style={{
             background: 'linear-gradient(135deg,#0B2149,#1E40AF 60%,#3B82F6)',
@@ -327,9 +356,18 @@ export default function Home({
               {MOCK_PART.minutes} นาที
               <span className="dot" style={{ background: 'rgba(255,255,255,.4)' }} />
               จับเวลาเสมือนจริง
+              {bestFor('mock', results) && (
+                <>
+                  <span className="dot" style={{ background: 'rgba(255,255,255,.4)' }} />
+                  ดีที่สุด {Math.round(bestFor('mock', results).score)}%
+                </>
+              )}
             </span>
           </span>
-          <span className="part-right">
+          <span className="part-right" style={{ flexDirection: 'column', gap: 6 }}>
+            {bestFor('mock', results) ? (
+              <MiniRing value={bestFor('mock', results).score} />
+            ) : null}
             <span
               style={{
                 width: 38,
@@ -368,6 +406,7 @@ export default function Home({
                 key={part.id}
                 part={part}
                 results={results}
+                attempt={attempts.find((a) => a.key === `part:${part.id}`) || null}
                 onOpen={onOpenPart}
                 index={i}
                 variant={i}

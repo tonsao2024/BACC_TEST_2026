@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getPart, SOURCE_FILES } from './data/index.js'
 import {
   clearResults,
@@ -770,14 +771,16 @@ export default function App() {
         />
       )}
 
-      {doc && (
-        <DocReader
-          doc={doc}
-          files={SOURCE_FILES}
-          onSelect={(f) => setDoc(f)}
-          onClose={() => setDoc(null)}
-        />
-      )}
+      {doc &&
+        createPortal(
+          <DocReader
+            doc={doc}
+            files={SOURCE_FILES}
+            onSelect={(f) => setDoc(f)}
+            onClose={() => setDoc(null)}
+          />,
+          document.body,
+        )}
     </div>
   )
 }
