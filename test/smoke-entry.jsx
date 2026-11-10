@@ -4,10 +4,18 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import App from '../src/App.jsx'
 import { PARTS, MOCK_PART, TOTAL_QUESTIONS } from '../src/data/index.js'
+import { certTier, certificatesFromResults } from '../src/lib/certs.js'
 import { generateExam } from '../src/lib/generator.js'
 import { parseQuestionText } from '../src/lib/importer.js'
 import { exportExamPdf } from '../src/lib/pdf.js'
-import { clearGithubConfig, saveGithubConfig } from '../src/lib/remote.js'
+import {
+  buildSyncLink,
+  clearGithubConfig,
+  getSyncConfig,
+  parseSyncLink,
+  saveGithubConfig,
+  stripSyncLinkParam,
+} from '../src/lib/remote.js'
 import { pullAndMerge, resetSyncState } from '../src/lib/sync.js'
 import {
   clearImportedQuestions,
@@ -75,6 +83,107 @@ async function run() {
   })
   check(`question bank valid (${TOTAL_QUESTIONS} items)`, invalid.length === 0, invalid.slice(0, 4).join(', '))
   check('mock exam composed', MOCK_PART.questions.length === 30, `${MOCK_PART.questions.length} items`)
+
+  /* certificates */
+  const mkRes = (partId, score, date) => ({ id: `${partId}-${score}`, kind: 'part', partId, score, date, correct: score, total: 100 })
+  const certList = certificatesFromResults([
+    mkRes('1-1', 45, '2026-01-01'),
+    mkRes('1-1', 73, '2026-01-02'),
+    mkRes('1-2', 88, '2026-01-03'),
+    mkRes('1-2', 61, '2026-01-01'),
+    { ...mkRes('set-x', 90, '2026-01-04'), kind: 'set' },
+  ])
+  check(
+    'certificates: only passing parts, best score kept',
+    certList.length === 2 && certList.find((c) => c.partId === '1-2')?.score === 88,
+    `${certList.length} certs`,
+  )
+  check(
+    'certificates: pass threshold at 60%',
+    certificatesFromResults([mkRes('2', 59.9, '2026-01-01')]).length === 0 &&
+      certificatesFromResults([mkRes('2', 60, '2026-01-01')]).length === 1,
+  )
+  check(
+    'cert tiers gold/silver/bronze',
+    certTier(90).key === 'gold' && certTier(76).key === 'silver' && certTier(60).key === 'bronze',
+  )
+
+  /* sync auto-link */
+  const locOf = (search) => ({ search, pathname: '/app/', hash: '' })
+  const gistLink = parseSyncLink(locOf('?a=1&sync=gist:ghp_testtoken1234567890:0123456789abcdef01234567'))
+  check(
+    'sync link: parses gist:token:gistId',
+    gistLink?.mode === 'gist' && gistLink?.token === 'ghp_testtoken1234567890' && gistLink?.gistId === '0123456789abcdef01234567',
+  )
+  const repoLink = parseSyncLink(locOf('?sync=repo:github_pat_abcdefghij1234567890'))
+  check('sync link: parses repo:token', repoLink?.mode === 'repo' && repoLink?.token.startsWith('github_pat_'))
+  check('sync link: rejects junk', parseSyncLink(locOf('?sync=xyz')) === null && parseSyncLink(locOf('')) === null)
+  check(
+    'sync link: stripped from address bar',
+    stripSyncLinkParam(locOf('?sync=gist:aaaaaaaaaa&x=1')) === '/app/?x=1',
+  )
+  check(
+    'buildSyncLink: reproduces a parseable link',
+    (() => {
+      const link = buildSyncLink(
+        { mode: 'gist', token: 'ghp_roundtrip1234', gistId: '0123456789abcdef01234567' },
+        'https://x.th',
+        '/app/',
+      )
+      const u = new URL(link)
+      return parseSyncLink(u)?.token === 'ghp_roundtrip1234'
+    })(),
+  )
+
+  /* cloud (Firebase) auto-sync */
+  const cloudLink = parseSyncLink(locOf('?sync=cloud:AIzaSyDummyKey123:https%3A%2F%2Fbacc-default-rtdb.asia-southeast1.firebasedatabase.app'))
+  check(
+    'sync link: parses cloud:{apiKey}:{databaseURL}',
+    cloudLink?.mode === 'cloud' &&
+      cloudLink?.apiKey === 'AIzaSyDummyKey123' &&
+      cloudLink?.databaseURL === 'https://bacc-default-rtdb.asia-southeast1.firebasedatabase.app',
+  )
+  check('sync link: rejects bad cloud url', parseSyncLink(locOf('?sync=cloud:abcdefghijk:notaurl')) === null)
+  check(
+    'buildSyncLink: cloud roundtrip',
+    (() => {
+      const parsed = parseSyncLink(
+        new URL(
+          buildSyncLink(
+            { mode: 'cloud', apiKey: 'AIzaSyRoundTrip', databaseURL: 'https://db.example.app' },
+            'https://x.th',
+            '/app/',
+          ),
+        ),
+      )
+      return parsed?.mode === 'cloud' && parsed?.databaseURL === 'https://db.example.app'
+    })(),
+  )
+  check(
+    'getSyncConfig: uses stored github config when present',
+    (() => {
+      saveGithubConfig({ mode: 'gist', token: 'ghp_storedtoken123456' })
+      const c = getSyncConfig()
+      return c?.mode === 'gist' && c?.token === 'ghp_storedtoken123456'
+    })(),
+  )
+  check(
+    'getSyncConfig: null when nothing configured (SYNC_TARGET is gist & no gistId default)',
+    (() => {
+      clearGithubConfig()
+      return getSyncConfig() === null
+    })(),
+  )
+  check(
+    'getSyncConfig: stored cloud config is valid',
+    (() => {
+      saveGithubConfig({ mode: 'cloud', apiKey: 'AIzaSyStored', databaseURL: 'https://db.example.app' })
+      const c = getSyncConfig()
+      const ok = c?.mode === 'cloud' && c?.apiKey === 'AIzaSyStored'
+      clearGithubConfig()
+      return ok
+    })(),
+  )
 
   const official = generateExam({ seed: 'smoke-seed', sizeKey: 'official', name: 'ชุดทดสอบ' })
   check(
@@ -175,6 +284,11 @@ async function run() {
     await sleep(40)
   })
   check('profile gate shown on first visit', !!document.querySelector('.gate__card'))
+
+  /* ถ้ามีช่องเลือกชื่อสำเร็จรูป (roster.js) ให้เปิดโหมดพิมพ์ชื่อใหม่ก่อน */
+  if (!document.querySelector('.gate__card input')) {
+    await tap(byText('.gate__card button', 'ใช้ชื่อใหม่'), 60)
+  }
   check('gate asks for name', text().includes('ชื่อ–นามสกุลผู้เข้าทดสอบ'))
 
   const nameInput = document.querySelector('.gate__card input')

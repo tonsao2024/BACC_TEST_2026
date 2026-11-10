@@ -2,21 +2,34 @@ import { useMemo, useState } from 'react'
 import Icon from './Icons.jsx'
 import { Sheet } from './ui.jsx'
 import { humanTime } from '../lib/storage.js'
+import { PRESET_NAMES } from '../data/roster.js'
 
 const initial = (name = '') => (name.trim()[0] || 'ผ').toUpperCase()
 
 /* ============================================================
-   ProfileGate — หน้าแรกระบุชื่อผู้เข้าทดสอบ
+   ProfileGate — หน้าแรก: เลือกชื่อเดิม / ชื่อสำเร็จรูป / พิมพ์ชื่อใหม่
+   รายชื่อสำเร็จรูปตั้งค่าได้จากไฟล์ src/data/roster.js บน GitHub โดยตรง
    ============================================================ */
 export function ProfileGate({ profiles = [], onCreate, onUse }) {
   const [name, setName] = useState('')
+  const [showNew, setShowNew] = useState(profiles.length === 0 && PRESET_NAMES.length === 0)
   const trimmed = name.trim()
 
   const submit = (e) => {
     e.preventDefault()
     if (!trimmed) return
-    onCreate(trimmed)
+    pickName(trimmed)
   }
+
+  const pickName = (n) => {
+    const exist = profiles.find((p) => p.name.trim() === n.trim())
+    if (exist) onUse(exist.id)
+    else onCreate(n)
+  }
+
+  const presets = PRESET_NAMES.map((n) => n.trim()).filter(Boolean)
+  const presetOnly = presets.filter((n) => !profiles.some((p) => p.name.trim() === n))
+  const hasPicker = profiles.length > 0 || presetOnly.length > 0
 
   return (
     <div className="gate">
@@ -31,50 +44,84 @@ export function ProfileGate({ profiles = [], onCreate, onUse }) {
         <p className="gate__eyebrow">BACC EXAM 2569</p>
         <h1 className="gate__title">ยินดีต้อนรับ</h1>
         <p className="gate__desc">
-          ระบุชื่อ–นามสกุลของผู้เข้าทดสอบ ระบบจะจำชื่อนี้ไว้ให้อัตโนมัติในครั้งถัดไป
-          และเก็บประวัติการทำข้อสอบแยกตามรายชื่อ
+          {hasPicker
+            ? 'เลือกชื่อของคุณเพื่อเข้าใช้งานต่อได้ทันที — ประวัติการทำข้อสอบถูกเก็บแยกตามรายชื่อ'
+            : 'ระบุชื่อ–นามสกุลของผู้เข้าทดสอบ ระบบจะจำชื่อนี้ไว้ให้อัตโนมัติในครั้งถัดไป และเก็บประวัติการทำข้อสอบแยกตามรายชื่อ'}
         </p>
 
-        <label className="field">
-          <span className="field__label">ชื่อ–นามสกุลผู้เข้าทดสอบ</span>
-          <input
-            className="field__input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="เช่น สมชาย ใจดี"
-            maxLength={60}
-            autoFocus
-            aria-label="ชื่อผู้เข้าทดสอบ"
-          />
-        </label>
-
-        <button className="btn btn--primary btn--block" type="submit" disabled={!trimmed}>
-          <Icon name="play" size={18} />
-          เริ่มใช้งาน
-        </button>
-
-        {profiles.length > 0 && (
-          <div className="gate__existing">
-            <span className="gate__existing-label">หรือกลับมาใช้งานในชื่อเดิม</span>
-            <div className="gate__chips">
-              {profiles.slice(0, 4).map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className="chip chip--profile"
-                  onClick={() => onUse(p.id)}
-                >
-                  <span className="avatar avatar--xs">{initial(p.name)}</span>
-                  {p.name}
-                </button>
-              ))}
-            </div>
+        {hasPicker && (
+          <div className="gate__picker">
+            <span className="gate__picker-label">
+              <Icon name="user" size={13} /> เลือกชื่อเพื่อเข้าสอบ
+            </span>
+            {profiles.length > 0 && (
+              <div className="gate__names">
+                {profiles.slice(0, 8).map((p, i) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="gate__name"
+                    style={{ '--i': i }}
+                    onClick={() => onUse(p.id)}
+                  >
+                    <span className="avatar avatar--xs">{initial(p.name)}</span>
+                    <span className="gate__name-text">{p.name}</span>
+                    <Icon name="chevron" size={15} />
+                  </button>
+                ))}
+              </div>
+            )}
+            {presetOnly.length > 0 && (
+              <div className="gate__presets">
+                {presetOnly.slice(0, 6).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="chip chip--preset"
+                    onClick={() => pickName(n)}
+                    title={`สร้างโปรไฟล์ชื่อ ${n}`}
+                  >
+                    <Icon name="plus" size={12} stroke={2.4} /> {n}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        )}
+
+        {showNew || !hasPicker ? (
+          <>
+            <label className="field">
+              <span className="field__label">ชื่อ–นามสกุลผู้เข้าทดสอบ</span>
+              <input
+                className="field__input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="เช่น สมชาย ใจดี"
+                maxLength={60}
+                autoFocus={!hasPicker}
+                aria-label="ชื่อผู้เข้าทดสอบ"
+              />
+            </label>
+
+            <button className="btn btn--primary btn--block" type="submit" disabled={!trimmed}>
+              <Icon name="play" size={18} />
+              เริ่มใช้งาน
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--soft btn--block"
+            onClick={() => setShowNew(true)}
+          >
+            <Icon name="plus" size={16} /> ใช้ชื่อใหม่ (พิมพ์เอง)
+          </button>
         )}
 
         <p className="gate__note">
           <Icon name="lock" size={14} />
-          ข้อมูลทั้งหมดถูกจัดเก็บไว้ในเครื่องของคุณเท่านั้น
+          ข้อมูลทั้งหมดถูกจัดเก็บไว้ในเครื่องของคุณเท่านั้น · เพิ่มรายชื่อล่วงหน้าได้ที่ไฟล์ roster.js บน GitHub
         </p>
       </form>
     </div>

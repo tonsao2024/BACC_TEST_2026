@@ -1,5 +1,6 @@
 import { driveDownload, driveView } from '../data/index.js'
 import { bestFor, formatThaiDateTime } from '../lib/storage.js'
+import { certTier } from '../lib/certs.js'
 import Icon from './Icons.jsx'
 import { MiniRing } from './ui.jsx'
 
@@ -84,6 +85,19 @@ export default function PartDetail({
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>ผลดีที่สุดของคุณ</p>
               <p className="sub" style={{ fontSize: 11.5, marginTop: 3 }}>
                 {best.correct}/{best.total} ข้อ · {formatThaiDateTime(best.date)}
+              </p>
+              <p
+                className="sub"
+                style={{
+                  fontSize: 11,
+                  marginTop: 5,
+                  color: best.score >= 60 ? '#067a55' : '#b45309',
+                  fontWeight: 600,
+                }}
+              >
+                {best.score >= 60
+                  ? `${certTier(best.score).medal} ผ่านเกณฑ์แล้ว · เกียรติบัตรอยู่ในหน้าประวัติผลสอบ`
+                  : `เหลืออีก ${60 - Math.round(best.score)} คะแนน ถึงเกณฑ์ผ่าน 60%`}
               </p>
             </div>
             <span

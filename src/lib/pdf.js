@@ -46,10 +46,12 @@ function buildPdf(pages) {
       `<< /Type /XObject /Subtype /Image /Width ${page.w} /Height ${page.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.bytes.length} >>`,
       page.bytes,
     )
-    const content = `q\n${A4.w} 0 0 ${A4.h} 0 0 cm\n/Im0 Do\nQ\n`
+    const pwPoint = page.pw || A4.w
+    const phPoint = page.ph || A4.h
+    const content = `q\n${pwPoint} 0 0 ${phPoint} 0 0 cm\n/Im0 Do\nQ\n`
     const contentId = addStream(`<< /Length ${enc(content).length} >>`, content)
     const pageId = addObj(
-      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${A4.w} ${A4.h}] /Resources << /XObject << /Im0 ${imgId} 0 R >> /ProcSet [/PDF /ImageC] >> /Contents ${contentId} 0 R >>`,
+      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pwPoint} ${phPoint}] /Resources << /XObject << /Im0 ${imgId} 0 R >> /ProcSet [/PDF /ImageC] >> /Contents ${contentId} 0 R >>`,
     )
     kids.push(`${pageId} 0 R`)
   })
@@ -755,4 +757,160 @@ export async function exportExamPdf(exam, options = {}) {
   const blob = buildPdf(images)
   downloadBlob(blob, options.filename || `BACC-ข้อสอบ-${exam.name.replace(/\s+/g, '-')}.pdf`)
   return blob
+}
+
+/* ============================================================
+   เกียรติบัตร (แนวนอน A4 landscape) — canvas → PDF/PNG
+   ============================================================ */
+const CERT = { w: 1754, h: 1240 } // A4 landscape ~150dpi
+const A4L = { w: 841.89, h: 595.28 }
+
+function paintCertificate(cert) {
+  const canvas = document.createElement('canvas')
+  canvas.width = CERT.w
+  canvas.height = CERT.h
+  const ctx = canvas.getContext('2d')
+  const W = CERT.w
+  const H = CERT.h
+  const color = cert.partColor || '#2563EB'
+  const tier = {
+    gold: { c1: '#F59E0B', c2: '#FDE68A', ink: '#92400E' },
+    silver: { c1: '#94A3B8', c2: '#F1F5F9', ink: '#334155' },
+    bronze: { c1: '#D08A4E', c2: '#FBD9B8', ink: '#7C2D12' },
+  }[cert.key] || { c1: '#F59E0B', c2: '#FDE68A', ink: '#92400E' }
+
+  /* พื้นหลัง */
+  const bg = ctx.createLinearGradient(0, 0, W, H)
+  bg.addColorStop(0, '#FFFDF6')
+  bg.addColorStop(1, '#F4EDFF')
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, W, H)
+
+  /* มุมสีพาสเทล */
+  ctx.globalAlpha = 0.5
+  ctx.fillStyle = tier.c2
+  ctx.beginPath()
+  ctx.arc(-120, -120, 380, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(96,165,250,0.35)'
+  ctx.beginPath()
+  ctx.arc(W + 100, H + 80, 420, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.globalAlpha = 1
+
+  /* กรอบคู่ */
+  ctx.strokeStyle = tier.c1
+  ctx.lineWidth = 10
+  roundRect(ctx, 34, 34, W - 68, H - 68, 40)
+  ctx.stroke()
+  ctx.lineWidth = 3
+  ctx.setLineDash([14, 12])
+  roundRect(ctx, 62, 62, W - 124, H - 124, 28)
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  /* ดาว/ประกาย */
+  ctx.fillStyle = tier.c1
+  const stars = [
+    [130, 200, 16], [W - 140, 190, 20], [180, H - 180, 14],
+    [W - 180, H - 200, 15], [W / 2 - 330, 150, 10], [W / 2 + 340, H - 150, 12],
+  ]
+  stars.forEach(([sx, sy, r]) => {
+    ctx.font = `700 ${r * 2}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.fillText('✦', sx, sy)
+  })
+  ctx.textAlign = 'left'
+
+  /* เหรียญ + ริบบิ้น */
+  const mx = W / 2
+  const my = 218
+  ctx.fillStyle = tier.c1
+  ctx.beginPath()
+  ctx.arc(mx, my, 96, 0, Math.PI * 2)
+  ctx.fill()
+  const mg = ctx.createRadialGradient(mx - 24, my - 30, 10, mx, my, 96)
+  mg.addColorStop(0, '#FFFFFF')
+  mg.addColorStop(0.35, tier.c2)
+  mg.addColorStop(1, tier.c1)
+  ctx.fillStyle = mg
+  ctx.beginPath()
+  ctx.arc(mx, my, 82, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = tier.ink
+  ctx.font = FONT(700, 74)
+  ctx.textAlign = 'center'
+  ctx.fillText('★', mx, my + 26)
+
+  /* หัวเรื่อง */
+  ctx.fillStyle = '#0B1F3A'
+  ctx.font = FONT(700, 92)
+  ctx.fillText('เกียรติบัตร', W / 2, 440)
+  ctx.fillStyle = color
+  ctx.font = FONT(700, 34)
+  ctx.fillText('CERTIFICATE OF ACHIEVEMENT · BACC EXAM 2569', W / 2, 498)
+
+  ctx.fillStyle = '#475569'
+  ctx.font = FONT(400, 36)
+  ctx.fillText('ขอมอบเกียรติบัตรฉบับนี้ไว้เพื่อแสดงว่า', W / 2, 590)
+
+  /* ชื่อ */
+  ctx.fillStyle = tier.ink
+  ctx.font = FONT(700, 78)
+  ctx.fillText(cert.name || 'ผู้เข้าทดสอบ', W / 2, 690)
+  /* เส้นใต้ชื่อ */
+  ctx.strokeStyle = tier.c1
+  ctx.lineWidth = 3
+  ctx.beginPath()
+  ctx.moveTo(W / 2 - 340, 716)
+  ctx.lineTo(W / 2 + 340, 716)
+  ctx.stroke()
+
+  ctx.fillStyle = '#475569'
+  ctx.font = FONT(400, 36)
+  ctx.fillText('ได้สอบผ่านการทดสอบภาควิชาการ (ตามเกณฑ์ 60%) ใน', W / 2, 792)
+
+  /* ชื่อพาร์ท */
+  ctx.fillStyle = '#0B1F3A'
+  ctx.font = FONT(700, 58)
+  const partLine = `พาร์ท ${cert.partLabel} · ${cert.partTitle}`
+  ctx.fillText(partLine.length > 34 ? `${partLine.slice(0, 33)}…` : partLine, W / 2, 870)
+
+  /* คะแนน + ระดับ */
+  ctx.font = FONT(700, 40)
+  ctx.fillStyle = tier.c1
+  ctx.fillText(`${cert.medal} ผลคะแนน ${Math.round(cert.score)}% · ${cert.label}`, W / 2, 952)
+
+  /* ลายเซ็น + วันที่ */
+  ctx.fillStyle = '#64748B'
+  ctx.font = FONT(400, 28)
+  ctx.fillText(`ออกให้เมื่อ ${cert.dateText || ''}`, W / 2, H - 150)
+  ctx.font = FONT(600, 28)
+  ctx.fillStyle = color
+  ctx.fillText('Ton Skywalker · ผู้จัดทำแบบทดสอบ', W / 2, H - 106)
+
+  ctx.fillStyle = '#94A3B8'
+  ctx.font = FONT(400, 22)
+  ctx.fillText('เกียรติบัตรฉบับนี้ออกโดยระบบ BACC Exam 2569 เพื่อเป็นกำลังใจในการฝึกซ้อม', W / 2, H - 52)
+  ctx.textAlign = 'left'
+  return canvas
+}
+
+export async function downloadCertificatePdf(cert, filename) {
+  await waitFonts()
+  const canvas = paintCertificate(cert)
+  const jpg = canvasToJpeg(canvas, 0.92)
+  const blob = buildPdf([{ ...jpg, pw: A4L.w, ph: A4L.h }])
+  downloadBlob(blob, filename || `BACC-เกียรติบัตร-${cert.partLabel || 'part'}.pdf`)
+}
+
+export async function downloadCertificateImage(cert, filename) {
+  await waitFonts()
+  const canvas = paintCertificate(cert)
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      if (blob) downloadBlob(blob, filename || `BACC-เกียรติบัตร-${cert.partLabel || 'part'}.png`)
+      resolve()
+    }, 'image/png')
+  })
 }

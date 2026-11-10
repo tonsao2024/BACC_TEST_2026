@@ -1,0 +1,33 @@
+name: bank-fetch
+# ดึงไฟล์ต้นฉบับ .docx จาก Google Drive (ไฟล์ถูกแชร์แบบ anyone-with-link ชั่วคราว)
+# แล้วแตกข้อความ+รูปประกอบเป็น artifact ชื่อ bank-text
+on:
+  workflow_dispatch:
+  push:
+    branches: [arena/e7ec0b0f-bacc-test-2026]
+    paths:
+      - .github/workflows/bank-fetch.yml
+      - tools/bank_extract.py
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: arena/e7ec0b0f-bacc-test-2026
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install python-docx
+      - run: python tools/bank_extract.py out_bank
+      - name: commit extracted bank
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin arena/e7ec0b0f-bacc-test-2026
+          git add out_bank/
+          git commit -m "chore(bank): extracted text+images from source docx [skip ci]" || echo "nothing to commit"
+          git push origin arena/e7ec0b0f-bacc-test-2026

@@ -2,15 +2,15 @@ import { useMemo, useState } from 'react'
 import { EXAM_SECTIONS, EXAM_SIZES, generateExam, newSeed } from '../lib/generator.js'
 import { exportExamPdf } from '../lib/pdf.js'
 import { formatThaiDateTime, humanTime, makeShareCode, parseShareCode } from '../lib/storage.js'
-import { getGithubConfig } from '../lib/remote.js'
-import { PARTS } from '../data/index.js'
+import { getSyncConfig } from '../lib/remote.js'
+import { PARTS, TOTAL_QUESTIONS } from '../data/index.js'
 import { parseQuestionText } from '../lib/importer.js'
 import { getQbank, saveImportedQuestions } from '../lib/storage.js'
 import Icon from './Icons.jsx'
 import { Sheet } from './ui.jsx'
 
 function StoreNote({ onOpenAccount }) {
-  const cfg = getGithubConfig()
+  const cfg = getSyncConfig()
   return (
     <div className="store-note">
       <Icon name="info" size={15} />
@@ -22,12 +22,19 @@ function StoreNote({ onOpenAccount }) {
         </span>
         {cfg ? (
           <span className="is-ok">
-            <Icon name="checkCircle" size={11} stroke={2.2} /> ซิงก์ขึ้น GitHub อัตโนมัติ ·{' '}
-            {cfg.mode === 'gist' ? 'secret gist' : `${cfg.owner}/${cfg.repo}`} → <code>{cfg.path}</code>
+            <Icon name="checkCircle" size={11} stroke={2.2} />{' '}
+            {cfg.mode === 'cloud' ? (
+              <>ซิงก์ขึ้นคลาวด์อัตโนมัติ — ไม่ต้องตั้งค่าอะไรเลย ☁️</>
+            ) : (
+              <>
+                ซิงก์ขึ้น GitHub อัตโนมัติ · {cfg.mode === 'gist' ? 'secret gist' : `${cfg.owner}/${cfg.repo}`} →{' '}
+                <code>{cfg.path}</code>
+              </>
+            )}
           </span>
         ) : (
           <span className="is-warn">
-            <Icon name="refresh" size={11} /> ยังไม่เชื่อมต่อ GitHub — ข้อมูลอยู่เฉพาะเครื่องนี้
+            <Icon name="refresh" size={11} /> ยังไม่เชื่อมต่อคลาวด์ — ข้อมูลอยู่เฉพาะเครื่องนี้
             <button type="button" className="link-btn" onClick={onOpenAccount}>
               เชื่อมต่อเพื่อสำรอง
             </button>
@@ -237,7 +244,7 @@ export default function ExamBuilder({
               </div>
               <div className="struct-note">
                 <Icon name="info" size={13} />
-                คละข้อสอบจากคลัง 118 ข้อ + เทมเพลตคำนวณ/ความละเอียดที่สร้างใหม่ · ซ้ำกัน{' '}
+                คละข้อสอบจากคลัง {TOTAL_QUESTIONS} ข้อ + เทมเพลตคำนวณ/ความละเอียดที่สร้างใหม่ · ซ้ำกัน{' '}
                 {preview.repeats} ข้อ
               </div>
             </div>

@@ -24,6 +24,19 @@ const ICONS = {
     </>
   ),
   chevron: <path d="M9 5l7 7-7 7" />,
+  image: (
+    <>
+      <rect x="3.4" y="4.4" width="17.2" height="15.2" rx="2.6" />
+      <circle cx="8.6" cy="9.4" r="1.6" />
+      <path d="M20.2 15.6 16 11l-5.4 5.8-2.2-2.3L4 18.6" />
+    </>
+  ),
+  medal: (
+    <>
+      <circle cx="12" cy="14.2" r="5.4" />
+      <path d="M8.7 9.5 6.4 3.5h4l1.6 4 1.6-4h4l-2.3 6" />
+    </>
+  ),
   back: <path d="M15 5l-7 7 7 7" />,
   clock: (
     <>

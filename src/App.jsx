@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getPart, SOURCE_FILES } from './data/index.js'
 import {
   clearResults,
@@ -27,7 +28,13 @@ import {
   uidPublic,
 } from './lib/storage.js'
 import { generateExam, newSeed } from './lib/generator.js'
-import { clearGithubConfig, getGithubConfig } from './lib/remote.js'
+import {
+  clearGithubConfig,
+  getSyncConfig,
+  parseSyncLink,
+  saveGithubConfig,
+  stripSyncLinkParam,
+} from './lib/remote.js'
 import {
   getSyncState,
   pullAndMerge,
@@ -70,8 +77,7 @@ export default function App() {
   const [theme, setThemeState] = useState(() => getTheme())
   const [settings, setSettings] = useState(() => getSettings())
   const [sync, setSync] = useState(() => getSyncState())
-  const [hydrated, setHydrated] = useState(() => !getGithubConfig())
-  const hydratedRef = useRef(false)
+  const [hydrated, setHydrated] = useState(() => !getSyncConfig())
   const lastSyncedSig = useRef('')
 
   const [view, setView] = useState('home')
@@ -132,20 +138,34 @@ export default function App() {
     else setProfile(null)
   }
 
+  const parsedSyncRef = useRef(false)
+
   useEffect(() => {
-    if (hydratedRef.current) return undefined
-    hydratedRef.current = true
-    if (!getGithubConfig()) {
+    /* ลิงก์เชื่อมอัตโนมัติ: ?sync=gist:{token}:{gistId?} | cloud:{key}:{url} — ทำครั้งเดียวพอ */
+    if (!parsedSyncRef.current) {
+      parsedSyncRef.current = true
+      const autoCfg = parseSyncLink(window.location)
+      if (autoCfg) {
+        saveGithubConfig(autoCfg)
+        window.history.replaceState(null, '', stripSyncLinkParam(window.location))
+        setTimeout(() => showToast('เปิดซิงก์อัตโนมัติแล้ว ☁️ ไม่ต้องตั้งค่าเพิ่ม'), 10)
+      }
+    }
+    /* หมายเหตุ: อย่าใช้ ref กัน effect นี้ทั้งก้อน — React StrictMode ใน dev จะ mount ซ้ำ
+       แล้ว cleanup รอบแรกทำให้ async รอบแรกถูกยกเลิก ต้องให้รอบสองทำงานต่อได้เสมอ */
+    const syncCfg = getSyncConfig()
+    if (!syncCfg) {
       setHydrated(true)
       return undefined
     }
+    const storeName = syncCfg.mode === 'cloud' ? 'คลาวด์' : 'GitHub'
     let alive = true
     ;(async () => {
       const ok = await pullAndMerge()
       if (!alive) return
       if (ok) {
         reloadAll()
-        showToast('ดึงข้อมูลล่าสุดจาก GitHub แล้ว')
+        showToast(`ดึงข้อมูลล่าสุดจาก${storeName}แล้ว`)
       }
       setHydrated(true)
     })()
@@ -156,7 +176,7 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    if (!getGithubConfig()) return
+    if (!getSyncConfig()) return
     const sig = snapshotSignature(exportSnapshot())
     if (sig === lastSyncedSig.current) return
     lastSyncedSig.current = sig
@@ -770,14 +790,16 @@ export default function App() {
         />
       )}
 
-      {doc && (
-        <DocReader
-          doc={doc}
-          files={SOURCE_FILES}
-          onSelect={(f) => setDoc(f)}
-          onClose={() => setDoc(null)}
-        />
-      )}
+      {doc &&
+        createPortal(
+          <DocReader
+            doc={doc}
+            files={SOURCE_FILES}
+            onSelect={(f) => setDoc(f)}
+            onClose={() => setDoc(null)}
+          />,
+          document.body,
+        )}
     </div>
   )
 }
