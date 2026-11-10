@@ -1,0 +1,218 @@
+/* ============================================================
+   GitHub storage — เก็บข้อมูลผู้ใช้/ผลสอบ/ชุดข้อสอบไว้ใน "ฐานข้อมูล GitHub"
+   รองรับ 2 โหมด
+     1) repo    : ไฟล์ JSON ใน repository (ต้องใช้ fine-grained token สิทธิ์ Contents: RW)
+     2) gist    : secret gist ส่วนตัว (token สิทธิ์ gist)
+   หมายเหตุ: token เก็บไว้ในเบราว์เซอร์ของผู้ใช้เครื่องนี้เท่านั้น และส่งตรงถึง api.github.com
+   ============================================================ */
+
+const CONFIG_KEY = 'bacc2569:github'
+const API = 'https://api.github.com'
+
+const b64encode = (str) => {
+  const bytes = new TextEncoder().encode(str)
+  let bin = ''
+  bytes.forEach((b) => {
+    bin += String.fromCharCode(b)
+  })
+  return btoa(bin)
+}
+
+const b64decode = (b64) => {
+  const bin = atob(String(b64).replace(/\s/g, ''))
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+/* ---------------- config ---------------- */
+export function getGithubConfig() {
+  try {
+    const raw = localStorage.getItem(CONFIG_KEY)
+    if (!raw) return null
+    const cfg = JSON.parse(raw)
+    if (!cfg || !cfg.token) return null
+    return {
+      mode: cfg.mode === 'gist' ? 'gist' : 'repo',
+      token: cfg.token,
+      owner: cfg.owner || '',
+      repo: cfg.repo || '',
+      branch: cfg.branch || 'main',
+      path: cfg.path || 'bacc-data.json',
+      gistId: cfg.gistId || '',
+      savedAt: cfg.savedAt || null,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveGithubConfig(cfg) {
+  const clean = {
+    mode: cfg.mode === 'gist' ? 'gist' : 'repo',
+    token: String(cfg.token || '').trim(),
+    owner: String(cfg.owner || '').trim(),
+    repo: String(cfg.repo || '').trim(),
+    branch: String(cfg.branch || 'main').trim() || 'main',
+    path: String(cfg.path || 'bacc-data.json').trim() || 'bacc-data.json',
+    gistId: String(cfg.gistId || '').trim(),
+    savedAt: new Date().toISOString(),
+  }
+  try {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(clean))
+  } catch {
+    /* noop */
+  }
+  return clean
+}
+
+export function clearGithubConfig() {
+  try {
+    localStorage.removeItem(CONFIG_KEY)
+  } catch {
+    /* noop */
+  }
+}
+
+export const isValidConfig = (cfg) =>
+  Boolean(cfg && cfg.token && (cfg.mode === 'gist' ? true : cfg.owner && cfg.repo))
+
+/* ---------------- helpers ---------------- */
+const headers = (cfg) => ({
+  Authorization: `Bearer ${cfg.token}`,
+  Accept: 'application/vnd.github+json',
+  'X-GitHub-Api-Version': '2022-11-28',
+  'Content-Type': 'application/json',
+})
+
+const repoUrl = (cfg) =>
+  `${API}/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${cfg.path
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
+
+async function ghFetch(url, options) {
+  const res = await fetch(url, options)
+  let body = null
+  const text = await res.text()
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    body = { message: text.slice(0, 180) }
+  }
+  if (!res.ok) {
+    const message =
+      res.status === 401
+        ? 'token ไม่ถูกต้องหรือหมดอายุ'
+        : res.status === 403
+          ? 'token ไม่มีสิทธิ์เขียนไฟล์นี้'
+          : res.status === 404
+            ? 'ไม่พบ repository/ไฟล์ (ตรวจชื่อ owner, repo หรือสิทธิ์ token)'
+            : res.status === 409
+              ? 'ไฟล์ถูกแก้ไขจากที่อื่น กรุณาดึงข้อมูลใหม่'
+              : body?.message || `HTTP ${res.status}`
+    const err = new Error(message)
+    err.status = res.status
+    throw err
+  }
+  return body
+}
+
+/* ---------------- public API ---------------- */
+export async function testConnection(cfg) {
+  if (!isValidConfig(cfg)) throw new Error('กรอกข้อมูลไม่ครบ (token / owner / repo)')
+  if (cfg.mode === 'gist') {
+    const me = await ghFetch(`${API}/user`, { headers: headers(cfg) })
+    return { ok: true, login: me?.login || '', detail: 'เชื่อมต่อ gist ได้' }
+  }
+  const repo = await ghFetch(`${API}/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}`, {
+    headers: headers(cfg),
+  })
+  return { ok: true, login: repo?.full_name || '', detail: 'พบ repository' }
+}
+
+/** ดึงชื่อบัญชี GitHub จาก token (ใช้เติม owner อัตโนมัติ) */
+export async function fetchLogin(cfg) {
+  if (!cfg?.token) throw new Error('กรอก token ก่อน')
+  const me = await ghFetch(`${API}/user`, { headers: headers(cfg) })
+  if (!me?.login) throw new Error('อ่านชื่อบัญชีไม่ได้')
+  return me.login
+}
+
+/** ดึงข้อมูลจาก GitHub → { data, sha } หรือ null ถ้ายังไม่มีไฟล์ */
+export async function fetchRemote(cfg) {
+  if (!isValidConfig(cfg)) return null
+  if (cfg.mode === 'gist') {
+    const gist = await ghFetch(`${API}/gists/${encodeURIComponent(cfg.gistId)}`, { headers: headers(cfg) })
+    const file = gist?.files?.[cfg.path] || Object.values(gist?.files || {})[0]
+    if (!file) return null
+    const content = file.truncated ? await fetchRaw(file.raw_url) : file.content
+    return { data: JSON.parse(content), sha: gist.id, gistId: gist.id }
+  }
+  const res = await fetch(repoUrl(cfg) + `?ref=${encodeURIComponent(cfg.branch)}`, { headers: headers(cfg) })
+  if (res.status === 404) return null
+  if (!res.ok) {
+    const text = await res.text()
+    const err = new Error(res.status === 401 ? 'token ไม่ถูกต้อง' : `อ่านไฟล์ไม่สำเร็จ (HTTP ${res.status})`)
+    err.status = res.status
+    err.body = text.slice(0, 180)
+    throw err
+  }
+  const body = await res.json()
+  const content = b64decode(body.content || '')
+  return { data: JSON.parse(content || '{}'), sha: body.sha }
+}
+
+const fetchRaw = async (url) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('ดาวน์โหลดไฟล์จาก gist ไม่สำเร็จ')
+  return res.text()
+}
+
+/** เขียนข้อมูลขึ้น GitHub → คืน sha ใหม่ */
+export async function pushRemote(cfg, data, sha) {
+  if (!isValidConfig(cfg)) throw new Error('ยังไม่ได้เชื่อมต่อ GitHub')
+  const json = JSON.stringify(data, null, 2)
+  const message = `bacc: sync data ${new Date().toISOString()}`
+
+  if (cfg.mode === 'gist') {
+    if (!cfg.gistId) {
+      const created = await ghFetch(`${API}/gists`, {
+        method: 'POST',
+        headers: headers(cfg),
+        body: JSON.stringify({
+          description: 'BACC Exam 2569 — data (Ton Skywalker)',
+          public: false,
+          files: { [cfg.path]: { content: json } },
+        }),
+      })
+      return { sha: created.id, gistId: created.id }
+    }
+    const updated = await ghFetch(`${API}/gists/${encodeURIComponent(cfg.gistId)}`, {
+      method: 'PATCH',
+      headers: headers(cfg),
+      body: JSON.stringify({ files: { [cfg.path]: { content: json } } }),
+    })
+    return { sha: updated.id, gistId: updated.id }
+  }
+
+  const created = await ghFetch(repoUrl(cfg), {
+    method: 'PUT',
+    headers: headers(cfg),
+    body: JSON.stringify({
+      message,
+      content: b64encode(json),
+      branch: cfg.branch,
+      ...(sha ? { sha } : {}),
+    }),
+  })
+  return { sha: created?.content?.sha || created?.commit?.sha || sha }
+}
+
+/** สร้างไฟล์ตั้งต้นใน repository (ใช้ครั้งแรก) */
+export async function ensureRemoteFile(cfg, data) {
+  const existing = await fetchRemote(cfg)
+  if (existing) return existing
+  const res = await pushRemote(cfg, data, null)
+  return { data, sha: res.sha }
+}
