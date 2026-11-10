@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { driveDownload } from '../data/index.js'
-import { formatThaiDateTime, loadName, mmss, saveName } from '../lib/storage.js'
+import { formatThaiDateTime, humanTime, mmss } from '../lib/storage.js'
 import { downloadResultImage, downloadResultPdf } from '../lib/pdf.js'
 import Icon from './Icons.jsx'
 import { Confetti } from './ui.jsx'
 
 const LETTERS = ['ก', 'ข', 'ค', 'ง']
-
-const humanTime = (sec = 0) => {
-  const s = Math.max(0, Math.round(sec))
-  return s < 60 ? `${s} วินาที` : `${Math.floor(s / 60)} นาที ${s % 60} วินาที`
-}
 
 function useCountUp(target, duration = 1200) {
   const [value, setValue] = useState(0)
@@ -29,10 +24,22 @@ function useCountUp(target, duration = 1200) {
   return value
 }
 
-export default function Result({ result, part, onHome, onRetry, onHistory, onOpenSources, onToast }) {
+export default function Result({
+  result,
+  part,
+  profileName,
+  onHome,
+  onRetry,
+  onHistory,
+  onOpenSources,
+  onToast,
+  onRename,
+}) {
   const [open, setOpen] = useState(-1)
   const [busy, setBusy] = useState('')
-  const [examinee, setExaminee] = useState(result.name || loadName() || '')
+  const [examinee, setExaminee] = useState(result.name || profileName || '')
+  const isSet = result.kind === 'set'
+  const title = isSet ? result.setName || 'ชุดสอบเสมือนจริง' : `${result.partLabel} · ${result.partTitle}`
   const animated = useCountUp(result.score)
   const [ringP, setRingP] = useState(0)
 
@@ -58,10 +65,12 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
   const handlePdf = async () => {
     setBusy('pdf')
     try {
-      if (examinee.trim()) saveName(examinee.trim())
+      if (examinee.trim() && onRename) onRename(examinee.trim())
       await downloadResultPdf(
         pdfPayload,
-        `BACC-ผลสอบ-${result.partLabel}-${Math.round(result.score)}คะแนน.pdf`,
+        `BACC-ผลสอบ-${(result.setName || result.partLabel || 'exam').replace(/\s+/g, '-')}-${Math.round(
+          result.score,
+        )}คะแนน.pdf`,
       )
       onToast?.('ดาวน์โหลดรายงาน PDF แล้ว')
     } finally {
@@ -73,7 +82,9 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
     setBusy('png')
     downloadResultImage(
       pdfPayload,
-      `BACC-ผลสอบ-${result.partLabel}-${Math.round(result.score)}คะแนน.png`,
+      `BACC-ผลสอบ-${(result.setName || result.partLabel || 'exam').replace(/\s+/g, '-')}-${Math.round(
+        result.score,
+      )}คะแนน.png`,
     )
     setTimeout(() => {
       setBusy('')
@@ -97,9 +108,7 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
           <h1 className="brand__title" style={{ fontSize: 15 }}>
             ผลการทดสอบ
           </h1>
-          <p className="brand__sub">
-            พาร์ท {result.partLabel} · {result.partTitle}
-          </p>
+          <p className="brand__sub">{title}</p>
         </div>
         <button className="icon-btn" onClick={onHistory} aria-label="ประวัติผลสอบ">
           <Icon name="award" size={18} />
@@ -123,7 +132,11 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
             </svg>
             <div className="score-ring__inner">
               <div className="score-ring__value num">{Math.round(animated)}</div>
-              <div className="score-ring__unit">คะแนนจาก 100</div>
+              <div className="score-ring__unit">
+                {result.maxPoints && isSet
+                  ? `${Math.round(result.points)}/${result.maxPoints} คะแนน`
+                  : 'คะแนนจาก 100'}
+              </div>
             </div>
           </div>
 
@@ -178,6 +191,41 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
             <div className="stat-box__label">เวลาที่ใช้</div>
           </div>
         </div>
+
+        {result.sections && result.sections.length > 0 && (
+          <section className="section">
+            <div className="section__head">
+              <h3 className="section__title">สรุปตามรายวิชา</h3>
+              <span className="section__link" style={{ color: 'var(--muted)' }}>
+                คะแนน · เวลาที่ใช้
+              </span>
+            </div>
+            <div className="info-card">
+              {result.sections.map((sec, i) => (
+                <div className="sec-result" key={sec.key} style={{ '--sec': sec.color || 'var(--viol-500)', '--i': i }}>
+                  <div className="sec-result__top">
+                    <span className="sec-result__dot" />
+                    <b>{sec.label}</b>
+                    <span className="sec-result__pts num">
+                      {Math.round(sec.points * 10) / 10}/{sec.maxPoints}
+                    </span>
+                  </div>
+                  <div className="sec-result__bar">
+                    <i style={{ width: `${sec.maxPoints ? (sec.points / sec.maxPoints) * 100 : 0}%` }} />
+                  </div>
+                  <div className="sec-result__meta">
+                    <span>
+                      ถูก {sec.correct}/{sec.total} ข้อ
+                    </span>
+                    <span>
+                      <Icon name="clock" size={11} /> {humanTime(sec.timeSec || 0)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="section">
           <div className="section__head">
@@ -258,7 +306,7 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
               </span>
               <Icon name="external" size={15} className="part-chev" />
             </button>
-            {part?.file && (
+            {part?.file && !isSet && (
               <a
                 className="download-row"
                 href={driveDownload(part.file)}
@@ -337,8 +385,8 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
         </section>
 
         <div className="section" style={{ display: 'grid', gap: 10 }}>
-          <button className="btn btn--primary btn--block" onClick={() => onRetry(result.partId)}>
-            <Icon name="refresh" size={17} /> ทำข้อสอบพาร์ทนี้อีกครั้ง
+          <button className="btn btn--primary btn--block" onClick={() => onRetry(result)}>
+            <Icon name="refresh" size={17} /> {isSet ? 'ทำชุดข้อสอบนี้อีกครั้ง' : 'ทำข้อสอบพาร์ทนี้อีกครั้ง'}
           </button>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn--ghost" style={{ flex: 1 }} onClick={onHistory}>

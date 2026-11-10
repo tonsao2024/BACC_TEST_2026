@@ -1,38 +1,115 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { mmss } from '../lib/storage.js'
+import { humanTime, mmss } from '../lib/storage.js'
 import Icon from './Icons.jsx'
 import { Sheet } from './ui.jsx'
 
 const LETTERS = ['ก', 'ข', 'ค', 'ง']
 
-export default function Quiz({ part, name, onExit, onFinish }) {
-  const total = part.questions.length
-  const duration = part.minutes * 60
-  const [answers, setAnswers] = useState(() => Array(total).fill(null))
-  const [flagged, setFlagged] = useState(() => new Set())
-  const [idx, setIdx] = useState(0)
-  const [remaining, setRemaining] = useState(duration)
+const emptyAnswers = (n) => Array(n).fill(null)
+
+export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) {
+  const questions = exam.questions
+  const total = questions.length
+  const duration = exam.minutes * 60
+  const sections = exam.sections || null
+
+  const [answers, setAnswers] = useState(() => attempt?.answers || emptyAnswers(total))
+  const [flagged, setFlagged] = useState(() => new Set(attempt?.flagged || []))
+  const [idx, setIdx] = useState(() => Math.min(attempt?.idx || 0, total - 1))
+  const [remaining, setRemaining] = useState(() =>
+    typeof attempt?.remaining === 'number' ? attempt.remaining : duration,
+  )
+  const [sectionSec, setSectionSec] = useState(() => attempt?.sectionSec || {})
+  const [usedSec, setUsedSec] = useState(() => attempt?.usedSec || 0)
+  const [paused, setPaused] = useState(false)
   const [sheet, setSheet] = useState(null)
+
   const submitted = useRef(false)
-
-  const q = part.questions[idx]
+  const q = questions[idx]
+  const sectionKey = q?.sectionKey || 'part'
+  const sectionInfo = sections?.find((s) => s.key === sectionKey) || null
   const answeredCount = answers.filter((a) => a !== null).length
+  const flaggedCount = flagged.size
 
-  const submit = useCallback(
+  /* ---------- autosave snapshot ---------- */
+  const snapshot = useMemo(
+    () => ({
+      key: exam.key,
+      kind: exam.kind,
+      title: exam.title,
+      label: exam.label,
+      partId: exam.partId || null,
+      setId: exam.setId || null,
+      seed: exam.seed || null,
+      sizeKey: exam.sizeKey || null,
+      total,
+      answers,
+      flagged: Array.from(flagged),
+      idx,
+      remaining,
+      usedSec,
+      sectionSec,
+      updatedAt: new Date().toISOString(),
+    }),
+    [answers, exam, flagged, idx, remaining, sectionSec, total, usedSec],
+  )
+
+  const snapshotRef = useRef(snapshot)
+  snapshotRef.current = snapshot
+  const saveTimer = useRef(null)
+
+  const flush = useCallback(() => {
+    if (submitted.current) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    onSave?.(snapshotRef.current)
+  }, [onSave])
+
+  useEffect(() => {
+    if (submitted.current || paused) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => onSave?.(snapshotRef.current), 600)
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+    }
+  }, [snapshot, onSave, paused])
+
+  /* ---------- flush on unload ---------- */
+  useEffect(() => {
+    const handler = () => flush()
+    window.addEventListener('pagehide', handler)
+    return () => {
+      window.removeEventListener('pagehide', handler)
+      handler()
+    }
+  }, [flush])
+
+  /* ---------- timer ---------- */
+  useEffect(() => {
+    if (paused) return undefined
+    const id = setInterval(() => {
+      setUsedSec((u) => u + 1)
+      setSectionSec((prev) => ({ ...prev, [sectionKey]: (prev[sectionKey] || 0) + 1 }))
+      setRemaining((r) => (r > 0 ? r - 1 : 0))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [paused, sectionKey])
+
+  /* ---------- build result ---------- */
+  const buildResult = useCallback(
     (auto = false) => {
-      if (submitted.current) return
-      submitted.current = true
-
-      const details = part.questions.map((item, i) => ({
+      const details = questions.map((item, i) => ({
         q: item.q,
         o: item.o,
         a: item.a,
-        chosen: answers[i],
+        chosen: answers[i] ?? null,
         e: item.e,
         t: item.t,
+        l: item.l || null,
         fig: item.fig || null,
         ofigs: item.ofigs || null,
         part: item.part || null,
+        sectionKey: item.sectionKey || 'part',
+        sectionLabel: item.sectionLabel || null,
       }))
 
       const correct = details.filter((d) => d.chosen === d.a).length
@@ -47,65 +124,99 @@ export default function Quiz({ part, name, onExit, onFinish }) {
         topicMap.set(d.t, row)
       })
 
-      const timeUsedSec = duration - remaining
-      onFinish({
+      const secStats = (sections || [
+        { key: 'part', label: exam.partLabel || exam.label, points: total, count: total },
+      ]).map((s) => {
+        const rows = details.filter((d) => (d.sectionKey || 'part') === s.key)
+        const right = rows.filter((d) => d.chosen === d.a).length
+        return {
+          key: s.key,
+          label: s.label,
+          color: s.color || exam.color || '#6C4CF1',
+          correct: right,
+          total: rows.length,
+          points: s.count ? (right * s.points) / s.count : right,
+          maxPoints: s.points,
+          timeSec: sectionSec[s.key] || 0,
+        }
+      })
+
+      const maxPoints = sections ? sections.reduce((sum, s) => sum + s.points, 0) : total
+      const points = sections
+        ? secStats.reduce((sum, s) => sum + s.points, 0)
+        : correct
+
+      return {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        partId: part.id,
-        partLabel: part.label,
-        partTitle: part.title,
-        partColor: part.color,
+        kind: exam.kind || 'part',
+        partId: exam.partId || null,
+        partLabel: exam.partLabel || exam.label,
+        partTitle: exam.partTitle || exam.title,
+        partColor: exam.color || '#6C4CF1',
+        setId: exam.setId || null,
+        setName: exam.setName || null,
+        seed: exam.seed || null,
+        sizeKey: exam.sizeKey || null,
         date: new Date().toISOString(),
         name: name || '',
-        score: Math.round((correct / total) * 1000) / 10,
+        score: Math.round((points / maxPoints) * 1000) / 10,
+        points: Math.round(points * 10) / 10,
+        maxPoints,
         correct,
         wrong,
         skipped,
         total,
         durationSec: duration,
-        timeUsedSec: timeUsedSec < 1 ? 1 : timeUsedSec,
+        timeUsedSec: usedSec < 1 ? 1 : usedSec,
         autoSubmitted: auto,
+        sections: sections ? secStats : null,
+        sectionTimes: sectionSec,
         topics: Array.from(topicMap.values()),
         items: details,
-      })
+      }
     },
-    [answers, duration, name, onFinish, part, remaining, total],
+    [answers, duration, exam, name, questions, sectionSec, sections, total, usedSec],
   )
 
-  const submitRef = useRef(submit)
-  useEffect(() => {
-    submitRef.current = submit
-  }, [submit])
+  const submitRef = useRef(buildResult)
+  submitRef.current = buildResult
+
+  const submit = useCallback(
+    (auto = false) => {
+      if (submitted.current) return
+      submitted.current = true
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      onFinish(buildResult(auto))
+    },
+    [buildResult, onFinish],
+  )
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setRemaining((prev) => (prev <= 0 ? 0 : prev - 1))
-    }, 1000)
-    return () => clearInterval(id)
-  }, [])
+    if (remaining <= 0 && !submitted.current) submit(true)
+  }, [remaining, submit])
 
-  useEffect(() => {
-    if (remaining === 0) submitRef.current(true)
-  }, [remaining])
+  /* ---------- navigation ---------- */
+  const select = useCallback(
+    (optionIdx) => {
+      setAnswers((prev) => {
+        const next = [...prev]
+        next[idx] = next[idx] === optionIdx ? null : optionIdx
+        return next
+      })
+    },
+    [idx],
+  )
 
-  /* keyboard shortcuts (desktop) */
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (['1', '2', '3', '4'].includes(e.key)) select(Number(e.key) - 1)
-      else if (e.key === 'ArrowRight') go(idx + 1)
-      else if (e.key === 'ArrowLeft') go(idx - 1)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
-
-  const select = (optionIdx) => {
-    setAnswers((prev) => {
-      const next = [...prev]
-      next[idx] = optionIdx
-      return next
-    })
-  }
+  const go = useCallback(
+    (next) => {
+      setIdx((cur) => {
+        if (next < 0 || next >= total) return cur
+        return next
+      })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    [total],
+  )
 
   const toggleFlag = () => {
     setFlagged((prev) => {
@@ -116,18 +227,26 @@ export default function Quiz({ part, name, onExit, onFinish }) {
     })
   }
 
-  const go = (next) => {
-    if (next < 0 || next >= total) return
-    setIdx(next)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  /* ---------- keyboard ---------- */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (sheet) return
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (['1', '2', '3', '4'].includes(e.key)) select(Number(e.key) - 1)
+      else if (e.key === 'ArrowRight') go(idx + 1)
+      else if (e.key === 'ArrowLeft') go(idx - 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [go, idx, select, sheet])
 
   const timerClass =
     remaining <= 60 ? 'timer-chip is-danger' : remaining <= 300 ? 'timer-chip is-warn' : 'timer-chip'
-
   const progress = ((idx + 1) / total) * 100
+  const answeredPct = Math.round((answeredCount / total) * 100)
 
-  const topicCount = useMemo(() => new Set(part.questions.map((x) => x.t)).size, [part])
+  const sectionHeader = (key) => sections?.find((s) => s.key === key)?.label || null
 
   return (
     <>
@@ -140,14 +259,49 @@ export default function Quiz({ part, name, onExit, onFinish }) {
           <Icon name="back" size={20} />
         </button>
         <div className="exam-top__title">
-          <p>พาร์ท {part.label} · {topicCount} หัวข้อ</p>
-          <h2>{part.title}</h2>
+          <p>{exam.label}</p>
+          <h2>{exam.title}</h2>
         </div>
         <div className={timerClass} role="timer" aria-live="off">
           <span className="timer-chip__dot" />
           <span className="num">{mmss(remaining)}</span>
         </div>
+        <button
+          className="icon-btn icon-btn--ghost"
+          onClick={() => setSheet('pause')}
+          aria-label="หยุดพัก"
+        >
+          <Icon name="pause" size={18} />
+        </button>
       </header>
+
+      {sections && (
+        <div className="sec-strip">
+          {sections.map((s) => {
+            const rows = questions.map((x, i) => ({ x, i })).filter((r) => r.x.sectionKey === s.key)
+            const done = rows.filter((r) => answers[r.i] !== null).length
+            const on = s.key === sectionKey
+            return (
+              <button
+                key={s.key}
+                type="button"
+                className={`sec-chip ${on ? 'is-on' : ''}`}
+                style={{ '--sec': s.color }}
+                onClick={() => go(rows[0]?.i ?? 0)}
+                aria-current={on ? 'true' : undefined}
+              >
+                <span className="sec-chip__name">{s.label}</span>
+                <span className="sec-chip__meta">
+                  {done}/{s.count} · {mmss(sectionSec[s.key] || 0)}
+                </span>
+                <span className="sec-chip__bar">
+                  <i style={{ width: `${(done / s.count) * 100}%` }} />
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div style={{ padding: '4px 0 0' }}>
         <div className="progress-line">
@@ -155,50 +309,55 @@ export default function Quiz({ part, name, onExit, onFinish }) {
         </div>
         <div className="progress-meta">
           <span>
-            ข้อ <b className="num" style={{ color: 'var(--ink)' }}>{idx + 1}</b> จาก {total}
+            ข้อ{' '}
+            <b className="num" style={{ color: 'var(--ink)' }}>
+              {idx + 1}
+            </b>{' '}
+            จาก {total}
           </span>
           <span>
-            ตอบแล้ว <b className="num" style={{ color: 'var(--viol-600)' }}>{answeredCount}</b> ข้อ
+            ตอบแล้ว{' '}
+            <b className="num" style={{ color: 'var(--viol-600)' }}>
+              {answeredCount}
+            </b>{' '}
+            ข้อ · {answeredPct}%
           </span>
         </div>
 
         <div className="q-wrap">
-          <div className="q-card" key={idx}>
+          <div className="q-card" key={`${sectionKey}-${idx}`}>
             <div className="q-tags">
+              {sectionInfo ? (
+                <span className="tag tag--section" style={{ '--sec': sectionInfo.color }}>
+                  {sectionInfo.label}
+                </span>
+              ) : null}
               <span className="tag">{q.t}</span>
               {q.l && (
-                <span className={`tag ${q.l === 'ง่าย' ? 'tag--easy' : q.l === 'ยาก' ? 'tag--hard' : 'tag--ghost'}`}>
+                <span
+                  className={`tag ${
+                    q.l === 'ง่าย' ? 'tag--easy' : q.l === 'ยาก' ? 'tag--hard' : 'tag--ghost'
+                  }`}
+                >
                   ระดับ {q.l}
                 </span>
               )}
               {q.part && <span className="tag tag--ghost">{q.part}</span>}
               <button
+                type="button"
                 onClick={toggleFlag}
-                aria-label="ปักธงข้อนี้"
-                style={{
-                  marginLeft: 'auto',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  fontSize: 11,
-                  color: flagged.has(idx) ? 'var(--amber)' : 'var(--muted)',
-                  padding: '4px 8px',
-                  borderRadius: 999,
-                  background: flagged.has(idx) ? 'var(--amber-soft)' : 'transparent',
-                  transition: 'all .25s',
-                }}
+                aria-label={flagged.has(idx) ? 'เอาธงออก' : 'ปักธงข้อนี้'}
+                className={`flag-btn ${flagged.has(idx) ? 'is-on' : ''}`}
               >
                 <Icon name="flag" size={14} stroke={flagged.has(idx) ? 2.4 : 1.8} />
-                {flagged.has(idx) ? 'ปักธง' : 'ปักธง'}
+                {flagged.has(idx) ? 'ปักธงแล้ว' : 'ปักธง'}
               </button>
             </div>
 
             <p className="q-num">ข้อที่ {idx + 1}</p>
             <p className="q-text">{q.q}</p>
 
-            {q.fig && (
-              <div className="q-figure" dangerouslySetInnerHTML={{ __html: q.fig }} />
-            )}
+            {q.fig && <div className="q-figure" dangerouslySetInnerHTML={{ __html: q.fig }} />}
 
             <div className="options">
               {q.o.map((opt, i) => (
@@ -239,8 +398,13 @@ export default function Quiz({ part, name, onExit, onFinish }) {
         >
           <Icon name="back" size={18} />
         </button>
-        <button className="btn btn--ghost btn--icon" onClick={() => setSheet('palette')} aria-label="รายการข้อสอบ">
+        <button
+          className="btn btn--ghost btn--icon"
+          onClick={() => setSheet('palette')}
+          aria-label="รายการข้อสอบ"
+        >
           <Icon name="grid" size={18} />
+          {flaggedCount > 0 && <i className="btn__dot" />}
         </button>
         {idx === total - 1 ? (
           <button className="btn btn--primary" onClick={() => setSheet('submit')}>
@@ -255,26 +419,75 @@ export default function Quiz({ part, name, onExit, onFinish }) {
 
       {sheet === 'exit' && (
         <Sheet
-          title="ออกจากการทดสอบ?"
-          desc="คำตอบที่เลือกไว้จะไม่ถูกบันทึก และเวลาที่ใช้จะไม่ถูกนับเป็นผลการทดสอบ"
+          title="หยุดทำชั่วคราว?"
+          desc="ระบบจะบันทึกคำตอบ เวลารายพาร์ท และข้อที่ทำค้างไว้ให้อัตโนมัติ กลับมาทำต่อได้ทุกเมื่อ"
           onClose={() => setSheet(null)}
           actions={
             <>
               <button className="btn btn--ghost" onClick={() => setSheet(null)}>
                 ทำต่อ
               </button>
-              <button className="btn btn--primary" onClick={() => onExit()}>
-                ออก
+              <button
+                className="btn btn--primary"
+                onClick={() => {
+                  flush()
+                  onExit()
+                }}
+              >
+                บันทึกและออก
               </button>
             </>
           }
         />
       )}
 
+      {sheet === 'pause' && (
+        <Sheet
+          title="หยุดพักการทำข้อสอบ"
+          desc="ไม่ต้องทำจบในครั้งเดียว — คำตอบและเวลาที่ใช้จะถูกเก็บไว้ และเวลาจะหยุดนับระหว่างพัก"
+          onClose={() => setSheet(null)}
+        >
+          <div className="pause-card">
+            <div>
+              <span>ทำแล้ว</span>
+              <b>
+                {answeredCount}/{total} ข้อ
+              </b>
+            </div>
+            <div>
+              <span>เวลาที่ใช้ไป</span>
+              <b>{humanTime(usedSec)}</b>
+            </div>
+            <div>
+              <span>เวลาที่เหลือ</span>
+              <b>{mmss(remaining)}</b>
+            </div>
+          </div>
+          <div className="sheet__actions">
+            <button className="btn btn--ghost" onClick={() => setSheet(null)}>
+              ทำต่อ
+            </button>
+            <button
+              className="btn btn--primary"
+              onClick={() => {
+                if (saveTimer.current) clearTimeout(saveTimer.current)
+                onSave?.(snapshotRef.current)
+                setPaused(true)
+                setSheet(null)
+              }}
+            >
+              <Icon name="pause" size={16} /> พักไว้ก่อน
+            </button>
+          </div>
+        </Sheet>
+      )}
+
       {sheet === 'submit' && (
         <Sheet
           title="ยืนยันการส่งคำตอบ"
-          desc={`คุณตอบแล้ว ${answeredCount} จาก ${total} ข้อ · เหลือเวลา ${mmss(remaining)}`}
+          desc={`ตอบแล้ว ${answeredCount} จาก ${total} ข้อ · เหลือเวลา ${mmss(remaining)}${
+            flaggedCount ? ` · ปักธงไว้ ${flaggedCount} ข้อ` : ''
+          }`}
           onClose={() => setSheet(null)}
           actions={
             <>
@@ -290,35 +503,63 @@ export default function Quiz({ part, name, onExit, onFinish }) {
       )}
 
       {sheet === 'palette' && (
-        <Sheet title="รายการข้อสอบ" desc="แตะหมายเลขเพื่อไปยังข้อนั้น" onClose={() => setSheet(null)}>
-          <div className="palette-grid">
-            {Array.from({ length: total }).map((_, i) => (
-              <button
-                key={i}
-                className={`palette-cell ${answers[i] !== null ? 'is-done' : ''} ${i === idx ? 'is-current' : ''}`}
-                onClick={() => {
-                  setIdx(i)
-                  setSheet(null)
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }}
-              >
-                {i + 1}
-                {flagged.has(i) && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      marginTop: -18,
-                      marginLeft: 16,
-                      width: 5,
-                      height: 5,
-                      borderRadius: 99,
-                      background: 'var(--amber)',
-                    }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
+        <Sheet
+          title="รายการข้อสอบ"
+          desc="แตะหมายเลขเพื่อไปยังข้อนั้น · ปักธงเพื่อกลับมาตรวจทาน"
+          onClose={() => setSheet(null)}
+        >
+          {sections ? (
+            sections.map((s) => {
+              const rows = questions
+                .map((x, i) => ({ x, i }))
+                .filter((row) => row.x.sectionKey === s.key)
+              return (
+                <div key={s.key} className="palette-group">
+                  <p className="palette-group__title" style={{ color: s.color }}>
+                    {s.label} · {s.count} ข้อ
+                  </p>
+                  <div className="palette-grid">
+                    {rows.map(({ i }) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`palette-cell ${answers[i] !== null ? 'is-done' : ''} ${
+                          i === idx ? 'is-current' : ''
+                        } ${flagged.has(i) ? 'is-flag' : ''}`}
+                        onClick={() => {
+                          setIdx(i)
+                          setSheet(null)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div className="palette-grid">
+              {Array.from({ length: total }).map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`palette-cell ${answers[i] !== null ? 'is-done' : ''} ${
+                    i === idx ? 'is-current' : ''
+                  } ${flagged.has(i) ? 'is-flag' : ''}`}
+                  onClick={() => {
+                    setIdx(i)
+                    setSheet(null)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="palette-legend">
             <span>
               <i style={{ background: 'var(--viol-500)' }} /> ข้อปัจจุบัน
@@ -327,15 +568,43 @@ export default function Quiz({ part, name, onExit, onFinish }) {
               <i style={{ background: 'var(--viol-100)' }} /> ตอบแล้ว
             </span>
             <span>
-              <i style={{ background: '#fff', border: '1px solid var(--line)' }} /> ยังไม่ตอบ
+              <i style={{ background: 'var(--amber)', border: 0 }} /> ปักธง
             </span>
           </div>
+
           <div className="sheet__actions">
-            <button className="btn btn--soft btn--block" onClick={() => setSheet('submit')}>
-              ส่งคำตอบตอนนี้
+            <button className="btn btn--soft" onClick={() => setSheet('pause')}>
+              <Icon name="pause" size={16} /> หยุดพัก
+            </button>
+            <button className="btn btn--primary" onClick={() => setSheet('submit')}>
+              ส่งคำตอบ
             </button>
           </div>
         </Sheet>
+      )}
+
+      {paused && (
+        <div className="paused-veil">
+          <div className="paused-card">
+            <div className="paused-card__icon">
+              <Icon name="pause" size={26} />
+            </div>
+            <h3>พักการทำข้อสอบแล้ว</h3>
+            <p>
+              ความคืบหน้าถูกบันทึกไว้ที่ {answeredCount}/{total} ข้อ ใช้เวลาไป {humanTime(usedSec)}
+              <br />
+              เวลาจะหยุดนับจนกว่าจะกลับมาทำต่อ
+            </p>
+            <div className="paused-card__actions">
+              <button className="btn btn--primary btn--block" onClick={() => setPaused(false)}>
+                <Icon name="play" size={17} /> ทำต่อทันที
+              </button>
+              <button className="btn btn--ghost btn--block" onClick={() => onExit('paused')}>
+                กลับหน้าหลัก
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

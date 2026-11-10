@@ -10,9 +10,20 @@ const RULES = [
   'หลังส่งคำตอบจะเห็นเฉลยและคำอธิบายทุกข้อ พร้อมดาวน์โหลดรายงานผล',
 ]
 
-export default function PartDetail({ part, results, onBack, onStart, onOpenSources, partFileName }) {
+export default function PartDetail({
+  part,
+  results,
+  attempt,
+  onBack,
+  onStart,
+  onRestart,
+  onReadDoc,
+  onOpenSources,
+  partFileName,
+}) {
   const best = bestFor(part.id, results)
   const rows = results.filter((r) => r.partId === part.id)
+  const answered = attempt ? (attempt.answers || []).filter((a) => a !== null).length : 0
 
   return (
     <>
@@ -131,10 +142,24 @@ export default function PartDetail({ part, results, onBack, onStart, onOpenSourc
             <h3 className="section__title">เอกสารต้นฉบับ</h3>
           </div>
           <div className="download-card">
-            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ไฟล์ข้อสอบฉบับเต็มจาก Google Drive</p>
+            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ไฟล์ข้อสอบฉบับเต็ม</p>
             <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
               {partFileName || `${part.label}_ข้อสอบ_${part.officialCount}ข้อ.pdf`} · เฉลยพร้อมคำอธิบาย
             </p>
+            <button
+              type="button"
+              className="download-row"
+              onClick={() => onReadDoc?.({ id: part.file, name: partFileName || `พาร์ท ${part.label}` })}
+            >
+              <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
+                <Icon name="book" size={18} />
+              </span>
+              <span style={{ flex: 1 }}>
+                <span className="download-row__title">อ่านเอกสารในเว็บไซต์</span>
+                <span className="download-row__desc">เปิดอ่านได้ทันที ไม่ต้องออกไปที่ Google Drive</span>
+              </span>
+              <Icon name="chevron" size={16} className="part-chev" />
+            </button>
             <a
               className="download-row"
               href={driveDownload(part.file)}
@@ -142,34 +167,12 @@ export default function PartDetail({ part, results, onBack, onStart, onOpenSourc
               rel="noreferrer"
               style={{ textDecoration: 'none' }}
             >
-              <span
-                className="download-row__ico"
-                style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}
-              >
+              <span className="download-row__ico" style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}>
                 <Icon name="download" size={18} />
               </span>
               <span style={{ flex: 1 }}>
                 <span className="download-row__title">ดาวน์โหลดไฟล์ PDF ต้นฉบับ</span>
                 <span className="download-row__desc">เปิดจาก Google Drive · ต้นฉบับไม่มีการแก้ไข</span>
-              </span>
-              <Icon name="external" size={16} className="part-chev" />
-            </a>
-            <a
-              className="download-row"
-              href={driveView(part.file)}
-              target="_blank"
-              rel="noreferrer"
-              style={{ textDecoration: 'none' }}
-            >
-              <span
-                className="download-row__ico"
-                style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}
-              >
-                <Icon name="book" size={18} />
-              </span>
-              <span style={{ flex: 1 }}>
-                <span className="download-row__title">เปิดดูใน Google Drive</span>
-                <span className="download-row__desc">ดูตัวอย่างไฟล์ก่อนดาวน์โหลด</span>
               </span>
               <Icon name="external" size={16} className="part-chev" />
             </a>
@@ -201,9 +204,15 @@ export default function PartDetail({ part, results, onBack, onStart, onOpenSourc
         )}
       </div>
 
-      <div className="quiz-foot" style={{ position: 'sticky', bottom: 0 }}>
-        <button className="btn btn--primary btn--block" onClick={() => onStart(part.id)}>
-          <Icon name="play" size={16} /> เริ่มทำข้อสอบ
+      <div className="quiz-foot quiz-foot--split" style={{ position: 'sticky', bottom: 0 }}>
+        {attempt && (
+          <button className="btn btn--soft" onClick={() => onRestart?.(part.id)}>
+            <Icon name="refresh" size={15} /> เริ่มใหม่
+          </button>
+        )}
+        <button className="btn btn--primary" style={{ flex: 1 }} onClick={() => onStart(part.id)}>
+          <Icon name="play" size={16} />{' '}
+          {attempt ? `ทำต่อ (${answered}/${part.questions.length})` : 'เริ่มทำข้อสอบ'}
         </button>
       </div>
     </>

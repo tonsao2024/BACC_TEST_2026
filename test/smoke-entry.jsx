@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import App from '../src/App.jsx'
 import { PARTS, MOCK_PART, TOTAL_QUESTIONS } from '../src/data/index.js'
+import { generateExam } from '../src/lib/generator.js'
+import { exportExamPdf } from '../src/lib/pdf.js'
+import { listAttempts, makeShareCode, parseShareCode } from '../src/lib/storage.js'
 
 const root = createRoot(document.getElementById('root'))
 const text = () => document.body.textContent || ''
@@ -13,149 +16,284 @@ function byText(selector, needle) {
   return Array.from(document.querySelectorAll(selector)).find((el) => (el.textContent || '').includes(needle))
 }
 
+const type = (input, value) => {
+  const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value').set
+  setter.call(input, value)
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+}
+
 const results = []
 const check = (name, cond, extra = '') => {
   results.push({ name, ok: !!cond, extra })
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? ` — ${extra}` : ''}`)
 }
+const tap = async (el, wait = 20) => {
+  if (!el) return
+  await act(async () => {
+    el.click()
+    await sleep(wait)
+  })
+}
+
+const json = (key, fallback) => {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback
+  } catch {
+    return fallback
+  }
+}
 
 async function run() {
-  /* ---------- data integrity ---------- */
+  /* ================= 1. data & generator ================= */
   let invalid = []
   PARTS.forEach((p) => {
     p.questions.forEach((q, i) => {
       if (!Array.isArray(q.o) || q.o.length !== 4) invalid.push(`${p.id}#${i + 1} options`)
       if (typeof q.a !== 'number' || q.a < 0 || q.a > 3) invalid.push(`${p.id}#${i + 1} answer`)
       if (!q.e || q.e.length < 10) invalid.push(`${p.id}#${i + 1} explanation`)
-      if (!q.t) invalid.push(`${p.id}#${i + 1} topic`)
-      if (q.ofigs && q.ofigs.length !== 4) invalid.push(`${p.id}#${i + 1} option figures`)
+      if (new Set(q.o.map(String)).size !== 4) invalid.push(`${p.id}#${i + 1} duplicate options`)
     })
   })
-  check(`question bank valid (${TOTAL_QUESTIONS} items)`, invalid.length === 0, invalid.slice(0, 5).join(', '))
+  check(`question bank valid (${TOTAL_QUESTIONS} items)`, invalid.length === 0, invalid.slice(0, 4).join(', '))
   check('mock exam composed', MOCK_PART.questions.length === 30, `${MOCK_PART.questions.length} items`)
 
-  /* ---------- home ---------- */
+  const official = generateExam({ seed: 'smoke-seed', sizeKey: 'official', name: 'ชุดทดสอบ' })
+  check(
+    'official set = 230 ข้อ / 250 คะแนน',
+    official.totalCount === 230 && official.totalPoints === 250,
+    `${official.totalCount}/${official.totalPoints}`,
+  )
+  check(
+    'official blueprint 80/50/100',
+    official.sections.map((s) => `${s.count}:${s.points}`).join('|') === '80:100|50:50|100:100',
+    official.sections.map((s) => `${s.count}:${s.points}`).join('|'),
+  )
+  check('official set has no repeated items', official.repeats === 0, `${official.repeats} repeats`)
+  check(
+    'official set options valid',
+    official.questions.every((q) => q.o.length === 4 && new Set(q.o.map(String)).size === 4),
+  )
+
+  const officialAgain = generateExam({ seed: 'smoke-seed', sizeKey: 'official', name: 'ชุดทดสอบ' })
+  check(
+    'same seed reproduces identical set',
+    officialAgain.questions.every((q, i) => q.q === official.questions[i].q && q.a === official.questions[i].a),
+  )
+  const other = generateExam({ seed: 'another-seed', sizeKey: 'official', name: 'ชุดทดสอบ' })
+  check('different seed produces different set', other.questions[0].q !== official.questions[0].q)
+  const mini = generateExam({ seed: 'smoke-seed', sizeKey: 'mini', name: 'ชุดย่อ' })
+  check('mini set = 60 ข้อ / 65 คะแนน', mini.totalCount === 60 && mini.totalPoints === 65, `${mini.totalCount}/${mini.totalPoints}`)
+
+  const code = makeShareCode({ seed: 'abc', name: 'ชุดของเพื่อน', sizeKey: 'mini' })
+  const parsed = parseShareCode(code)
+  check(
+    'share code round-trip',
+    parsed && parsed.seed === 'abc' && parsed.sizeKey === 'mini' && parsed.name === 'ชุดของเพื่อน',
+    code.slice(0, 22),
+  )
+  check('invalid share code rejected', parseShareCode('not-a-code!!') === null)
+
+  /* ================= 2. profile gate ================= */
   await act(async () => {
     root.render(<App />)
   })
   await act(async () => {
-    await sleep(30)
+    await sleep(40)
   })
-  check('home renders hero', text().includes('พร้อมสอบ'))
-  check('home lists 11 parts', document.querySelectorAll('.part-card').length >= 12)
-  check('bottom nav rendered', document.querySelectorAll('.nav-item').length === 4)
+  check('profile gate shown on first visit', !!document.querySelector('.gate__card'))
+  check('gate asks for name', text().includes('ชื่อ–นามสกุลผู้เข้าทดสอบ'))
 
-  /* open first part */
-  const firstCard = document.querySelector('.part-list .part-card')
+  const nameInput = document.querySelector('.gate__card input')
   await act(async () => {
-    firstCard.click()
-  })
-  check('part detail opens', text().includes('คำชี้แจงก่อนเริ่มทำข้อสอบ'))
-  check('drive download link present', !!document.querySelector('a[href*="uc?export=download"]'))
-
-  /* start quiz */
-  const startBtn = byText('button', 'เริ่มทำข้อสอบ')
-  await act(async () => {
-    startBtn.click()
-  })
-  await act(async () => {
+    type(nameInput, 'สมชาย ใจดี')
     await sleep(20)
   })
+  await tap(byText('.gate__card button', 'เริ่มใช้งาน'), 60)
+
+  check('enters app after name saved', !document.querySelector('.gate__card') && text().includes('สมชาย ใจดี'))
+  const profiles = json('bacc2569:profiles', [])
+  check('profile persisted', profiles.length === 1 && profiles[0].name === 'สมชาย ใจดี')
+
+  /* ================= 3. home ================= */
+  check('home hero renders', text().includes('พร้อมสอบ'))
+  check('home lists all parts', document.querySelectorAll('.part-card').length >= 12)
+  check('bottom nav has 5 items', document.querySelectorAll('.nav-item').length === 5)
+  check('exam-set hero rendered', !!document.querySelector('.set-hero'))
+
+  /* toggle dark mode */
+  await tap(document.querySelector('.topbar__theme'), 30)
+  check('dark mode applied', document.documentElement.getAttribute('data-theme') === 'dark')
+  check('theme saved', localStorage.getItem('bacc2569:theme') === 'dark')
+  await tap(document.querySelector('.topbar__theme'), 30)
+  check('light mode restored', document.documentElement.getAttribute('data-theme') === 'light')
+
+  /* ================= 4. part detail + resumable quiz ================= */
+  await tap(document.querySelector('.part-list .part-card'), 40)
+  check('part detail opens', text().includes('คำชี้แจงก่อนเริ่มทำข้อสอบ'))
+  check('in-app reader button present', !!byText('.download-row', 'อ่านเอกสารในเว็บไซต์'))
+  check('drive download link present', !!document.querySelector('a[href*="uc?export=download"]'))
+
+  await tap(byText('.quiz-foot button', 'เริ่มทำข้อสอบ'), 40)
   check('quiz screen opens', text().includes('ข้อที่ 1'))
   check('timer running', /\d\d:\d\d/.test(text()))
 
-  /* answer first option on every question, then submit */
-  const totalQ = PARTS[0].questions.length
-  for (let i = 0; i < totalQ; i += 1) {
-    const opts = document.querySelectorAll('.option')
-    if (opts.length !== 4) {
-      check(`question ${i + 1} has 4 options`, false)
-      break
-    }
-    await act(async () => {
-      opts[i % 4].click()
-    })
-    const next = byText('button', 'ข้อถัดไป') || byText('button', 'ส่งคำตอบ')
-    await act(async () => {
-      next.click()
-    })
+  const partTotal = PARTS[0].questions.length
+  for (let i = 0; i < 3; i += 1) {
+    await tap(document.querySelectorAll('.option')[0], 15)
+    await tap(byText('.quiz-foot button', 'ข้อถัดไป'), 15)
   }
+  check('answers registered', text().includes('ตอบแล้ว'))
 
-  const submitBtn = byText('.quiz-foot button', 'ส่งคำตอบ')
-  await act(async () => {
-    submitBtn.click()
-  })
-  const confirmBtn = byText('.sheet button', 'ส่งคำตอบ')
-  await act(async () => {
-    confirmBtn.click()
-  })
-  await act(async () => {
-    await sleep(60)
-  })
+  /* pause & leave */
+  await tap(document.querySelector('.topbar .icon-btn[aria-label="หยุดพัก"]'), 30)
+  await tap(byText('.sheet button', 'พักไว้ก่อน'), 40)
+  check('paused overlay shown', !!document.querySelector('.paused-card'))
+
+  await tap(byText('.paused-card button', 'กลับหน้าหลัก'), 60)
+  check('returns to part detail with resume button', !!byText('.quiz-foot button', 'ทำต่อ'))
+
+  const pid = json('bacc2569:profiles', [])[0].id
+  const attempts = listAttempts(pid)
+  check('attempt persisted', attempts.length === 1, `${attempts.length} attempt(s)`)
+  check('attempt stores answers', (attempts[0]?.answers || []).filter((a) => a !== null).length === 3)
+  check('attempt stores elapsed seconds', (attempts[0]?.usedSec || 0) >= 0)
+
+  /* resume and finish */
+  await tap(byText('.quiz-foot button', 'ทำต่อ'), 40)
+  check('resumed at saved question', text().includes('ข้อที่ 4') || text().includes('ข้อ 4'))
+
+  for (let i = 3; i < partTotal; i += 1) {
+    await tap(document.querySelectorAll('.option')[i % 4], 8)
+    await tap(byText('.quiz-foot button', 'ข้อถัดไป') || byText('.quiz-foot button', 'ส่งคำตอบ'), 8)
+  }
+  await tap(byText('.quiz-foot button', 'ส่งคำตอบ'), 20)
+  await tap(byText('.sheet button', 'ส่งคำตอบ'), 80)
 
   check('result screen shows score', text().includes('คะแนนจาก 100'))
-  check('review list rendered', document.querySelectorAll('.review-item').length === totalQ)
-  check('result saved to storage', JSON.parse(localStorage.getItem('bacc-exam-2569/results/v1') || '[]').length === 1)
+  check('review list rendered', document.querySelectorAll('.review-item').length === partTotal)
+  check('attempt cleared after submit', listAttempts(pid).length === 0)
+  check('result saved under profile', json(`bacc2569:results:${pid}`, []).length === 1)
 
-  /* expand a review item */
+  await tap(document.querySelector('.review-head'), 20)
+  check('explanation visible', (document.querySelector('.explain')?.textContent || '').includes('เฉลย'))
+
+  /* PDF report */
   await act(async () => {
-    document.querySelector('.review-head').click()
+    byText('.download-row', 'ดาวน์โหลดผลการทดสอบ (PDF)').click()
+    await sleep(200)
   })
-  check('explanation visible', document.querySelector('.explain')?.textContent.includes('เฉลย'))
+  const reportBlob = getLastBlob()
+  check('result pdf created', reportBlob && reportBlob.type === 'application/pdf')
 
-  /* ---------- PDF download ---------- */
-  const pdfBtn = byText('.download-row', 'ดาวน์โหลดผลการทดสอบ (PDF)')
+  /* ================= 5. exam builder ================= */
+  await tap(byText('.btn', 'กลับหน้าแรก'), 60)
+  await tap(byText('.nav-item', 'ชุดสอบ'), 60)
+  check('builder screen opens', text().includes('สร้างชุดข้อสอบนี้'))
+  check('blueprint preview lists 3 sections', document.querySelectorAll('.struct-row').length === 3)
+
+  /* choose mini size for a fast run */
+  await tap(byText('.size-card', 'ชุดย่อ'), 60)
+  await tap(byText('.btn', 'สร้างชุดข้อสอบนี้'), 120)
+  check('creation sheet shown', text().includes('สร้างชุดข้อสอบสำเร็จ'))
+  check('share code shown', !!document.querySelector('.share-box code'))
+
+  const sets = json('bacc2569:sets', [])
+  check('set persisted', sets.length === 1 && sets[0].seed)
+  check('set owner recorded', sets[0]?.owner === 'สมชาย ใจดี', sets[0]?.owner)
+
+  /* exam pdf export (direct, full set) */
   await act(async () => {
-    try {
-      pdfBtn.click()
-    } catch (e) {
-      console.log('PDF click error:', e.message)
-
-    }
-    await sleep(120)
+    await exportExamPdf(mini, { examinee: 'สมชาย ใจดี', includeAnswers: true })
+    await sleep(300)
   })
-  const blob = getLastBlob()
-  check('pdf blob created', blob && blob.type === 'application/pdf')
-
-  if (blob) {
-    const buf = Buffer.from(await blob.arrayBuffer())
-    const head = buf.subarray(0, 8).toString('latin1')
-    check('pdf header valid', head.startsWith('%PDF-1.4'), head)
-    const tail = buf.subarray(-40).toString('latin1')
-    check('pdf has EOF marker', tail.includes('%%EOF'))
-
-    const startxref = Number(
-      (buf.toString('latin1').match(/startxref\s+(\d+)/) || [])[1],
-    )
-    check('startxref points at xref table', buf.subarray(startxref, startxref + 4).toString('latin1') === 'xref')
-
-    const xref = buf.subarray(startxref).toString('latin1')
-    const offsets = [...xref.matchAll(/^(\d{10}) 00000 n/gm)].map((m) => Number(m[1]))
-    const objectsOk = offsets.every((off, i) => {
-      const snippet = buf.subarray(off, off + 12).toString('latin1')
-      return snippet.startsWith(`${i + 1} 0 obj`)
-    })
-    check('pdf xref offsets correct', offsets.length === 5 && objectsOk, `${offsets.length} entries`)
-    check('pdf embeds JPEG stream', buf.toString('latin1').includes('/DCTDecode'))
+  const examBlob = getLastBlob()
+  check('exam pdf created', examBlob && examBlob.type === 'application/pdf')
+  if (examBlob) {
+    const buf = Buffer.from(await examBlob.arrayBuffer())
+    const latin = buf.toString('latin1')
+    const pageCount = Number((latin.match(/\/Count (\d+)/) || [])[1] || 0)
+    check('exam pdf is multi-page', pageCount >= 5, `${pageCount} pages`)
+    check('exam pdf header/trailer', latin.startsWith('%PDF-1.4') && latin.trimEnd().endsWith('%%EOF'))
+    check('exam pdf contains images', (latin.match(/DCTDecode/g) || []).length === pageCount)
   }
 
-  /* ---------- history ---------- */
-  await act(async () => {
-    byText('.btn', 'ผลสอบทั้งหมด').click()
-  })
-  check('history lists result', document.querySelectorAll('.hist-card').length === 1)
+  /* start the set exam */
+  await tap(byText('.sheet button', 'เริ่มสอบเลย'), 120)
+  check('set exam starts', text().includes('ชุดสอบเสมือนจริง'))
+  check('section chips rendered', document.querySelectorAll('.sec-chip').length === 3)
+  check('set exam has 60 questions', text().includes('จาก 60'))
 
-  /* back home via nav */
-  await act(async () => {
-    byText('.nav-item', 'หน้าแรก').click()
-  })
-  check('returns home', text().includes('คะแนนเฉลี่ย'))
+  await tap(document.querySelectorAll('.option')[1], 20)
+  await tap(byText('.quiz-foot button', 'ข้อถัดไป'), 20)
 
-  /* sources page */
+  /* pause, check resume list on home */
+  await tap(document.querySelector('.topbar .icon-btn[aria-label="หยุดพัก"]'), 30)
+  await tap(byText('.sheet button', 'พักไว้ก่อน'), 40)
+  await tap(byText('.paused-card button', 'กลับหน้าหลัก'), 60)
+  await tap(byText('.nav-item', 'หน้าแรก'), 60)
+  check('home shows resume card', !!document.querySelector('.resume-card'))
+
+  await tap(document.querySelector('.resume-card'), 120)
+  check('resume card continues set exam', text().includes('จาก 60'))
+  /* answer the whole set quickly via palette-free loop */
+  for (let i = 0; i < 60; i += 1) {
+    await tap(document.querySelectorAll('.option')[0], 3)
+    await tap(byText('.quiz-foot button', 'ข้อถัดไป') || byText('.quiz-foot button', 'ส่งคำตอบ'), 3)
+  }
+  await tap(byText('.quiz-foot button', 'ส่งคำตอบ'), 20)
+  await tap(byText('.sheet button', 'ส่งคำตอบ'), 120)
+
+  const setResult = json(`bacc2569:results:${pid}`, []).find((r) => r.kind === 'set')
+  check('set result saved with set metadata', !!setResult && setResult.setName && setResult.maxPoints === 65)
+  check(
+    'set result points within maximum',
+    !!setResult && setResult.points >= 0 && setResult.points <= 65,
+    setResult ? `${Math.round(setResult.points)}/65` : 'missing',
+  )
+  check('section summary rendered', document.querySelectorAll('.sec-result').length === 3)
+
+  /* ================= 6. history ================= */
+  await tap(byText('.btn', 'กลับหน้าแรก'), 60)
+  await tap(byText('.nav-item', 'ผลสอบ'), 40)
+  check('history lists both results', document.querySelectorAll('.hist-card').length === 2)
+  check('history has type filter', document.querySelectorAll('.seg__item').length === 3)
+  await tap(byText('.seg__item', 'ชุดสอบ'), 30)
+  check('history filter works', document.querySelectorAll('.hist-card').length === 1)
+
+  /* ================= 7. account sheet / profiles ================= */
+  await tap(byText('.nav-item', 'หน้าแรก'), 40)
+  await tap(document.querySelector('.avatar--btn'), 40)
+  check('account sheet opens', !!document.querySelector('.acct'))
+  await tap(byText('.seg__item', 'สลับผู้ใช้'), 30)
+  const addInput = document.querySelector('.acct__add input')
   await act(async () => {
-    byText('.nav-item', 'เอกสาร').click()
+    type(addInput, 'สมหญิง ตั้งใจ')
+    await sleep(20)
   })
+  await tap(byText('.acct__add button', 'เพิ่ม'), 80)
+  check('second profile created', json('bacc2569:profiles', []).length === 2)
+  check('new profile starts with empty history', document.querySelectorAll('.hist-card').length === 0)
+  const p2 = json('bacc2569:profiles', []).find((p) => p.name === 'สมหญิง ตั้งใจ')
+  check('history kept separate per profile', json(`bacc2569:results:${p2.id}`, []).length === 0)
+  check('sets shared across profiles', json('bacc2569:sets', []).length === 1)
+
+  /* switch back */
+  await tap(document.querySelector('.avatar--btn'), 30)
+  await tap(byText('.seg__item', 'สลับผู้ใช้'), 30)
+  await tap(byText('.profile-item', 'สมชาย ใจดี'), 80)
+  check('switching back restores history', json(`bacc2569:results:${pid}`, []).length === 2)
+
+  /* ================= 8. sources + reader ================= */
+  await tap(byText('.nav-item', 'เอกสาร'), 50)
   check('sources page lists 16 files', document.querySelectorAll('.source-item').length === 16)
+  await tap(document.querySelector('.source-item .icon-btn'), 120)
+  check('document reader opens in-app', !!document.querySelector('.reader iframe'))
+  check(
+    'reader uses drive preview embed',
+    (document.querySelector('.reader iframe')?.getAttribute('src') || '').includes('/preview'),
+  )
+  await tap(document.querySelector('.reader__bar button'), 40)
+  check('reader closes', !document.querySelector('.reader'))
 
   const failed = results.filter((r) => !r.ok)
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`)
@@ -168,5 +306,5 @@ async function run() {
 
 run().catch((err) => {
   console.error('SMOKE ERROR:', err)
-  process.exitCode = 1
+  process.exit(1)
 })

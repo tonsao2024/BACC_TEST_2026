@@ -1,5 +1,5 @@
 import { GROUPS, MOCK_PART, PARTS, TOTAL_QUESTIONS } from '../data/index.js'
-import { bestFor, formatThaiDateTime } from '../lib/storage.js'
+import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
 import Icon from './Icons.jsx'
 import { MiniRing, Ring } from './ui.jsx'
 
@@ -42,15 +42,47 @@ function PartCard({ part, results, onOpen, index }) {
   )
 }
 
+function ResumeCard({ attempt, onResume }) {
+  const total = attempt.total || 0
+  const answered = (attempt.answers || []).filter((a) => a !== null).length
+  const pct = total ? Math.round((answered / total) * 100) : 0
+  return (
+    <button className="resume-card" onClick={() => onResume(attempt)}>
+      <span className="resume-card__pct num" style={{ '--p': pct }}>
+        {pct}%
+      </span>
+      <span className="resume-card__body">
+        <b>{attempt.title}</b>
+        <i>
+          ทำแล้ว {answered}/{total} ข้อ · ใช้ไป {humanTime(attempt.usedSec || 0)}
+        </i>
+        <span className="resume-card__bar">
+          <i style={{ width: `${pct}%` }} />
+        </span>
+      </span>
+      <span className="resume-card__go">
+        ทำต่อ <Icon name="play" size={13} />
+      </span>
+    </button>
+  )
+}
+
 export default function Home({
-  results,
+  results = [],
+  attempts = [],
+  sets = [],
   name,
+  theme = 'light',
+  onToggleTheme,
   onOpenPart,
   onStartMock,
   onOpenHistory,
   onOpenSources,
   onOpenResult,
-  onSetName,
+  onOpenAccount,
+  onOpenSets,
+  onNewSet,
+  onResume,
 }) {
   const attempted = new Set(results.map((r) => r.partId))
   const done = PARTS.filter((p) => attempted.has(p.id)).length
@@ -59,6 +91,10 @@ export default function Home({
     : 0
   const progress = Math.round((done / PARTS.length) * 100)
   const latest = results.slice(0, 3)
+  const openAttempts = attempts
+    .filter((a) => (a.answers || []).some((x) => x !== null))
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    .slice(0, 3)
 
   return (
     <>
@@ -72,24 +108,14 @@ export default function Home({
         </div>
         <div className="topbar__spacer" />
         <button
-          onClick={onSetName}
-          aria-label="ตั้งชื่อผู้เข้าสอบ"
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 15,
-            display: 'grid',
-            placeItems: 'center',
-            background: 'linear-gradient(140deg,#fff,#f3efff)',
-            border: '1px solid var(--line)',
-            boxShadow: '0 10px 22px -18px rgba(58,40,130,.9)',
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 14,
-            fontWeight: 700,
-            color: 'var(--viol-700)',
-            flex: 'none',
-          }}
+          className="icon-btn topbar__theme"
+          onClick={onToggleTheme}
+          aria-label={theme === 'dark' ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด'}
+          title={theme === 'dark' ? 'โหมดสว่าง' : 'โหมดมืด'}
         >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+        </button>
+        <button className="avatar avatar--btn" onClick={onOpenAccount} aria-label="บัญชีและผู้เข้าทดสอบ">
           {name ? name.trim().charAt(0).toUpperCase() : <Icon name="user" size={18} />}
         </button>
       </header>
@@ -98,11 +124,10 @@ export default function Home({
         <span className="hero__eyebrow">
           <Icon name="spark" size={13} /> เตรียมความพร้อม · ปีบัญชี 2569
         </span>
-        <h2 className="hero__title">
-          {name ? `${name} พร้อมสอบแล้ว` : 'พร้อมสอบ ธ.ก.ส. ไปกับเรา'}
-        </h2>
+        <h2 className="hero__title">{name ? `${name} พร้อมสอบแล้ว` : 'พร้อมสอบ ธ.ก.ส. ไปกับเรา'}</h2>
         <p className="hero__desc">
-          ฝึกทำข้อสอบแยกตามพาร์ท พร้อมเฉลยละเอียด จับเวลาจริง และดาวน์โหลดรายงานผลได้ทันที
+          ฝึกทำข้อสอบแยกตามพาร์ท สร้างข้อสอบเสมือนจริงใหม่ได้ไม่จำกัด หยุดพักแล้วกลับมาทำต่อได้
+          พร้อมเฉลยละเอียดและรายงานผลดาวน์โหลด
         </p>
         <div className="hero__row">
           <div className="hero__stats">
@@ -151,7 +176,70 @@ export default function Home({
         </div>
       </div>
 
-      <div className="section" style={{ animationDelay: '80ms' }}>
+      {openAttempts.length > 0 && (
+        <section className="section">
+          <div className="section__head">
+            <div>
+              <h3 className="section__title">ทำค้างไว้ · ทยอยทำต่อ</h3>
+              <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+                เวลาที่ใช้ไปถูกนับสะสมไว้แล้ว กดเพื่อกลับไปทำต่อได้ทันที
+              </p>
+            </div>
+          </div>
+          <div className="resume-list">
+            {openAttempts.map((a) => (
+              <ResumeCard key={a.key} attempt={a} onResume={onResume} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="section">
+        <div className="section__head">
+          <div>
+            <h3 className="section__title">ข้อสอบเสมือนจริง</h3>
+            <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+              สุ่มชุดใหม่ตามโครงสร้างประกาศ 80 + 50 + 100 ข้อ
+            </p>
+          </div>
+          <button className="section__link" onClick={onOpenSets}>
+            ชุดของฉัน ({sets.length})
+          </button>
+        </div>
+
+        <button className="set-hero" onClick={onNewSet}>
+          <span className="set-hero__glow" aria-hidden="true" />
+          <span className="set-hero__badge">
+            <Icon name="wand" size={14} /> ระบบสร้างข้อสอบ
+          </span>
+          <span className="set-hero__title">สร้างชุดสอบเสมือนจริงชุดใหม่</span>
+          <span className="set-hero__desc">
+            7.1.1 ความรู้ความสามารถทั่วไป 80 ข้อ/100 คะแนน · 7.1.2 ความละเอียดแม่นยำ 50 ข้อ/50 คะแนน ·
+            7.1.3 ความรู้เฉพาะตำแหน่ง 100 ข้อ/100 คะแนน
+          </span>
+          <span className="set-hero__cta">
+            เริ่มสร้างชุดข้อสอบ <Icon name="chevron" size={15} />
+          </span>
+        </button>
+
+        {sets.slice(0, 2).map((s) => (
+          <button key={s.id} className="set-mini" onClick={onOpenSets}>
+            <span className="set-mini__icon">
+              <Icon name="layers" size={17} />
+            </span>
+            <span className="set-mini__body">
+              <b>{s.name}</b>
+              <i>
+                {s.sizeKey === 'mini' ? '60 ข้อ · 65 คะแนน' : '230 ข้อ · 250 คะแนน'} ·{' '}
+                {formatThaiDateTime(s.createdAt)}
+              </i>
+            </span>
+            <Icon name="chevron" size={16} className="part-chev" />
+          </button>
+        ))}
+      </section>
+
+      <div className="section">
         <button
           className="part-card"
           onClick={onStartMock}
@@ -163,10 +251,7 @@ export default function Home({
             boxShadow: '0 26px 50px -32px rgba(36,29,82,.95)',
           }}
         >
-          <span
-            className="part-icon"
-            style={{ background: 'rgba(255,255,255,.16)', color: '#fff', boxShadow: 'none' }}
-          >
+          <span className="part-icon" style={{ background: 'rgba(255,255,255,.16)', color: '#fff', boxShadow: 'none' }}>
             <Icon name="trophy" size={22} style={{ color: '#fff' }} />
           </span>
           <span className="part-body">
@@ -248,7 +333,7 @@ export default function Home({
               </span>
               <span className="hist-body">
                 <span className="hist-title">
-                  {r.partLabel} · {r.partTitle}
+                  {r.kind === 'set' ? r.setName || 'ชุดสอบเสมือนจริง' : `${r.partLabel} · ${r.partTitle}`}
                 </span>
                 <span className="hist-sub">
                   <Icon name="clock" size={12} /> {formatThaiDateTime(r.date)}
@@ -269,28 +354,16 @@ export default function Home({
             <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ชุดข้อสอบในระบบ</p>
             <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
               เรียบเรียงตามโครงสร้างข้อสอบจริงของ ธ.ก.ส. พาร์ทละ 100 ข้อ — เอกสารต้นฉบับ 1,100 ข้อ
-              และเฉลยฉบับเต็มดาวน์โหลดได้จาก Google Drive
+              และเฉลยฉบับเต็มอ่านได้จากในเว็บไซต์ หรือดาวน์โหลดจาก Google Drive
             </p>
-            <button
-              className="btn btn--soft btn--sm"
-              style={{ marginTop: 10 }}
-              onClick={onOpenSources}
-            >
+            <button className="btn btn--soft btn--sm" style={{ marginTop: 10 }} onClick={onOpenSources}>
               <Icon name="docs" size={14} /> ดูเอกสารต้นฉบับ
             </button>
           </div>
         </div>
       </section>
 
-      <p
-        style={{
-          textAlign: 'center',
-          fontSize: 10.5,
-          color: 'var(--muted)',
-          marginTop: 24,
-          lineHeight: 1.7,
-        }}
-      >
+      <p className="app__foot">
         BACC Exam 2569 · เว็บไซต์ฝึกทำข้อสอบ
         <br />
         ข้อมูลอ้างอิงจากชุดเอกสารเตรียมสอบ ธ.ก.ส. ปีบัญชี 2569

@@ -1,38 +1,96 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ALL_PARTS, getPart, SOURCE_FILES } from './data/index.js'
-import { clearResults, loadName, loadResults, saveName, saveResult } from './lib/storage.js'
+import { getPart, SOURCE_FILES } from './data/index.js'
+import {
+  clearResults,
+  createProfile,
+  deleteAttempt,
+  deleteProfile,
+  deleteResult,
+  deleteSet,
+  getAttempt,
+  getCurrentProfile,
+  getProfiles,
+  getSets,
+  getTheme,
+  listAttempts,
+  loadResults,
+  renameProfile,
+  saveAttempt,
+  saveResult,
+  saveSet,
+  setCurrentProfile,
+  setTheme,
+  uidPublic,
+} from './lib/storage.js'
+import { generateExam } from './lib/generator.js'
 import Home from './components/Home.jsx'
 import PartDetail from './components/PartDetail.jsx'
 import Quiz from './components/Quiz.jsx'
 import Result from './components/Result.jsx'
 import History from './components/History.jsx'
 import Sources from './components/Sources.jsx'
+import ExamBuilder from './components/ExamBuilder.jsx'
+import DocReader from './components/DocReader.jsx'
+import { AccountSheet, ProfileGate } from './components/Profile.jsx'
 import Icon from './components/Icons.jsx'
-import { Sheet, Toast } from './components/ui.jsx'
+import { Toast } from './components/ui.jsx'
 
-const fileNameFor = (part) =>
-  SOURCE_FILES.find((f) => f.id === part.file)?.name
-    ? `${SOURCE_FILES.find((f) => f.id === part.file).name}.pdf`
-    : null
+const fileNameFor = (part) => {
+  const file = SOURCE_FILES.find((f) => f.id === part.file)
+  return file ? `${file.name}.pdf` : null
+}
 
 export default function App() {
+  const [profiles, setProfiles] = useState(() => getProfiles())
+  const [profile, setProfile] = useState(() => getCurrentProfile())
+  const [results, setResults] = useState(() => {
+    const p = getCurrentProfile()
+    return p ? loadResults(p.id) : []
+  })
+  const [attempts, setAttempts] = useState(() => {
+    const p = getCurrentProfile()
+    return p ? listAttempts(p.id) : []
+  })
+  const [sets, setSets] = useState(() => getSets())
+  const [theme, setThemeState] = useState(() => getTheme())
+
   const [view, setView] = useState('home')
   const [partId, setPartId] = useState(null)
   const [activeResult, setActiveResult] = useState(null)
-  const [results, setResults] = useState(() => loadResults())
-  const [name, setName] = useState(() => loadName())
-  const [nameSheet, setNameSheet] = useState(false)
-  const [nameDraft, setNameDraft] = useState(name)
+  const [session, setSession] = useState(null)
+  const [doc, setDoc] = useState(null)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [stack, setStack] = useState([])
   const toastTimer = useRef(null)
 
+  /* ---------------- theme ---------------- */
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    setTheme(theme)
+  }, [theme])
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((t) => (t === 'dark' ? 'light' : 'dark'))
+  }, [])
+
   const showToast = useCallback((message, icon = 'checkCircle') => {
     setToast({ message, icon })
     clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 2600)
+    toastTimer.current = setTimeout(() => setToast(null), 2800)
   }, [])
 
+  /* ---------------- data refresh ---------------- */
+  const refreshProfileData = useCallback((pid) => {
+    setResults(pid ? loadResults(pid) : [])
+    setAttempts(pid ? listAttempts(pid) : [])
+  }, [])
+
+  useEffect(() => {
+    refreshProfileData(profile?.id)
+  }, [profile?.id, refreshProfileData])
+
+  /* ---------------- navigation ---------------- */
   const navigate = useCallback(
     (nextView, payload = {}) => {
       setStack((prev) => [...prev, { view, partId, activeResult }])
@@ -49,6 +107,7 @@ export default function App() {
     setView('home')
     setPartId(null)
     setActiveResult(null)
+    setSession(null)
     window.scrollTo({ top: 0 })
   }, [])
 
@@ -56,58 +115,339 @@ export default function App() {
     setStack((prev) => {
       if (!prev.length) {
         setView('home')
+        setSession(null)
         return prev
       }
       const last = prev[prev.length - 1]
       setView(last.view)
       setPartId(last.partId)
       setActiveResult(last.activeResult)
+      if (last.view !== 'quiz') setSession(null)
       return prev.slice(0, -1)
     })
   }, [])
 
-  const startPart = useCallback(
-    (id) => {
-      setStack((prev) => [...prev, { view, partId: id, activeResult }])
-      setPartId(id)
+  /* ---------------- exam construction ---------------- */
+  const buildPartExam = useCallback((id) => {
+    const part = getPart(id)
+    if (!part) return null
+    return {
+      key: `part:${id}`,
+      kind: 'part',
+      title: part.title,
+      label: `พาร์ท ${part.label}`,
+      partId: id,
+      partLabel: part.label,
+      partTitle: part.title,
+      color: part.color,
+      minutes: part.minutes,
+      questions: part.questions,
+      sections: null,
+    }
+  }, [])
+
+  const buildSetExam = useCallback((set) => {
+    const gen = generateExam({ seed: set.seed, sizeKey: set.sizeKey, name: set.name })
+    return {
+      key: `set:${set.seed}:${set.sizeKey}`,
+      kind: 'set',
+      title: set.name,
+      label: 'ชุดสอบเสมือนจริง',
+      setName: set.name,
+      setId: set.id,
+      seed: set.seed,
+      sizeKey: set.sizeKey,
+      color: '#6C4CF1',
+      minutes: gen.minutes,
+      questions: gen.questions,
+      sections: gen.sections.map(({ key, label, count, points, color }) => ({
+        key,
+        label,
+        count,
+        points,
+        color,
+      })),
+      partLabel: 'ชุดสอบเสมือนจริง',
+      partTitle: set.name,
+    }
+  }, [])
+
+  const openExam = useCallback(
+    (exam, { fresh = false } = {}) => {
+      if (!exam || !profile) return
+      if (fresh) deleteAttempt(profile.id, exam.key)
+      const attempt = fresh ? null : getAttempt(profile.id, exam.key)
+      setStack((prev) => [...prev, { view, partId, activeResult }])
+      setSession({ exam, attempt })
+      setPartId(exam.partId || null)
       setView('quiz')
       window.scrollTo(0, 0)
     },
-    [view, activeResult],
+    [activeResult, partId, profile, view],
   )
 
-  const handleFinish = useCallback((result) => {
-    saveResult(result)
-    setResults(loadResults())
-    setActiveResult(result)
-    setView('result')
-    window.scrollTo({ top: 0 })
-  }, [])
+  const startPart = useCallback(
+    (id, fresh = false) => {
+      const exam = buildPartExam(id)
+      openExam(exam, { fresh })
+    },
+    [buildPartExam, openExam],
+  )
 
+  const startSet = useCallback(
+    (set, opts = {}) => openExam(buildSetExam(set), opts),
+    [buildSetExam, openExam],
+  )
+
+  const resumeAttempt = useCallback(
+    (attempt) => {
+      if (!attempt) return
+      if (attempt.kind === 'set') {
+        startSet(
+          {
+            id: attempt.setId,
+            seed: attempt.seed,
+            sizeKey: attempt.sizeKey,
+            name: attempt.title,
+          },
+          { fresh: false },
+        )
+      } else if (attempt.partId) {
+        startPart(attempt.partId, false)
+      }
+    },
+    [startPart, startSet],
+  )
+
+  /* ---------------- attempt persistence ---------------- */
+  const handleSaveAttempt = useCallback(
+    (attempt) => {
+      if (!profile || !attempt) return
+      saveAttempt(profile.id, attempt)
+      setAttempts(listAttempts(profile.id))
+    },
+    [profile],
+  )
+
+  const handleFinish = useCallback(
+    (result) => {
+      if (!profile) return
+      saveResult(profile.id, result)
+      if (session?.exam?.key) deleteAttempt(profile.id, session.exam.key)
+      setResults(loadResults(profile.id))
+      setAttempts(listAttempts(profile.id))
+      setActiveResult(result)
+      setView('result')
+      window.scrollTo({ top: 0 })
+    },
+    [profile, session],
+  )
+
+  /* ---------------- profiles ---------------- */
+  const handleCreateProfile = useCallback(
+    (name) => {
+      const p = createProfile(name)
+      setProfiles(getProfiles())
+      setProfile(p)
+      setCurrentProfile(p.id)
+      setView('home')
+      setStack([])
+      setAccountOpen(false)
+      showToast(`ยินดีต้อนรับ ${p.name}`)
+    },
+    [showToast],
+  )
+
+  const handleSwitchProfile = useCallback(
+    (id) => {
+      const p = getProfiles().find((x) => x.id === id)
+      if (!p) return
+      setCurrentProfile(id)
+      setProfile(p)
+      setProfiles(getProfiles())
+      setAccountOpen(false)
+      setStack([])
+      setView('home')
+      setSession(null)
+      showToast(`สลับมาที่ ${p.name} แล้ว`)
+    },
+    [showToast],
+  )
+
+  const handleRenameProfile = useCallback(
+    (name) => {
+      if (!profile) return
+      const next = renameProfile(profile.id, name)
+      setProfile(next)
+      setProfiles(getProfiles())
+      showToast('บันทึกชื่อผู้เข้าทดสอบแล้ว')
+    },
+    [profile, showToast],
+  )
+
+  const handleDeleteProfile = useCallback(() => {
+    if (!profile) return
+    const rest = deleteProfile(profile.id)
+    setProfiles(getProfiles())
+    setAccountOpen(false)
+    if (rest.length) {
+      setProfile(rest[0])
+      setCurrentProfile(rest[0].id)
+      setView('home')
+      showToast('ลบโปรไฟล์แล้ว')
+    } else {
+      setProfile(null)
+      setResults([])
+      setAttempts([])
+      setView('home')
+    }
+  }, [profile, showToast])
+
+  const handleClearResults = useCallback(() => {
+    if (!profile) return
+    clearResults(profile.id)
+    setResults([])
+    showToast('ล้างประวัติการทำข้อสอบแล้ว', 'trash')
+  }, [profile, showToast])
+
+  /* ---------------- exam sets ---------------- */
+  const handleCreateSet = useCallback(
+    ({ name, seed, sizeKey }) => {
+      const set = {
+        id: uidPublic('set'),
+        seed,
+        sizeKey,
+        name,
+        createdAt: new Date().toISOString(),
+        owner: profile?.name || 'ผู้เข้าทดสอบ',
+        ownerId: profile?.id || null,
+      }
+      saveSet(set)
+      setSets(getSets())
+      return set
+    },
+    [profile],
+  )
+
+  const handleImportSet = useCallback(
+    (parsed) => {
+      const exists = getSets().find((s) => s.seed === parsed.seed && s.sizeKey === parsed.sizeKey)
+      if (exists) return null
+      const set = {
+        id: uidPublic('set'),
+        ...parsed,
+        createdAt: new Date().toISOString(),
+        owner: 'แชร์จากเพื่อน',
+        ownerId: null,
+        imported: true,
+      }
+      saveSet(set)
+      setSets(getSets())
+      return set
+    },
+    [profile],
+  )
+
+  const handleDeleteSet = useCallback(
+    (id) => {
+      deleteSet(id)
+      setSets(getSets())
+      if (profile) {
+        const target = sets.find((s) => s.id === id)
+        if (target) deleteAttempt(profile.id, `set:${target.seed}:${target.sizeKey}`)
+        setAttempts(listAttempts(profile.id))
+      }
+      showToast('ลบชุดข้อสอบแล้ว', 'trash')
+    },
+    [profile, sets, showToast],
+  )
+
+  /* ---------------- result actions ---------------- */
+  const handleDeleteResult = useCallback(
+    (id) => {
+      if (!profile) return
+      deleteResult(profile.id, id)
+      setResults(loadResults(profile.id))
+      showToast('ลบผลการทดสอบแล้ว', 'trash')
+    },
+    [profile, showToast],
+  )
+
+  const retry = useCallback(
+    (result) => {
+      if (result.kind === 'set' && result.seed) {
+        startSet(
+          {
+            id: result.setId,
+            seed: result.seed,
+            sizeKey: result.sizeKey,
+            name: result.setName || 'ชุดสอบเสมือนจริง',
+          },
+          { fresh: true },
+        )
+      } else if (result.partId) {
+        startPart(result.partId, true)
+      }
+    },
+    [startPart, startSet],
+  )
+
+  /* ---------------- misc ---------------- */
   const part = useMemo(() => (partId ? getPart(partId) : null), [partId])
+  const attemptForPart = useMemo(
+    () => (partId ? attempts.find((a) => a.key === `part:${partId}`) : null),
+    [attempts, partId],
+  )
 
   useEffect(() => {
     document.title =
-      view === 'quiz' && part
-        ? `กำลังทำข้อสอบ · ${part.title} · BACC Exam 2569`
+      view === 'quiz' && session
+        ? `กำลังทำข้อสอบ · ${session.exam.title} · BACC Exam 2569`
         : view === 'result' && activeResult
-          ? `ผลสอบ ${activeResult.partLabel} · ${Math.round(activeResult.score)} คะแนน`
+          ? `ผลสอบ ${Math.round(activeResult.score)} คะแนน · BACC Exam 2569`
           : 'BACC Exam 2569 · ศูนย์ทดสอบออนไลน์ ธ.ก.ส.'
-  }, [view, part, activeResult])
+  }, [view, session, activeResult])
 
   useEffect(() => {
     window.scrollTo({ top: 0 })
   }, [view])
 
+  if (!profile) {
+    return (
+      <div className="app">
+        <div className="app__decor" aria-hidden="true">
+          <div className="blob blob--1" />
+          <div className="blob blob--2" />
+          <div className="blob blob--3" />
+        </div>
+        <ProfileGate
+          profiles={profiles}
+          onCreate={handleCreateProfile}
+          onUse={handleSwitchProfile}
+        />
+        {toast && <Toast message={toast.message} icon={toast.icon} />}
+      </div>
+    )
+  }
+
   const navItems = [
     { key: 'home', label: 'หน้าแรก', icon: 'home' },
     { key: 'parts', label: 'พาร์ทสอบ', icon: 'grid' },
+    { key: 'sets', label: 'ชุดสอบ', icon: 'layers' },
     { key: 'history', label: 'ผลสอบ', icon: 'award' },
     { key: 'sources', label: 'เอกสาร', icon: 'docs' },
   ]
 
   const navActive =
-    view === 'home' ? 'home' : view === 'history' ? 'history' : view === 'sources' ? 'sources' : 'parts'
+    view === 'home'
+      ? 'home'
+      : view === 'history'
+        ? 'history'
+        : view === 'sources'
+          ? 'sources'
+          : view === 'sets'
+            ? 'sets'
+            : 'parts'
 
   const handleNav = (key) => {
     if (key === 'home') goHome()
@@ -117,11 +457,12 @@ export default function App() {
         document.getElementById('parts-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 60)
     }
+    if (key === 'sets') navigate('sets')
     if (key === 'history') navigate('history')
     if (key === 'sources') navigate('sources')
   }
 
-  const showNav = view === 'home' || view === 'history' || view === 'sources'
+  const showNav = view === 'home' || view === 'history' || view === 'sources' || view === 'sets'
 
   return (
     <div className="app">
@@ -131,17 +472,27 @@ export default function App() {
         <div className="blob blob--3" />
       </div>
 
-      <main className={`app__scroll ${showNav ? '' : 'app__scroll--flush'}`} key={`${view}-${partId || ''}`}>
+      <main
+        className={`app__scroll ${showNav ? '' : 'app__scroll--flush'}`}
+        key={`${view}-${partId || ''}-${session?.exam.key || ''}`}
+      >
         {view === 'home' && (
           <Home
             results={results}
-            name={name}
+            attempts={attempts}
+            sets={sets}
+            name={profile.name}
+            theme={theme}
+            onToggleTheme={toggleTheme}
             onOpenPart={(id) => navigate('part', { partId: id })}
             onStartMock={() => navigate('part', { partId: 'mock' })}
             onOpenHistory={() => navigate('history')}
             onOpenSources={() => navigate('sources')}
             onOpenResult={(r) => navigate('result', { result: r })}
-            onSetName={() => setNameSheet(true)}
+            onOpenAccount={() => setAccountOpen(true)}
+            onOpenSets={() => navigate('sets')}
+            onNewSet={() => navigate('sets')}
+            onResume={resumeAttempt}
           />
         )}
 
@@ -149,44 +500,75 @@ export default function App() {
           <PartDetail
             part={part}
             results={results}
+            attempt={attemptForPart}
             onBack={back}
-            onStart={startPart}
+            onStart={(id) => startPart(id, false)}
+            onRestart={(id) => startPart(id, true)}
+            onReadDoc={(d) => setDoc(d)}
             onOpenSources={() => navigate('sources')}
             partFileName={fileNameFor(part)}
           />
         )}
 
-        {view === 'quiz' && part && (
-          <Quiz part={part} name={name} onExit={back} onFinish={handleFinish} />
+        {view === 'quiz' && session && (
+          <Quiz
+            key={session.exam.key}
+            exam={session.exam}
+            name={profile.name}
+            attempt={session.attempt}
+            onSave={handleSaveAttempt}
+            onExit={() => back()}
+            onFinish={handleFinish}
+          />
         )}
 
         {view === 'result' && activeResult && (
           <Result
             result={activeResult}
-            part={getPart(activeResult.partId)}
+            part={activeResult.partId ? getPart(activeResult.partId) : null}
+            profileName={profile.name}
             onHome={goHome}
-            onRetry={startPart}
+            onRetry={retry}
             onHistory={() => navigate('history')}
             onOpenSources={() => navigate('sources')}
             onToast={showToast}
+            onRename={handleRenameProfile}
           />
         )}
 
         {view === 'history' && (
           <History
             results={results}
+            profileName={profile.name}
             onBack={back}
             onOpenResult={(r) => navigate('result', { result: r })}
-            onClear={() => {
-              clearResults()
-              setResults([])
-            }}
+            onDelete={handleDeleteResult}
+            onClear={handleClearResults}
             onBrowseParts={goHome}
             onToast={showToast}
+            onOpenAccount={() => setAccountOpen(true)}
           />
         )}
 
-        {view === 'sources' && <Sources onBack={back} onToast={showToast} />}
+        {view === 'sources' && (
+          <Sources onBack={back} onToast={showToast} onReadDoc={(f) => setDoc(f)} />
+        )}
+
+        {view === 'sets' && (
+          <ExamBuilder
+            sets={sets}
+            attempts={attempts}
+            profile={profile}
+            onBack={back}
+            onCreate={handleCreateSet}
+            onStart={startSet}
+            onResume={resumeAttempt}
+            onDelete={handleDeleteSet}
+            onImport={handleImportSet}
+            onToast={showToast}
+            onReadDoc={() => navigate('sources')}
+          />
+        )}
       </main>
 
       {showNav && (
@@ -208,49 +590,23 @@ export default function App() {
 
       {toast && <Toast message={toast.message} icon={toast.icon} />}
 
-      {nameSheet && (
-        <Sheet
-          title="ตั้งชื่อผู้เข้าสอบ"
-          desc="ชื่อนี้จะแสดงบนรายงานผลการทดสอบที่ดาวน์โหลด"
-          onClose={() => setNameSheet(false)}
-          actions={
-            <>
-              <button className="btn btn--ghost" onClick={() => setNameSheet(false)}>
-                ยกเลิก
-              </button>
-              <button
-                className="btn btn--primary"
-                onClick={() => {
-                  const v = nameDraft.trim()
-                  saveName(v)
-                  setName(v)
-                  setNameSheet(false)
-                  showToast('บันทึกชื่อผู้เข้าสอบแล้ว')
-                }}
-              >
-                บันทึก
-              </button>
-            </>
-          }
-        >
-          <input
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            placeholder="เช่น นายสมชาย ใจดี"
-            maxLength={60}
-            style={{
-              width: '100%',
-              marginTop: 16,
-              padding: '14px 16px',
-              borderRadius: 15,
-              border: '1.5px solid var(--line)',
-              fontSize: 14,
-              outline: 'none',
-              background: '#fbfaff',
-            }}
-          />
-        </Sheet>
+      {accountOpen && (
+        <AccountSheet
+          profile={profile}
+          profiles={profiles}
+          results={results}
+          theme={theme}
+          onClose={() => setAccountOpen(false)}
+          onSwitch={handleSwitchProfile}
+          onCreate={handleCreateProfile}
+          onRename={handleRenameProfile}
+          onDelete={handleDeleteProfile}
+          onClear={handleClearResults}
+          onToggleTheme={toggleTheme}
+        />
       )}
+
+      {doc && <DocReader doc={doc} onClose={() => setDoc(null)} />}
     </div>
   )
 }

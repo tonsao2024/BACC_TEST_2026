@@ -1,4 +1,4 @@
-import { DRIVE_FOLDER_ID, SOURCE_FILES, driveDownload, driveView } from '../data/index.js'
+import { DRIVE_FOLDER_ID, SOURCE_FILES, driveDownload } from '../data/index.js'
 import Icon from './Icons.jsx'
 
 const TYPE_STYLE = {
@@ -6,7 +6,7 @@ const TYPE_STYLE = {
   MD: { bg: '#EEF2FF', fg: '#4F46E5' },
 }
 
-export default function Sources({ onBack, onToast }) {
+export default function Sources({ onBack, onToast, onReadDoc }) {
   return (
     <>
       <header className="topbar topbar--sticky">
@@ -52,7 +52,7 @@ export default function Sources({ onBack, onToast }) {
           <div className="section__head">
             <h3 className="section__title">ไฟล์ทั้งหมด ({SOURCE_FILES.length})</h3>
             <span className="section__link" style={{ color: 'var(--muted)' }}>
-              PDF / Markdown
+              แตะสมุดเพื่ออ่านในเว็บไซต์
             </span>
           </div>
           <div className="info-card" style={{ padding: '4px 16px' }}>
@@ -75,21 +75,20 @@ export default function Sources({ onBack, onToast }) {
                           fontWeight: 500,
                         }}
                       >
-                        <Icon name="checkCircle" size={11} stroke={2.2} /> พร้อมดาวน์โหลด
+                        <Icon name="checkCircle" size={11} stroke={2.2} /> อ่านในเว็บไซต์ได้
                       </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-                    <a
+                    <button
+                      type="button"
                       className="icon-btn"
-                      href={driveView(f.id)}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`เปิดดู ${f.name}`}
+                      onClick={() => onReadDoc?.(f)}
+                      aria-label={`อ่าน ${f.name} ในเว็บไซต์`}
                       style={{ width: 34, height: 34, borderRadius: 11 }}
                     >
                       <Icon name="book" size={15} />
-                    </a>
+                    </button>
                     <a
                       className="icon-btn"
                       href={driveDownload(f.id)}

@@ -4,8 +4,23 @@ import { downloadResultPdf } from '../lib/pdf.js'
 import Icon from './Icons.jsx'
 import { Sheet } from './ui.jsx'
 
-export default function History({ results, onBack, onOpenResult, onClear, onBrowseParts, onToast }) {
+export default function History({
+  results,
+  profileName,
+  onBack,
+  onOpenResult,
+  onClear,
+  onDelete,
+  onBrowseParts,
+  onToast,
+  onOpenAccount,
+}) {
   const [confirm, setConfirm] = useState(false)
+  const [filter, setFilter] = useState('all')
+  const shown = results.filter((r) =>
+    filter === 'all' ? true : filter === 'set' ? r.kind === 'set' : r.kind !== 'set',
+  )
+  const label = (r) => (r.kind === 'set' ? r.setName || 'ชุดสอบเสมือนจริง' : `${r.partLabel} · ${r.partTitle}`)
   const avg = results.length ? Math.round(results.reduce((s, r) => s + r.score, 0) / results.length) : 0
   const best = results.length ? results.reduce((a, b) => (a.score > b.score ? a : b)) : null
 
@@ -18,7 +33,7 @@ export default function History({ results, onBack, onOpenResult, onClear, onBrow
         durationText: `${Math.floor(r.durationSec / 60)} นาที`,
         name: r.name || 'ผู้เข้าสอบ',
       },
-      `BACC-ผลสอบ-${r.partLabel}-${Math.round(r.score)}คะแนน.pdf`,
+      `BACC-ผลสอบ-${(r.setName || r.partLabel || 'exam').replace(/\s+/g, '-')}-${Math.round(r.score)}คะแนน.pdf`,
     )
     onToast?.('ดาวน์โหลดรายงาน PDF แล้ว')
   }
@@ -31,10 +46,13 @@ export default function History({ results, onBack, onOpenResult, onClear, onBrow
         </button>
         <div className="brand__text" style={{ flex: 1 }}>
           <h1 className="brand__title" style={{ fontSize: 15 }}>
-            ผลการทดสอบของฉัน
+            ประวัติของ {profileName || 'ฉัน'}
           </h1>
-          <p className="brand__sub">{results.length} ครั้ง · บันทึกไว้ในเครื่องนี้</p>
+          <p className="brand__sub">{results.length} ครั้ง · แยกเก็บตามชื่อผู้เข้าทดสอบ</p>
         </div>
+        <button className="icon-btn" onClick={onOpenAccount} aria-label="สลับผู้เข้าทดสอบ">
+          <Icon name="user" size={18} />
+        </button>
         {results.length > 0 && (
           <button className="icon-btn" onClick={() => setConfirm(true)} aria-label="ล้างประวัติ">
             <Icon name="trash" size={18} />
@@ -82,7 +100,33 @@ export default function History({ results, onBack, onOpenResult, onClear, onBrow
               <div className="section__head">
                 <h3 className="section__title">ทั้งหมด</h3>
               </div>
-              {results.map((r, i) => (
+
+              <div className="seg seg--inline" style={{ marginBottom: 12 }}>
+                {[
+                  { key: 'all', text: `ทั้งหมด ${results.length}` },
+                  { key: 'part', text: `แยกพาร์ท ${results.filter((r) => r.kind !== 'set').length}` },
+                  { key: 'set', text: `ชุดสอบ ${results.filter((r) => r.kind === 'set').length}` },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    className={`seg__item ${filter === f.key ? 'is-on' : ''}`}
+                    onClick={() => setFilter(f.key)}
+                  >
+                    {f.text}
+                  </button>
+                ))}
+              </div>
+
+              {shown.length === 0 && (
+                <div className="empty-card">
+                  <Icon name="award" size={24} />
+                  <b>ยังไม่มีผลในหมวดนี้</b>
+                  <span>ลองทำชุดข้อสอบเสมือนจริงหรือพาร์ทอื่นเพิ่ม</span>
+                </div>
+              )}
+
+              {shown.map((r, i) => (
                 <div className="hist-card" key={r.id} style={{ '--i': i }}>
                   <button
                     className="hist-score"
@@ -101,7 +145,8 @@ export default function History({ results, onBack, onOpenResult, onClear, onBrow
                     style={{ background: 'none', textAlign: 'left' }}
                   >
                     <span className="hist-title">
-                      {r.partLabel} · {r.partTitle}
+                      {r.kind === 'set' && <em className="hist-tag">ชุดสอบ</em>}
+                      {label(r)}
                     </span>
                     <span className="hist-sub">
                       <Icon name="clock" size={12} /> {formatThaiDateTime(r.date)}
@@ -118,6 +163,14 @@ export default function History({ results, onBack, onOpenResult, onClear, onBrow
                     style={{ width: 36, height: 36, borderRadius: 12 }}
                   >
                     <Icon name="download" size={16} />
+                  </button>
+                  <button
+                    className="icon-btn"
+                    onClick={() => onDelete?.(r.id)}
+                    aria-label="ลบผลสอบนี้"
+                    style={{ width: 36, height: 36, borderRadius: 12 }}
+                  >
+                    <Icon name="close" size={15} />
                   </button>
                 </div>
               ))}
