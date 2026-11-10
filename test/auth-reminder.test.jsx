@@ -8,7 +8,7 @@ import DocReader from '../src/components/DocReader.jsx'
 import Quiz from '../src/components/Quiz.jsx'
 import PartDetail from '../src/components/PartDetail.jsx'
 import Result from '../src/components/Result.jsx'
-import FriendArena, { ChallengePopup } from '../src/components/FriendArena.jsx'
+import FriendArena, { ChallengePopup, MatchRoomCard } from '../src/components/FriendArena.jsx'
 import FriendBoard from '../src/components/FriendBoard.jsx'
 import { getPart, RECRUITMENT_NOTICE, SOURCE_FILES } from '../src/data/index.js'
 
@@ -355,5 +355,87 @@ describe('friend directory sync status', () => {
     )
     assert.ok(screen.getByText(/ซิงก์รายชื่อเพื่อนจากคลาวด์ไม่สำเร็จ/))
     assert.ok(screen.getByText(/migration friend_arena/))
+  })
+})
+
+
+describe('live race track (ความก้าวหน้าอยู่บนตัววิ่ง)', () => {
+  afterEach(cleanup)
+
+  const raceMatch = {
+    id: 'M-RACE-1',
+    hostUserId: 'u1',
+    hostName: 'สมชาย',
+    title: 'Mock Exam รวมทุกพาร์ท',
+    status: 'active',
+    examSpec: { kind: 'part', partId: 'mock', title: 'Mock Exam รวมทุกพาร์ท', totalQuestions: 30 },
+    players: [
+      { userId: 'u1', name: 'สมชาย', role: 'host', status: 'playing', answeredCount: 12, totalQuestions: 30, timeUsedSec: 300 },
+      { userId: 'u2', name: 'สมหญิง', role: 'guest', status: 'finished', answeredCount: 30, totalQuestions: 30, score: 92, timeUsedSec: 750 },
+      { userId: 'u3', name: 'ก้อง', role: 'guest', status: 'invited' },
+    ],
+  }
+
+  it('gives every competitor their own lane so nobody blocks anybody', () => {
+    const { container } = render(<MatchRoomCard match={raceMatch} meId="u1" />)
+    const track = container.querySelector('.race-track')
+    assert.ok(track, 'ต้องมีลู่แข่งขันสดในห้องแข่ง')
+    const lanes = container.querySelectorAll('.race-track__lanes > .race-lane')
+    // เฉพาะคนที่ลงวิ่งจริง (ผู้ที่ยังรอตอบรับไม่ได้เลนวิ่ง)
+    assert.equal(lanes.length, 2)
+    // ทุกคนอยู่คนละแถวของลู่ = ไม่มีทางบังกันกัน
+    assert.equal(new Set([...lanes].map((l) => l.parentElement)).size, 1)
+    assert.ok([...lanes].every((l) => l.tagName === 'LI'))
+  })
+
+  it('moves every friend progress onto their own runner instead of a duplicated number', () => {
+    const { container } = render(<MatchRoomCard match={raceMatch} meId="u1" />)
+    const labels = [...container.querySelectorAll('.race-lane__label')].map((el) => el.textContent)
+    assert.equal(labels.length, 2)
+    assert.ok(labels.some((t) => t.includes('สมชาย') && t.includes('12/30') && t.includes('40%')))
+    assert.ok(labels.some((t) => t.includes('สมหญิง') && t.includes('92%')))
+    // ป้ายกำกับต้องผูกกับตัววิ่งของคนนั้นจริง ๆ
+    const runner = container.querySelector('.race-lane__runner .race-lane__label')
+    assert.ok(runner)
+    assert.ok(container.querySelector('.race-lane__runner .race-sprite'))
+    // ไม่มีตัวเลขความก้าวหน้าซ้ำอีกที่หนึ่งในรายชื่อด้านล่าง
+    assert.equal(container.querySelector('.match-player__right'), null)
+    assert.equal(container.querySelector('.match-player__bar'), null)
+    // รายชื่อยังแสดงสถานะได้ตามปกติ
+    assert.ok(screen.getByText('กำลังทำข้อสอบ'))
+    assert.ok(screen.getByText('ส่งคำตอบแล้ว'))
+  })
+
+  it('shows the live race of friends on the runners while answering the exam', () => {
+    const part = getPart('1-1')
+    const exam = {
+      key: 'part:1-1',
+      kind: 'part',
+      title: part.title,
+      label: 'พาร์ท 1.1',
+      partId: '1-1',
+      questions: part.questions.slice(0, 3),
+    }
+    const { container } = render(
+      <Quiz
+        exam={exam}
+        name="ผู้ทดสอบ"
+        onSave={() => {}}
+        onExit={() => {}}
+        onFinish={() => {}}
+        match={raceMatch}
+        meId="u1"
+      />,
+    )
+    const track = container.querySelector('.quiz-match-strip .race-track--compact')
+    assert.ok(track, 'หน้าทำข้อสอบต้องเห็นลู่วิ่งของเพื่อน')
+    const lanes = container.querySelectorAll('.race-track--compact .race-lane')
+    assert.equal(lanes.length, 2)
+    const text = track.textContent
+    assert.ok(text.includes('สมชาย'))
+    assert.ok(text.includes('12/30'))
+    assert.ok(text.includes('92%'))
+    // ป้ายความก้าวหน้าเดิมที่ซ้ำซ้อนกันถูกถอดออกไปแล้ว
+    assert.equal(container.querySelector('.quiz-match-pill'), null)
   })
 })

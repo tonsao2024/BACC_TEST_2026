@@ -5,7 +5,7 @@
 
 import { PARTS } from '../data/index.js'
 import { supabase, normalizeName } from './supabase.js'
-import { getProfiles, legacyProfiles, loadResults } from './storage.js'
+import { getProfiles, legacyProfiles, loadResults, mmss } from './storage.js'
 
 export const MAX_CHALLENGE_DECLINES = 3
 export const CHALLENGE_SNOOZE_MS = 8000
@@ -379,6 +379,80 @@ export function rankMatchPlayers(players = []) {
     const bActive = b.status === 'playing' || b.status === 'accepted' ? 1 : 0
     if (aActive !== bActive) return bActive - aActive
     return (Number(b.answeredCount) || 0) - (Number(a.answeredCount) || 0)
+  })
+}
+
+/* ============================================================
+   Live Race Lanes — ความก้าวหน้าของเพื่อนแต่ละคนถูกคำนวณเป็น "เลน"
+   เพื่อนแต่ละคนได้เลนของตัวเอง (ไม่บังกันจนมองไม่เห็น)
+   และค่าความก้าวหน้าจะถูกแสดงผ่านป้ายกำกับที่ตัววิ่งแต่ละคน
+   ============================================================ */
+
+export const RACE_LANE_COLORS = [
+  '#2563EB',
+  '#EA580C',
+  '#16A34A',
+  '#9333EA',
+  '#DB2777',
+  '#0891B2',
+  '#D97706',
+  '#7C3AED',
+]
+
+const RACE_MEDALS = ['🥇', '🥈', '🥉']
+
+/**
+ * สร้างข้อมูลเลนแข่งขันสด (หนึ่งเลนต่อหนึ่งคนที่กำลังวิ่งแข่ง)
+ * - เรียงตามอันดับจริง (ผู้จบก่อน/ทำไปเยอะสุดอยู่บน)
+ * - pct = ความก้าวหน้า 0-100 (ผู้ส่งคำตอบแล้ว = 100 เสมอ)
+ * - progressText = ข้อความสั้น ๆ ที่จะแสดงบนป้ายกำกับตัววิ่ง
+ */
+export function buildRaceLanes(players = [], { meId = null, totalQuestions = 0 } = {}) {
+  const safe = Array.isArray(players) ? players.filter(Boolean) : []
+  const racers = rankMatchPlayers(safe).filter(
+    (p) => p.status === 'playing' || p.status === 'finished' || p.status === 'accepted',
+  )
+
+  return racers.map((p, idx) => {
+    const total = Math.max(0, Number(p.totalQuestions) || Math.max(0, Number(totalQuestions) || 0))
+    const answeredRaw = Math.max(0, Number(p.answeredCount) || 0)
+    const answered = total > 0 ? Math.min(answeredRaw, total) : answeredRaw
+    const finished = p.status === 'finished'
+    const pct = finished ? 100 : total > 0 ? Math.min(100, Math.round((answered / total) * 100)) : 0
+    const score = Math.round(Number(p.score) || 0)
+    const timeUsedSec = Math.max(0, Number(p.timeUsedSec) || 0)
+    const name = p.name || 'ผู้แข่ง'
+
+    const progressText = finished
+      ? `${score}% · ${mmss(timeUsedSec)}`
+      : total > 0
+        ? `${answered}/${total} · ${pct}%`
+        : 'กำลังวิ่ง'
+
+    const summary = finished
+      ? `${name} ส่งคำตอบแล้ว คะแนน ${score}% ใช้เวลา ${mmss(timeUsedSec)}`
+      : total > 0
+        ? `${name} ทำแล้ว ${answered} จาก ${total} ข้อ (${pct}%)`
+        : `${name} กำลังทำข้อสอบ`
+
+    return {
+      userId: p.userId,
+      name,
+      isMe: Boolean(meId && p.userId === meId),
+      status: p.status,
+      role: p.role || 'guest',
+      rank: idx + 1,
+      medal: finished ? RACE_MEDALS[idx] || `${idx + 1}` : '',
+      color: RACE_LANE_COLORS[idx % RACE_LANE_COLORS.length],
+      answeredCount: answered,
+      totalQuestions: total,
+      pct,
+      finished,
+      score,
+      timeUsedSec,
+      progressText,
+      summary,
+    }
   })
 }
 
