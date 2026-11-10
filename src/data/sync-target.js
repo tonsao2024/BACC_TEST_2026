@@ -1,21 +1,29 @@
 /* ============================================================
-   SYNC_TARGET — ปลายทางซิงก์ GitHub เริ่มต้น (แก้ไขได้บน GitHub โดยตรง)
+   SYNC_TARGET — ปลายทางซิงก์ข้อมูล (แก้ไขได้บน GitHub โดยตรง)
    ─────────────────────────────────────────────
-   ตั้งค่าไว้ครั้งเดียว → ผู้ใช้ทุกเครื่องกรอกแค่ token ช่องเดียว
-   หรือไม่ต้องกรอกเลยถ้าเปิดผ่านลิงก์เชื่อมอัตโนมัติ
-   รูปแบบลิงก์ (สร้างได้จากปุ่ม "คัดลอกลิงก์" ในหน้าเชื่อมต่อ):
-     ?sync=gist:{token}:{gistId}   ← แชร์ gist เดียวกัน (เอา token + gistId ไปด้วย)
-     ?sync=repo:{token}            ← ใช้ owner/repo/branch/path ด้านล่าง
 
-   โหมด 'gist'  : เว้น gistId ว่าง = สร้าง secret gist ใหม่ของ token นั้น
-                 ใส่ gistId      = ทุกคนแชร์ฐานเดียวกัน (ต้องเป็น token เจ้าของ gist เดียวกัน)
-   โหมด 'repo'  : เก็บในไฟล์ของ repo ที่ระบุ (token ต้องมีสิทธิ์ Contents: RW)
+   ✅ แนะนำสุด: โหมด 'cloud' (Firebase Realtime Database)
+      ทุกคน "ไม่ต้องตั้งค่าอะไรเลย" — เปิดแอปแล้วข้อมูลซิงก์เองทุกเครื่อง
+      เจ้าของระบบตั้งค่าครั้งเดียว (≈10 นาที) ตามคู่มือใน docs/cloud-setup.md
+        1. เปลี่ยน mode ด้านล่างเป็น  'cloud'
+        2. ใส่ firebase.apiKey และ firebase.databaseURL ที่ได้จาก Firebase Console
+        3. commit — เสร็จ! ทุกเครื่องซิงก์อัตโนมัติทันที
+
+   โหมดสำรอง (GitHub): 'gist' | 'repo' — ผู้ใช้ต้องมี token
+     gistId ว่าง    = สร้าง secret gist ใหม่ของ token นั้น
+     gistId ไม่ว่าง = ทุกคนแชร์ฐานเดียวกัน
+   ลิงก์เชื่อมอัตโนมัติ: ?sync=gist:{token}:{gistId?} | ?sync=repo:{token} |
+     ?sync=cloud:{apiKey}:{databaseURL-เข้ารหัส}  (สร้างจากปุ่ม "คัดลอกลิงก์" ในแผงเชื่อมต่อ)
    ============================================================ */
 export const SYNC_TARGET = {
-  mode: 'gist', // 'gist' | 'repo'
-  gistId: '', // ← เจ้าของเชื่อมต่อครั้งแรกแล้วเอา gist ID มาใส่ที่นี่เพื่อให้ทุกเครื่องใช้ฐานเดียวกัน
+  mode: 'gist', // 'cloud' | 'gist' | 'repo'
+  gistId: '',
   path: 'bacc-data.json',
-  owner: '', // ← โหมด repo: เช่น 'tonsao2024'
-  repo: '', //           เช่น 'BACC_TEST_2026'
+  owner: '',
+  repo: '',
   branch: 'main',
+  firebase: {
+    apiKey: '', // ← วาง Web API Key (ขึ้นต้น AIza...) จาก Firebase Console
+    databaseURL: '', // ← เช่น https://bacc-exam-default-rtdb.asia-southeast1.firebasedatabase.app
+  },
 }

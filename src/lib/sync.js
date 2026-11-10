@@ -3,7 +3,7 @@
    ============================================================ */
 
 import { exportSnapshot, importSnapshot, mergeSnapshots } from './storage.js'
-import { fetchRemote, getGithubConfig, pushRemote, saveGithubConfig } from './remote.js'
+import { fetchRemote, getSyncConfig, pushRemote, saveGithubConfig } from './remote.js'
 
 let sha = null
 let pushing = false
@@ -43,7 +43,7 @@ export function resetSyncState() {
 
 /** ดึงข้อมูลล่าสุดจาก GitHub แล้วรวมกับข้อมูลในเครื่อง */
 export async function pullAndMerge() {
-  const cfg = getGithubConfig()
+  const cfg = getSyncConfig()
   if (!cfg) {
     emit({ status: 'off', error: null, mode: null })
     return false
@@ -65,7 +65,7 @@ export async function pullAndMerge() {
 
 /** ส่งข้อมูลขึ้น GitHub (มีคิวและจัดการ conflict 409 ให้อัตโนมัติ) */
 export async function pushNow() {
-  const cfg = getGithubConfig()
+  const cfg = getSyncConfig()
   if (!cfg) {
     emit({ status: 'off', error: null })
     return false
@@ -112,7 +112,7 @@ export async function pushNow() {
 let timer = null
 /** หน่วงเวลาก่อนส่ง เพื่อรวมการเปลี่ยนแปลงหลายครั้งให้ส่งครั้งเดียว */
 export function schedulePush(delay = 1500) {
-  const cfg = getGithubConfig()
+  const cfg = getSyncConfig()
   if (!cfg) return
   clearTimeout(timer)
   emit({ status: 'pending', mode: cfg.mode })

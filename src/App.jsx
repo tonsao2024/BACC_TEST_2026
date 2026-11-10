@@ -30,7 +30,7 @@ import {
 import { generateExam, newSeed } from './lib/generator.js'
 import {
   clearGithubConfig,
-  getGithubConfig,
+  getSyncConfig,
   parseSyncLink,
   saveGithubConfig,
   stripSyncLinkParam,
@@ -77,8 +77,7 @@ export default function App() {
   const [theme, setThemeState] = useState(() => getTheme())
   const [settings, setSettings] = useState(() => getSettings())
   const [sync, setSync] = useState(() => getSyncState())
-  const [hydrated, setHydrated] = useState(() => !getGithubConfig())
-  const hydratedRef = useRef(false)
+  const [hydrated, setHydrated] = useState(() => !getSyncConfig())
   const lastSyncedSig = useRef('')
 
   const [view, setView] = useState('home')
@@ -139,27 +138,34 @@ export default function App() {
     else setProfile(null)
   }
 
+  const parsedSyncRef = useRef(false)
+
   useEffect(() => {
-    if (hydratedRef.current) return undefined
-    hydratedRef.current = true
-    /* ลิงก์เชื่อมอัตโนมัติ: ?sync=gist:{token}:{gistId?} — ไม่ต้องตั้งค่าอะไรเลย */
-    const autoCfg = parseSyncLink(window.location)
-    if (autoCfg) {
-      saveGithubConfig(autoCfg)
-      window.history.replaceState(null, '', stripSyncLinkParam(window.location))
-      setTimeout(() => showToast('เปิดซิงก์กับ GitHub ☁️ อัตโนมัติแล้ว'), 10)
+    /* ลิงก์เชื่อมอัตโนมัติ: ?sync=gist:{token}:{gistId?} | cloud:{key}:{url} — ทำครั้งเดียวพอ */
+    if (!parsedSyncRef.current) {
+      parsedSyncRef.current = true
+      const autoCfg = parseSyncLink(window.location)
+      if (autoCfg) {
+        saveGithubConfig(autoCfg)
+        window.history.replaceState(null, '', stripSyncLinkParam(window.location))
+        setTimeout(() => showToast('เปิดซิงก์อัตโนมัติแล้ว ☁️ ไม่ต้องตั้งค่าเพิ่ม'), 10)
+      }
     }
-    if (!getGithubConfig()) {
+    /* หมายเหตุ: อย่าใช้ ref กัน effect นี้ทั้งก้อน — React StrictMode ใน dev จะ mount ซ้ำ
+       แล้ว cleanup รอบแรกทำให้ async รอบแรกถูกยกเลิก ต้องให้รอบสองทำงานต่อได้เสมอ */
+    const syncCfg = getSyncConfig()
+    if (!syncCfg) {
       setHydrated(true)
       return undefined
     }
+    const storeName = syncCfg.mode === 'cloud' ? 'คลาวด์' : 'GitHub'
     let alive = true
     ;(async () => {
       const ok = await pullAndMerge()
       if (!alive) return
       if (ok) {
         reloadAll()
-        showToast('ดึงข้อมูลล่าสุดจาก GitHub แล้ว')
+        showToast(`ดึงข้อมูลล่าสุดจาก${storeName}แล้ว`)
       }
       setHydrated(true)
     })()
@@ -170,7 +176,7 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    if (!getGithubConfig()) return
+    if (!getSyncConfig()) return
     const sig = snapshotSignature(exportSnapshot())
     if (sig === lastSyncedSig.current) return
     lastSyncedSig.current = sig

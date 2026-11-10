@@ -5543,3 +5543,27 @@ select {
   margin: 0 0 10px;
   line-height: 1.55;
 }
+
+/* ---------- cloud auto-sync card ---------- */
+.gh__auto {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgba(21, 163, 74, 0.08), rgba(45, 212, 191, 0.09));
+  border: 1.5px solid rgba(21, 163, 74, 0.28);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-700);
+}
+.gh__auto b {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #15803d;
+  font-size: 13px;
+}
+[data-theme='dark'] .gh__auto b { color: #5eeaa0; }
+.gh__auto span { color: var(--ink-500); }

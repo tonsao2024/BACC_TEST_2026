@@ -7,15 +7,24 @@
    ============================================================ */
 
 import { SYNC_TARGET } from '../data/sync-target.js'
+import { cloudFetch, cloudPush, cloudTest, isCloudConfig } from './cloud.js'
 
 const CONFIG_KEY = 'bacc2569:github'
 const API = 'https://api.github.com'
 
+const validMode = (m) => (m === 'gist' || m === 'repo' || m === 'cloud' ? m : null)
+const cloudTargetReady = (t) => Boolean(t?.firebase?.apiKey && t?.firebase?.databaseURL)
+
+/** ปลายทางคลาวด์พร้อมใช้หรือไม่ (เจ้าของใส่ apiKey + databaseURL ไว้ใน sync-target.js) */
+export const hasCloudTarget = () => cloudTargetReady(SYNC_TARGET) && SYNC_TARGET?.mode === 'cloud'
+
 /** เติมค่าเริ่มต้นจาก sync-target.js เฉพาะช่องที่ยังว่าง */
 export function withTargetDefaults(cfg = {}) {
   const t = SYNC_TARGET || {}
+  const mode =
+    validMode(cfg.mode) || (t.mode === 'cloud' && cloudTargetReady(t) ? 'cloud' : t.mode === 'repo' ? 'repo' : 'gist')
   return {
-    mode: cfg.mode === 'gist' ? 'gist' : cfg.mode === 'repo' ? 'repo' : t.mode === 'repo' ? 'repo' : 'gist',
+    mode,
     token: String(cfg.token || '').trim(),
     owner: String(cfg.owner || t.owner || '').trim(),
     repo: String(cfg.repo || t.repo || '').trim(),
@@ -23,6 +32,11 @@ export function withTargetDefaults(cfg = {}) {
     path: String(cfg.path || t.path || 'bacc-data.json').trim() || 'bacc-data.json',
     gistId: String(cfg.gistId || t.gistId || '').trim(),
     savedAt: cfg.savedAt || null,
+    /* เฉพาะโหมด cloud */
+    apiKey: String(cfg.apiKey || t.firebase?.apiKey || '').trim(),
+    databaseURL: String(cfg.databaseURL || t.firebase?.databaseURL || '').trim(),
+    authBase: String(cfg.authBase || '').trim(),
+    secureBase: String(cfg.secureBase || '').trim(),
   }
 }
 
@@ -57,13 +71,17 @@ export function getGithubConfig() {
 
 export function normalizeGithubConfig(cfg) {
   return {
-    mode: cfg?.mode === 'gist' ? 'gist' : 'repo',
+    mode: validMode(cfg?.mode) || 'repo',
     token: String(cfg?.token || '').trim(),
     owner: String(cfg?.owner || '').trim(),
     repo: String(cfg?.repo || '').trim(),
     branch: String(cfg?.branch || 'main').trim() || 'main',
     path: String(cfg?.path || 'bacc-data.json').trim() || 'bacc-data.json',
     gistId: String(cfg?.gistId || '').trim(),
+    apiKey: String(cfg?.apiKey || '').trim(),
+    databaseURL: String(cfg?.databaseURL || '').trim(),
+    authBase: String(cfg?.authBase || '').trim(),
+    secureBase: String(cfg?.secureBase || '').trim(),
     savedAt: new Date().toISOString(),
   }
 }
@@ -87,7 +105,32 @@ export function clearGithubConfig() {
 }
 
 export const isValidConfig = (cfg) =>
-  Boolean(cfg && cfg.token && (cfg.mode === 'gist' ? true : cfg.owner && cfg.repo))
+  Boolean(
+    cfg &&
+      (cfg.mode === 'cloud'
+        ? cfg.apiKey && cfg.databaseURL
+        : cfg.token && (cfg.mode === 'gist' ? true : cfg.owner && cfg.repo)),
+  )
+
+/** config ที่ใช้ซิงก์จริง — โหมด cloud ทำงานเองโดยไม่ต้องตั้งค่า (ใช้ค่าจาก sync-target.js) */
+export function getSyncConfig() {
+  let stored = null
+  try {
+    const raw = localStorage.getItem(CONFIG_KEY)
+    if (raw) stored = JSON.parse(raw)
+  } catch {
+    stored = null
+  }
+  if (stored) {
+    const cfg = withTargetDefaults(stored)
+    if (isValidConfig(cfg)) return cfg
+  }
+  /* ไม่มี config ที่ตั้งเอง → ถ้าเจ้าของเปิดโหมด cloud ไว้ ให้ซิงก์อัตโนมัติเลย */
+  const target = withTargetDefaults({})
+  if (target.mode === 'cloud' && isValidConfig(target)) return target
+  /* โหมด GitHub: ต้องมี token ที่ผู้ใช้กรอกเองเท่านั้น */
+  return null
+}
 
 /* ---------------- helpers ---------------- */
 const headers = (cfg) => ({
@@ -141,6 +184,7 @@ async function ghFetch(url, options) {
 /* ---------------- public API ---------------- */
 export async function testConnection(cfg) {
   if (!isValidConfig(cfg)) throw new Error('กรอกข้อมูลไม่ครบ (token / owner / repo)')
+  if (cfg.mode === 'cloud') return cloudTest(cfg)
   if (cfg.mode === 'gist') {
     const me = await ghFetch(`${API}/user`, { headers: headers(cfg) })
     return { ok: true, login: me?.login || '', detail: 'เชื่อมต่อ gist ได้' }
@@ -159,9 +203,10 @@ export async function fetchLogin(cfg) {
   return me.login
 }
 
-/** ดึงข้อมูลจาก GitHub → { data, sha } หรือ null ถ้ายังไม่มีไฟล์ */
+/** ดึงข้อมูลจาก GitHub / Cloud → { data, sha } หรือ null ถ้ายังไม่มีไฟล์ */
 export async function fetchRemote(cfg) {
   if (!isValidConfig(cfg)) return null
+  if (cfg.mode === 'cloud') return cloudFetch(cfg)
   if (cfg.mode === 'gist') {
     const gist = await ghFetch(`${API}/gists/${encodeURIComponent(cfg.gistId)}`, { headers: headers(cfg) })
     const file = gist?.files?.[cfg.path] || Object.values(gist?.files || {})[0]
@@ -196,9 +241,10 @@ const fetchRaw = async (url) => {
   return res.text()
 }
 
-/** เขียนข้อมูลขึ้น GitHub → คืน sha ใหม่ */
+/** เขียนข้อมูลขึ้น GitHub / Cloud → คืน sha ใหม่ */
 export async function pushRemote(cfg, data, sha) {
-  if (!isValidConfig(cfg)) throw new Error('ยังไม่ได้เชื่อมต่อ GitHub')
+  if (!isValidConfig(cfg)) throw new Error('ยังไม่ได้เชื่อมต่อคลังข้อมูล')
+  if (cfg.mode === 'cloud') return cloudPush(cfg, data)
   const json = JSON.stringify(data, null, 2)
   const message = `bacc: sync data ${new Date().toISOString()}`
 
@@ -253,6 +299,15 @@ export function parseSyncLink(loc) {
     const sp = new URLSearchParams(loc?.search || '')
     const val = sp.get('sync')
     if (!val) return null
+    if (val.startsWith('cloud:')) {
+      const rest = val.slice('cloud:'.length)
+      const idx = rest.indexOf(':')
+      if (idx < 8) return null
+      const apiKey = rest.slice(0, idx)
+      const databaseURL = decodeURIComponent(rest.slice(idx + 1) || '')
+      if (!/^https?:\/\//.test(databaseURL)) return null
+      return withTargetDefaults({ mode: 'cloud', apiKey, databaseURL })
+    }
     const m = val.match(/^(gist|repo):([^:\s?#]{8,})(?::([0-9a-f]{16,64}))?$/)
     if (!m) return null
     const [, mode, token, gistId] = m
@@ -274,11 +329,20 @@ export function stripSyncLinkParam(loc) {
 export function buildSyncLink(cfg, origin, pathname) {
   const clean = getSafeConfig(cfg)
   if (!clean) return ''
-  const param = clean.mode === 'gist' ? `gist:${clean.token}:${clean.gistId || ''}` : `repo:${clean.token}`
+  let param
+  if (clean.mode === 'cloud') {
+    param = `cloud:${clean.apiKey}:${encodeURIComponent(clean.databaseURL)}`
+  } else {
+    param = clean.mode === 'gist' ? `gist:${clean.token}:${clean.gistId || ''}` : `repo:${clean.token}`
+  }
   return `${origin}${pathname}?sync=${encodeURIComponent(param)}`
 }
 
 const getSafeConfig = (cfg) => {
+  if (cfg?.mode === 'cloud') {
+    if (!cfg.apiKey || !cfg.databaseURL) return null
+    return withTargetDefaults(cfg)
+  }
   if (!cfg?.token) return null
   return withTargetDefaults(cfg)
 }

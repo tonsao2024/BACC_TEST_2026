@@ -4,6 +4,7 @@ import {
   buildSyncLink,
   fetchLogin,
   getGithubConfig,
+  getSyncConfig,
   normalizeGithubConfig,
   saveGithubConfig,
   testConnection,
@@ -32,6 +33,9 @@ const sum = (obj) => Object.values(obj || {}).reduce((n, arr) => n + (Array.isAr
 
 export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) {
   const saved = getGithubConfig()
+  const active = getSyncConfig()
+  /* เจ้าของตั้งค่า cloud ไว้แล้ว และผู้ใช้ไม่ได้เลือก GitHub เอง → ซิงก์อัตโนมัติ ไม่ต้องตั้งค่า */
+  const cloudAuto = active?.mode === 'cloud'
   const snap = exportSnapshot()
   const counts = {
     profiles: (snap.profiles || []).length,
@@ -42,13 +46,13 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
   const settingText = `เฉลยทันที ${snap.settings?.instantReveal ? 'เปิด' : 'ปิด'} · ธีม ${
     snap.theme === 'dark' ? 'มืด' : 'สว่าง'
   }`
-  const [editing, setEditing] = useState(!saved)
+  const [editing, setEditing] = useState(!saved && !cloudAuto)
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState(null)
   const [form, setForm] = useState(() => {
     const d = withTargetDefaults(saved || {})
     return {
-      mode: d.mode,
+      mode: d.mode === 'cloud' ? 'gist' : d.mode,
       owner: d.owner,
       repo: d.repo,
       branch: d.branch,
@@ -64,6 +68,8 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const status = STATUS[sync?.status] || STATUS.off
+  const storeName = sync?.mode === 'cloud' ? 'คลาวด์' : 'GitHub'
+  const statusText = status.text.split('GitHub').join(storeName)
 
   const connect = async () => {
     setBusy('connect')
@@ -119,9 +125,9 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
       <div className="gh__head">
         <span className={`gh__dot is-${status.tone}`} />
         <div className="gh__head-text">
-          <b>คลังข้อมูล GitHub</b>
+          <b>{cloudAuto ? 'คลังข้อมูลคลาวด์ ☁️' : 'คลังข้อมูล GitHub'}</b>
           <span>
-            {status.text}
+            {statusText}
             {sync?.status === 'saved' && sync?.at ? ` · ${timeText(sync.at)}` : ''}
           </span>
         </div>
@@ -149,6 +155,60 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
           <Icon name="wand" size={12} /> การตั้งค่า · {settingText}
         </span>
       </div>
+
+      {cloudAuto && !editing && (
+        <>
+          <div className="gh__auto">
+            <b>
+              <Icon name="checkCircle" size={15} /> ซิงก์อัตโนมัติเปิดอยู่ — ไม่ต้องตั้งค่าอะไรเลย
+            </b>
+            <span>
+              ประวัติสอบ เกียรติบัตร ชุดข้อสอบ และโปรไฟล์ จะตามไป <b>ทุกเครื่อง</b>
+              ที่เปิดแอปนี้โดยอัตโนมัติ ไม่มี token ไม่มีลิงก์ให้กรอก
+            </span>
+          </div>
+          {sync?.status === 'error' && sync?.error && (
+            <p className="gh__error">
+              <Icon name="info" size={13} /> {sync.error}
+            </p>
+          )}
+          <div className="gh__actions">
+            <button
+              type="button"
+              className="btn btn--soft btn--sm"
+              onClick={syncNow}
+              disabled={busy === 'sync'}
+            >
+              <Icon name="refresh" size={14} /> {busy === 'sync' ? 'กำลังซิงก์…' : 'ซิงก์เดี๋ยวนี้'}
+            </button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>
+              <Icon name="edit" size={13} /> ใช้ GitHub แทน (ขั้นสูง)
+            </button>
+          </div>
+          <div className="gh__share">
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={async () => {
+                const link = buildSyncLink(active, window.location.origin, window.location.pathname)
+                if (!link) return
+                try {
+                  await navigator.clipboard.writeText(link)
+                  onToast?.('คัดลอกลิงก์แล้ว — แชร์ให้ใครก็ซิงก์ฐานเดียวกันทันที')
+                } catch {
+                  onToast?.(`ลิงก์: ${link}`, 'info')
+                }
+              }}
+            >
+              <Icon name="share" size={14} /> คัดลอกลิงก์แชร์ซิงก์
+            </button>
+            <p className="gh__hint" style={{ marginTop: 6 }}>
+              ลิงก์นี้ไม่มีรหัสลับ — ใครเปิดก็ซิงก์ฐานข้อมูลเดียวกันโดยอัตโนมัติ
+              (แต่ละคนเลือกชื่อตัวเองที่หน้าแรก)
+            </p>
+          </div>
+        </>
+      )}
 
       {saved && !editing && (
         <>
@@ -226,7 +286,12 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
 
       {editing && (
         <div className="gh__form">
-          {!saved && (
+          {cloudAuto && (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditing(false)}>
+              ← กลับไปใช้ซิงก์อัตโนมัติ (แนะนำ)
+            </button>
+          )}
+          {!saved && !cloudAuto && (
             <p className="gh__hint gh__hint--link">
               <Icon name="share" size={13} /> มีลิงก์ <b>“เชื่อมอัตโนมัติ”</b> จากเจ้าของระบบหรือไม่?
               เปิดลิงก์นั้นได้เลย — ระบบจะเชื่อมให้เองทันทีโดยไม่ต้องกรอกฟอร์มนี้

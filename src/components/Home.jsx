@@ -169,7 +169,7 @@ export default function Home({
           type="button"
           className={`sync-chip is-${sync.status}`}
           onClick={onOpenAccount}
-          title="ข้อมูลถูกบันทึกอัตโนมัติไปยัง GitHub"
+          title="ข้อมูลถูกบันทึกอัตโนมัติขึ้นคลาวด์ทุกเครื่อง"
         >
           <Icon
             name={
@@ -183,12 +183,12 @@ export default function Home({
           />
           <span>
             {sync.status === 'error'
-              ? `ซิงก์ GitHub ไม่สำเร็จ${sync.error ? ` · ${sync.error}` : ''}`
+              ? `ซิงก์ ${sync.mode === 'cloud' ? 'คลาวด์' : 'GitHub'} ไม่สำเร็จ${sync.error ? ` · ${sync.error}` : ''}`
               : sync.status === 'saved'
-                ? 'บันทึกขึ้น GitHub แล้ว'
+                ? `บันทึกขึ้น${sync.mode === 'cloud' ? 'คลาวด์' : ' GitHub'}แล้ว`
                 : sync.status === 'idle'
-                  ? 'เชื่อมต่อ GitHub แล้ว'
-                  : 'กำลังซิงก์กับ GitHub…'}
+                  ? 'ซิงก์อัตโนมัติพร้อมแล้ว'
+                  : 'กำลังซิงก์…'}
           </span>
           {sync.at && (sync.status === 'saved' || sync.status === 'idle') && (
             <b className="num">

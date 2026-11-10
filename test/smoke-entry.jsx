@@ -11,6 +11,7 @@ import { exportExamPdf } from '../src/lib/pdf.js'
 import {
   buildSyncLink,
   clearGithubConfig,
+  getSyncConfig,
   parseSyncLink,
   saveGithubConfig,
   stripSyncLinkParam,
@@ -131,6 +132,56 @@ async function run() {
       )
       const u = new URL(link)
       return parseSyncLink(u)?.token === 'ghp_roundtrip1234'
+    })(),
+  )
+
+  /* cloud (Firebase) auto-sync */
+  const cloudLink = parseSyncLink(locOf('?sync=cloud:AIzaSyDummyKey123:https%3A%2F%2Fbacc-default-rtdb.asia-southeast1.firebasedatabase.app'))
+  check(
+    'sync link: parses cloud:{apiKey}:{databaseURL}',
+    cloudLink?.mode === 'cloud' &&
+      cloudLink?.apiKey === 'AIzaSyDummyKey123' &&
+      cloudLink?.databaseURL === 'https://bacc-default-rtdb.asia-southeast1.firebasedatabase.app',
+  )
+  check('sync link: rejects bad cloud url', parseSyncLink(locOf('?sync=cloud:abcdefghijk:notaurl')) === null)
+  check(
+    'buildSyncLink: cloud roundtrip',
+    (() => {
+      const parsed = parseSyncLink(
+        new URL(
+          buildSyncLink(
+            { mode: 'cloud', apiKey: 'AIzaSyRoundTrip', databaseURL: 'https://db.example.app' },
+            'https://x.th',
+            '/app/',
+          ),
+        ),
+      )
+      return parsed?.mode === 'cloud' && parsed?.databaseURL === 'https://db.example.app'
+    })(),
+  )
+  check(
+    'getSyncConfig: uses stored github config when present',
+    (() => {
+      saveGithubConfig({ mode: 'gist', token: 'ghp_storedtoken123456' })
+      const c = getSyncConfig()
+      return c?.mode === 'gist' && c?.token === 'ghp_storedtoken123456'
+    })(),
+  )
+  check(
+    'getSyncConfig: null when nothing configured (SYNC_TARGET is gist & no gistId default)',
+    (() => {
+      clearGithubConfig()
+      return getSyncConfig() === null
+    })(),
+  )
+  check(
+    'getSyncConfig: stored cloud config is valid',
+    (() => {
+      saveGithubConfig({ mode: 'cloud', apiKey: 'AIzaSyStored', databaseURL: 'https://db.example.app' })
+      const c = getSyncConfig()
+      const ok = c?.mode === 'cloud' && c?.apiKey === 'AIzaSyStored'
+      clearGithubConfig()
+      return ok
     })(),
   )
 
