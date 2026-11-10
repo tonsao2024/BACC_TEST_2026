@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Icon from './Icons.jsx'
-import { fetchLogin, getGithubConfig, saveGithubConfig, testConnection } from '../lib/remote.js'
+import { fetchLogin, getGithubConfig, normalizeGithubConfig, saveGithubConfig, testConnection } from '../lib/remote.js'
 import { exportSnapshot } from '../lib/storage.js'
 
 const STATUS = {
@@ -58,8 +58,10 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
     setBusy('connect')
     setMessage(null)
     try {
+      // ทดสอบก่อน — ถ้าพังจะไม่บันทึก config ที่ยังไม่ผ่านทิ้งไว้ (เดิมเคยบันทึกก่อนจนผู้ใช้สับสนว่าเชื่อมต่อแล้ว)
+      const candidate = normalizeGithubConfig(form)
+      await testConnection(candidate)
       const cfg = saveGithubConfig(form)
-      await testConnection(cfg)
       setBusy('pull')
       const ok = await onSaved?.()
       setEditing(false)
@@ -80,8 +82,9 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
     setBusy('test')
     setMessage(null)
     try {
-      const cfg = saveGithubConfig(form)
-      const res = await testConnection(cfg)
+      // ทดสอบโดยไม่บันทึก config
+      const candidate = normalizeGithubConfig(form)
+      const res = await testConnection(candidate)
       setMessage({ tone: 'ok', text: `เชื่อมต่อได้: ${res.login || res.detail}` })
     } catch (err) {
       setMessage({ tone: 'bad', text: err.message })

@@ -47,17 +47,21 @@ export function getGithubConfig() {
   }
 }
 
-export function saveGithubConfig(cfg) {
-  const clean = {
-    mode: cfg.mode === 'gist' ? 'gist' : 'repo',
-    token: String(cfg.token || '').trim(),
-    owner: String(cfg.owner || '').trim(),
-    repo: String(cfg.repo || '').trim(),
-    branch: String(cfg.branch || 'main').trim() || 'main',
-    path: String(cfg.path || 'bacc-data.json').trim() || 'bacc-data.json',
-    gistId: String(cfg.gistId || '').trim(),
+export function normalizeGithubConfig(cfg) {
+  return {
+    mode: cfg?.mode === 'gist' ? 'gist' : 'repo',
+    token: String(cfg?.token || '').trim(),
+    owner: String(cfg?.owner || '').trim(),
+    repo: String(cfg?.repo || '').trim(),
+    branch: String(cfg?.branch || 'main').trim() || 'main',
+    path: String(cfg?.path || 'bacc-data.json').trim() || 'bacc-data.json',
+    gistId: String(cfg?.gistId || '').trim(),
     savedAt: new Date().toISOString(),
   }
+}
+
+export function saveGithubConfig(cfg) {
+  const clean = normalizeGithubConfig(cfg)
   try {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(clean))
   } catch {
@@ -92,7 +96,15 @@ const repoUrl = (cfg) =>
     .join('/')}`
 
 async function ghFetch(url, options) {
-  const res = await fetch(url, options)
+  let res
+  try {
+    res = await fetch(url, options)
+  } catch {
+    // fetch โยน TypeError เมื่อเน็ตหลุด/โดนบล็อก/ใบรับรองผิด — แปลให้เข้าใจง่าย
+    const err = new Error('เชื่อมต่อ api.github.com ไม่ได้ — ตรวจอินเทอร์เน็ต หรือเครือข่ายที่บล็อก GitHub')
+    err.status = 0
+    throw err
+  }
   let body = null
   const text = await res.text()
   try {
@@ -149,7 +161,14 @@ export async function fetchRemote(cfg) {
     const content = file.truncated ? await fetchRaw(file.raw_url) : file.content
     return { data: JSON.parse(content), sha: gist.id, gistId: gist.id }
   }
-  const res = await fetch(repoUrl(cfg) + `?ref=${encodeURIComponent(cfg.branch)}`, { headers: headers(cfg) })
+  let res
+  try {
+    res = await fetch(repoUrl(cfg) + `?ref=${encodeURIComponent(cfg.branch)}`, { headers: headers(cfg) })
+  } catch {
+    const err = new Error('เชื่อมต่อ api.github.com ไม่ได้ — ตรวจอินเทอร์เน็ตหรือเครือข่ายที่บล็อก GitHub')
+    err.status = 0
+    throw err
+  }
   if (res.status === 404) return null
   if (!res.ok) {
     const text = await res.text()
