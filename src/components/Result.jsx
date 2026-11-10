@@ -37,6 +37,7 @@ export default function Result({
   onOpenArena,
   onHome,
   onRetry,
+  onNextBatch,
   onHistory,
   onOpenSources,
   onToast,
@@ -48,7 +49,26 @@ export default function Result({
   const [zoomSrc, setZoomSrc] = useState(null)
   const [examinee, setExaminee] = useState(result.name || profileName || '')
   const isSet = result.kind === 'set'
-  const title = isSet ? result.setName || 'ชุดสอบเสมือนจริง' : `${result.partLabel} · ${result.partTitle}`
+  const title = isSet
+    ? result.setName || 'ชุดสอบเสมือนจริง'
+    : result.batchLabel
+      ? `${result.partLabel} · ${result.partTitle} (${result.batchLabel})`
+      : `${result.partLabel} · ${result.partTitle}`
+
+  const totalQuestions = part?.questions?.length || 100
+  const isBatchMode = Boolean(
+    !isSet &&
+      result.partId &&
+      result.subsetCount &&
+      result.subsetCount !== 'all' &&
+      typeof result.batchIndex === 'number',
+  )
+  const nextBatchIndex = isBatchMode ? result.batchIndex + 1 : -1
+  const hasNextBatch = isBatchMode && nextBatchIndex * result.subsetCount < totalQuestions
+  const nextBatchStart = hasNextBatch ? nextBatchIndex * result.subsetCount + 1 : 0
+  const nextBatchEnd = hasNextBatch ? Math.min(totalQuestions, (nextBatchIndex + 1) * result.subsetCount) : 0
+  const nextBatchLabel = hasNextBatch ? `ชุดที่ ${nextBatchIndex + 1} (ข้อ ${nextBatchStart}–${nextBatchEnd})` : ''
+
   const animated = useCountUp(result.score)
   const [ringP, setRingP] = useState(0)
 
@@ -450,8 +470,28 @@ export default function Result({
         </section>
 
         <div className="section" style={{ display: 'grid', gap: 10 }}>
-          <button className="btn btn--primary btn--block" onClick={() => onRetry(result)}>
-            <Icon name="refresh" size={17} /> {isSet ? 'ทำชุดข้อสอบนี้อีกครั้ง' : 'ทำข้อสอบพาร์ทนี้อีกครั้ง'}
+          {hasNextBatch && (
+            <button
+              className="btn btn--primary btn--block"
+              style={{
+                background: 'linear-gradient(135deg, #10B981, #059669)',
+                boxShadow: '0 10px 24px -10px rgba(16, 185, 129, 0.5)',
+              }}
+              onClick={() => onNextBatch?.(result)}
+            >
+              <Icon name="play" size={17} /> ลุยชุดถัดไป: {nextBatchLabel}
+            </button>
+          )}
+          <button
+            className={`btn ${hasNextBatch ? 'btn--soft' : 'btn--primary'} btn--block`}
+            onClick={() => onRetry(result)}
+          >
+            <Icon name="refresh" size={17} />{' '}
+            {isSet
+              ? 'ทำชุดข้อสอบนี้อีกครั้ง'
+              : result.batchLabel
+                ? `ทำชุดนี้อีกครั้ง (${result.batchLabel})`
+                : 'ทำข้อสอบพาร์ทนี้อีกครั้ง'}
           </button>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn--ghost" style={{ flex: 1 }} onClick={onHistory}>

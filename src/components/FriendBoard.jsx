@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Icon from './Icons.jsx'
+import { FriendRaceBanner } from './Mascot.jsx'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -92,6 +93,8 @@ export default function FriendBoard({
           <span aria-hidden="true">{directoryStatus.icon}</span> {directoryStatus.text}
         </p>
       )}
+
+      <FriendRaceBanner onOpenArena={onOpenArena} onCreateMatch={onCreateMatch} />
 
       {myActiveMatch && (
         <button

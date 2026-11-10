@@ -7,6 +7,7 @@ import { MAX_CHALLENGE_DECLINES, rankMatchPlayers } from '../lib/friends.js'
 import { PASS_SCORE, certTier } from '../lib/certs.js'
 import Icon from './Icons.jsx'
 import { MiniRing, Sheet } from './ui.jsx'
+import { RunningRacers } from './Mascot.jsx'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -868,6 +869,9 @@ export default function FriendArena({
             เลือกท้าเพื่อนคนเดียวหรือหลายคนพร้อมกันก็ได้ เพื่อนอีกฝ่ายจะมี Popup แจ้งเตือนให้กดยอมรับ
             และแม้เพื่อนไม่ได้ตอบรับการแข่งขัน คุณยังสามารถกดดูสถิติของเพื่อนทุกคนในระบบได้ด้านล่าง
           </p>
+          <div className="builder-hero__racers" aria-hidden="true">
+            <RunningRacers height={130} />
+          </div>
           <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             <button
               type="button"

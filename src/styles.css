@@ -5252,7 +5252,36 @@ select {
 }
 .chip--preset:hover { background: var(--viol-50); transform: translateY(-1px); }
 
-/* ---------- hero mascot: ไม่ทับข้อความ ---------- */
+/* ---------- hero: จัดวางข้อความและมาสคอตอ่านหนังสือตัวใหญ่เต็มพื้นที่ ---------- */
+.hero {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 250px;
+}
+
+.hero__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.hero__visual {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex: 0 0 240px;
+  margin: -14px -14px -22px 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .hero::after {
   width: auto;
   height: auto;
@@ -5260,61 +5289,98 @@ select {
   bottom: -30%;
   border-radius: 0;
 }
-.hero__mascot {
-  top: 12px;
-  right: 12px;
-  bottom: auto;
-  width: 96px;
-  height: 96px;
+
+/* มาสคอตอ่านหนังสือตัวใหญ่เด่นเต็มพื้นที่ด้านล่าง */
+.hero__mascot--reading {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 240px !important;
+  height: 240px !important;
+  max-width: 100%;
+  filter: drop-shadow(0 18px 28px rgba(11, 31, 58, 0.28));
+  animation: readingMascotFloat 5s ease-in-out infinite;
 }
-.hero__mascot--2 {
-  top: 28px;
-  right: 114px;
-  bottom: auto;
-  width: 60px;
-  height: 60px;
-}
+
 .hero__eyebrow {
   position: relative;
   z-index: 2;
-  max-width: calc(100% - 104px);
+  max-width: fit-content;
 }
+
 .hero__title {
   position: relative;
   z-index: 2;
-  max-width: none;
-  padding-right: 180px;
+  max-width: 22ch;
+  padding-right: 0;
 }
+
 .hero__desc {
   position: relative;
   z-index: 2;
-  max-width: 62ch;
-  padding-right: 180px;
+  max-width: 44ch;
+  padding-right: 0;
 }
+
 .hero__row {
   position: relative;
   z-index: 2;
 }
-@media (max-width: 559px) {
-  .hero__mascot--2 {
-    display: none;
+
+@media (max-width: 720px) {
+  .hero {
+    gap: 12px;
+    padding: 20px;
   }
-  .hero__mascot {
-    width: 80px;
-    height: 80px;
-    top: 10px;
-    right: 8px;
+  .hero__visual {
+    flex: 0 0 190px;
+    margin: -10px -10px -20px 0;
   }
-  .hero__eyebrow {
-    max-width: calc(100% - 84px);
+  .hero__mascot--reading {
+    width: 190px !important;
+    height: 190px !important;
   }
   .hero__title {
-    padding-right: 88px;
     font-size: 22px;
+    max-width: 18ch;
+  }
+}
+
+@media (max-width: 559px) {
+  .hero {
+    flex-direction: column;
+    padding: 18px 16px 20px;
+    gap: 12px;
+  }
+  .hero__visual {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 4px 0 0;
+    justify-content: center;
+  }
+  .hero__mascot--reading {
+    width: 180px !important;
+    height: 180px !important;
+  }
+  .hero__eyebrow {
+    max-width: 100%;
+  }
+  .hero__title {
+    padding-right: 0;
+    font-size: 21px;
+    max-width: none;
   }
   .hero__desc {
     padding-right: 0;
     max-width: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero__mascot--reading {
+    width: 155px !important;
+    height: 155px !important;
   }
 }
 
@@ -7647,5 +7713,812 @@ select {
   background: rgba(180, 83, 9, 0.24);
   color: #fde68a;
 }
+
+/* ============================================================
+   Reading Mascot Animations (กำลังอ่านหนังสือ เปิดหน้าไปมา และคิด)
+   ============================================================ */
+.mascot--reading {
+  display: block;
+  overflow: visible;
+  will-change: transform;
+}
+
+.mascot--reading .mascot__reading-body {
+  transform-origin: 90px 164px;
+  animation: mascotReadBob 4s ease-in-out infinite;
+}
+
+.mascot--reading .mascot__head--reading {
+  transform-origin: 90px 92px;
+  animation: mascotPonder 5s ease-in-out infinite;
+}
+
+.mascot--reading .mascot__eyes--reading .eye-pupil--l,
+.mascot--reading .mascot__eyes--reading .eye-pupil--r {
+  animation: mascotReadingEyes 4.8s ease-in-out infinite;
+}
+
+/* แผ่นหน้าที่กำลังพลิกไปมา (เปิดหนังสือไปมา) */
+.mascot--reading .mascot__page-leaf {
+  transform-origin: 90px 138px;
+  animation: mascotPageFlip 3.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.mascot--reading .mascot__page-leaf-reverse {
+  transform-origin: 90px 138px;
+  animation: mascotPageFlipRev 3.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+/* ฟองความคิดและหลอดไฟไอเดีย (และมีการคิดด้วย) */
+.mascot--reading .thought-cloud {
+  transform-origin: 152px 24px;
+  animation: thoughtCloudFloat 4.2s ease-in-out infinite;
+}
+
+.mascot--reading .idea-bulb {
+  transform-origin: 152px 20px;
+  animation: ideaBulbPulse 3.4s ease-in-out infinite;
+}
+
+.mascot--reading .think-dot {
+  animation: thinkDotBounce 2.2s ease-in-out infinite;
+}
+.mascot--reading .think-dot.td-2 {
+  animation-delay: 0.28s;
+}
+.mascot--reading .think-dot.td-3 {
+  animation-delay: 0.56s;
+}
+
+.mascot--reading .thought-bubble.tb-1 {
+  animation: thoughtBubbleFloat 3.8s ease-in-out infinite;
+}
+.mascot--reading .thought-bubble.tb-2 {
+  animation: thoughtBubbleFloat 3.8s ease-in-out 0.4s infinite;
+}
+
+.mascot--reading .read-sparkle--1 {
+  transform-origin: 116px 20px;
+  animation: sparkleTwinkle 2.8s ease-in-out infinite;
+}
+.mascot--reading .read-sparkle--2 {
+  transform-origin: 172px 48px;
+  animation: sparkleTwinkle 2.8s ease-in-out 1.2s infinite;
+}
+
+.mascot--reading .mascot__tassel {
+  transform-origin: 90px 33px;
+  animation: tasselSwing 3.6s ease-in-out infinite;
+}
+
+@keyframes mascotReadBob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3.5px);
+  }
+}
+
+@keyframes mascotPonder {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  22% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+  78% {
+    transform: rotate(-1.5deg);
+  }
+}
+
+@keyframes mascotReadingEyes {
+  0%, 14% {
+    transform: translate(-2px, 1.2px);
+  }
+  24%, 38% {
+    transform: translate(2px, 1.2px);
+  }
+  48%, 62% {
+    transform: translate(-1.5px, 2px);
+  }
+  72%, 88% {
+    transform: translate(1px, -2.8px);
+  }
+  100% {
+    transform: translate(-2px, 1.2px);
+  }
+}
+
+@keyframes mascotPageFlip {
+  0%, 12% {
+    transform: scaleX(1) skewY(0deg);
+    opacity: 0.95;
+  }
+  38% {
+    transform: scaleX(0.08) skewY(-8deg);
+    opacity: 0.75;
+  }
+  58%, 68% {
+    transform: scaleX(-1) skewY(-3deg);
+    opacity: 0.95;
+  }
+  86% {
+    transform: scaleX(0.08) skewY(8deg);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scaleX(1) skewY(0deg);
+    opacity: 0.95;
+  }
+}
+
+@keyframes mascotPageFlipRev {
+  0%, 15% {
+    opacity: 0.2;
+    transform: scaleX(0.3);
+  }
+  45%, 70% {
+    opacity: 0.85;
+    transform: scaleX(1);
+  }
+  90%, 100% {
+    opacity: 0.2;
+    transform: scaleX(0.3);
+  }
+}
+
+@keyframes thoughtCloudFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.03);
+  }
+}
+
+@keyframes ideaBulbPulse {
+  0%, 100% {
+    opacity: 0.82;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 6px #FBBF24);
+  }
+}
+
+@keyframes thinkDotBounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@keyframes thoughtBubbleFloat {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-2.5px);
+    opacity: 1;
+  }
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% {
+    transform: scale(0.85) rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.25) rotate(18deg);
+    opacity: 1;
+  }
+}
+
+@keyframes tasselSwing {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes readingMascotFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* ============================================================
+   Racing Banner & Running Racers ("แข่งขันกับเพื่อน")
+   ============================================================ */
+.friend-race-banner {
+  margin: 4px 0 16px;
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(59, 130, 246, 0.3), transparent 60%),
+    linear-gradient(145deg, #0b1f3a 0%, #1e3a8a 52%, #1d4ed8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 18px 40px -20px rgba(11, 31, 58, 0.45);
+  overflow: hidden;
+  color: #fff;
+  animation: fadeUp 0.55s var(--ease) both;
+}
+
+.friend-race-banner__visual {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding: 6px 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.friend-race-banner__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(11, 31, 58, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.friend-race-banner__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.friend-race-banner__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #FEF08A;
+  letter-spacing: 0.02em;
+}
+
+.race-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22C55E;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+  animation: racePulseDot 1.6s infinite;
+}
+
+@keyframes racePulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.friend-race-banner__title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.friend-race-banner__desc {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.45;
+}
+
+.friend-race-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.friend-race-banner__actions .btn--soft {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.friend-race-banner__actions .btn--soft:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 580px) {
+  .friend-race-banner__bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .friend-race-banner__actions {
+    justify-content: stretch;
+  }
+  .friend-race-banner__actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* SVG Running Racers Motion */
+.mascot-racers {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 8px 16px rgba(11, 31, 58, 0.25));
+}
+
+.track-dash {
+  animation: trackDashMove 1.4s linear infinite;
+}
+.track-dash--mid {
+  animation-duration: 1.1s;
+}
+
+@keyframes trackDashMove {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -48px;
+  }
+}
+
+/* Racers leg and arm motion */
+.racer {
+  will-change: transform;
+}
+.racer--1 {
+  animation: racerRunBob 0.42s ease-in-out infinite;
+}
+.racer--2 {
+  animation: racerRunBob 0.45s ease-in-out 0.1s infinite;
+}
+.racer--3 {
+  animation: racerRunBob 0.48s ease-in-out 0.2s infinite;
+}
+.racer--4 {
+  animation: racerRunBob 0.5s ease-in-out 0.3s infinite;
+}
+
+.racer .leg-front {
+  transform-origin: 8px 32px;
+  animation: racerLegFront 0.44s ease-in-out infinite;
+}
+.racer .leg-back {
+  transform-origin: 2px 32px;
+  animation: racerLegBack 0.44s ease-in-out infinite;
+}
+
+.racer .arm-front {
+  transform-origin: 10px 20px;
+  animation: racerArmFront 0.44s ease-in-out infinite;
+}
+.racer .arm-back {
+  transform-origin: -6px 20px;
+  animation: racerArmBack 0.44s ease-in-out infinite;
+}
+
+.racer--2 .leg-front,
+.racer--2 .leg-back,
+.racer--2 .arm-front,
+.racer--2 .arm-back {
+  animation-duration: 0.46s;
+  animation-delay: 0.12s;
+}
+
+.racer--3 .leg-front,
+.racer--3 .leg-back,
+.racer--3 .arm-front,
+.racer--3 .arm-back {
+  animation-duration: 0.48s;
+  animation-delay: 0.22s;
+}
+
+.racer--4 .leg-front,
+.racer--4 .leg-back,
+.racer--4 .arm-front,
+.racer--4 .arm-back {
+  animation-duration: 0.5s;
+  animation-delay: 0.32s;
+}
+
+@keyframes racerRunBob {
+  0%, 100% {
+    transform: translateY(0) rotate(1deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+}
+
+@keyframes racerLegFront {
+  0%, 100% {
+    transform: rotate(24deg);
+  }
+  50% {
+    transform: rotate(-24deg);
+  }
+}
+
+@keyframes racerLegBack {
+  0%, 100% {
+    transform: rotate(-24deg);
+  }
+  50% {
+    transform: rotate(24deg);
+  }
+}
+
+@keyframes racerArmFront {
+  0%, 100% {
+    transform: rotate(-26deg);
+  }
+  50% {
+    transform: rotate(26deg);
+  }
+}
+
+@keyframes racerArmBack {
+  0%, 100% {
+    transform: rotate(26deg);
+  }
+  50% {
+    transform: rotate(-26deg);
+  }
+}
+
+.racer-dust {
+  transform-origin: -20px 48px;
+  animation: dustPuffAnim 0.44s ease-out infinite;
+}
+
+@keyframes dustPuffAnim {
+  0% {
+    transform: scale(0.6) translateX(0);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.2) translateX(-4px);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.4) translateX(-8px);
+    opacity: 0;
+  }
+}
+
+.speed-line {
+  animation: speedLineAnim 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.speed-line.sl-1 {
+  animation-delay: 0.1s;
+}
+.speed-line.sl-2 {
+  animation-delay: 0.45s;
+}
+.speed-line.sl-3 {
+  animation-delay: 0.25s;
+}
+.speed-line.sl-4 {
+  animation-delay: 0.7s;
+}
+
+@keyframes speedLineAnim {
+  0% {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(-100px);
+    opacity: 0;
+  }
+}
+
+.finish-trophy {
+  transform-origin: 14px 18px;
+  animation: trophyShine 2.4s ease-in-out infinite;
+}
+
+@keyframes trophyShine {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.1) rotate(3deg);
+  }
+}
+
+.sweat-drop {
+  animation: sweatDropAnim 0.8s ease-in-out infinite;
+}
+
+@keyframes sweatDropAnim {
+  0%, 100% {
+    transform: translate(0, 0) scale(0.8);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-3px, -2px) scale(1.2);
+    opacity: 1;
+  }
+}
+
+.builder-hero__racers {
+  margin: 16px 0 -8px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: rgba(11, 31, 58, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 8px;
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .friend-race-banner {
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(37, 99, 235, 0.35), transparent 60%),
+    linear-gradient(145deg, #020617 0%, #0f172a 52%, #1e3a8a 100%);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+[data-theme='dark'] .friend-race-banner__bar {
+  background: rgba(2, 6, 23, 0.6);
+}
+
+[data-theme='dark'] .builder-hero__racers {
+  background: rgba(2, 6, 23, 0.4);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+/* ============================================================
+   Part Batch / Subset Selector (ทยอยทำทีละ 10, 20, 50 ข้อ หรือทั้งหมด)
+   ============================================================ */
+.part-batch-section {
+  margin-top: 18px;
+}
+
+.batch-size-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.batch-size-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 6px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+  position: relative;
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.batch-size-card:hover {
+  border-color: var(--viol-300);
+  background: var(--viol-50);
+  transform: translateY(-2px);
+}
+
+.batch-size-card.is-active {
+  border-color: var(--viol-600);
+  background: var(--viol-50);
+  color: var(--viol-900);
+  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.25);
+}
+
+.batch-size-card__count {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--viol-600);
+  margin-bottom: 4px;
+}
+
+.batch-size-card.is-active .batch-size-card__count {
+  color: var(--viol-700);
+}
+
+.batch-size-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.batch-size-card__desc {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.batch-picker {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeUp 0.3s var(--ease) both;
+}
+
+.batch-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-picker__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.batch-picker__hint {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--viol-600);
+  background: var(--viol-50);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.batch-chips-scroll {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.batch-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 108px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  text-align: left;
+  font-family: inherit;
+}
+
+.batch-chip:hover {
+  border-color: var(--viol-400);
+  background: var(--viol-50);
+}
+
+.batch-chip.is-active {
+  border-color: var(--viol-600);
+  background: var(--viol-600);
+  color: #fff;
+  box-shadow: 0 4px 12px -3px rgba(37, 99, 235, 0.4);
+}
+
+.batch-chip b {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.batch-chip small {
+  font-size: 10.5px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.batch-chip.is-active small {
+  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.batch-chip--random {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: auto;
+  padding: 8px 14px;
+}
+
+@media (max-width: 480px) {
+  .batch-size-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Dark mode overrides for batch cards */
+[data-theme='dark'] .batch-size-card {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+[data-theme='dark'] .batch-size-card:hover {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+[data-theme='dark'] .batch-size-card.is-active {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: #60a5fa;
+  color: #bfdbfe;
+}
+
+[data-theme='dark'] .batch-size-card.is-active .batch-size-card__count {
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .batch-picker {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+[data-theme='dark'] .batch-picker__hint {
+  background: rgba(37, 99, 235, 0.25);
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .batch-chip {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+[data-theme='dark'] .batch-chip:hover {
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+[data-theme='dark'] .batch-chip.is-active {
+  background: #2563eb;
+  border-color: #60a5fa;
+  color: #fff;
+}
+
+
 
 

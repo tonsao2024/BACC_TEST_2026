@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { driveDownload, driveView } from '../data/index.js'
 import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
 import { certTier } from '../lib/certs.js'
@@ -13,8 +14,9 @@ const RULES = [
 
 export default function PartDetail({
   part,
-  results,
-  attempt,
+  results = [],
+  attempt = null,
+  attempts = [],
   onBack,
   onStart,
   onRestart,
@@ -22,9 +24,77 @@ export default function PartDetail({
   onOpenSources,
   partFileName,
 }) {
+  const totalCount = part.questions.length
+  const [selectedCount, setSelectedCount] = useState('all')
+  const [batchIndex, setBatchIndex] = useState(0)
+
+  const countOptions = [
+    { count: 10, label: '10 ข้อ', desc: 'มินิทดสอบด่วน' },
+    { count: 20, label: '20 ข้อ', desc: 'ฝึกซ้อมกำลังดี' },
+    { count: 50, label: '50 ข้อ', desc: 'ครึ่งชุด' },
+    { count: 'all', label: `ทั้งหมด (${totalCount} ข้อ)`, desc: 'เต็มพาร์ทรอบเดียว' },
+  ].filter((opt) => opt.count === 'all' || opt.count < totalCount)
+
+  const numBatches = selectedCount !== 'all' ? Math.ceil(totalCount / selectedCount) : 1
+  const batches = []
+  if (selectedCount !== 'all') {
+    for (let i = 0; i < numBatches; i += 1) {
+      const start = i * selectedCount + 1
+      const end = Math.min(totalCount, (i + 1) * selectedCount)
+      batches.push({
+        index: i,
+        label: `ชุดที่ ${i + 1}`,
+        range: `ข้อ ${start}–${end}`,
+        count: end - start + 1,
+        start,
+        end,
+      })
+    }
+  }
+
+  const currentKey =
+    selectedCount === 'all'
+      ? `part:${part.id}`
+      : batchIndex === 'random'
+        ? `part:${part.id}:random:${selectedCount}`
+        : `part:${part.id}:b${selectedCount}:${batchIndex}`
+
+  const activeAttempt =
+    (attempts || []).find((a) => {
+      if (selectedCount === 'all') return a.key === `part:${part.id}`
+      if (batchIndex === 'random') return a.key && a.key.startsWith(`part:${part.id}:random:${selectedCount}`)
+      return a.key === `part:${part.id}:b${selectedCount}:${batchIndex}`
+    }) ||
+    (attempt && (attempt.key === currentKey || (selectedCount === 'all' && attempt.key === `part:${part.id}`))
+      ? attempt
+      : null)
+
+  const currentCount =
+    selectedCount === 'all'
+      ? totalCount
+      : batchIndex === 'random'
+        ? selectedCount
+        : batches[batchIndex]?.count || selectedCount
+
+  const answered = activeAttempt ? (activeAttempt.answers || []).filter((a) => a !== null).length : 0
+
+  const batchLabel =
+    selectedCount === 'all'
+      ? `ทั้งหมด (${totalCount} ข้อ)`
+      : batchIndex === 'random'
+        ? `สุ่ม ${selectedCount} ข้อ`
+        : `${batches[batchIndex]?.label || 'ชุดย่อย'} (ข้อ ${batches[batchIndex]?.start || 1}–${batches[batchIndex]?.end || selectedCount})`
+
+  const currentOpts = {
+    count: selectedCount,
+    batchIndex,
+    isRandom: batchIndex === 'random',
+    seed: activeAttempt?.subsetSeed || null,
+    examKey: activeAttempt?.key || null,
+  }
+
   const best = bestFor(part.id, results)
   const rows = results.filter((r) => r.partId === part.id)
-  const answered = attempt ? (attempt.answers || []).filter((a) => a !== null).length : 0
 
   return (
     <>
@@ -55,15 +125,15 @@ export default function PartDetail({
           <p>{part.desc}</p>
           <div className="part-hero__grid">
             <div className="part-hero__cell">
-              <b className="num">{part.questions.length}</b>
-              <span>ข้อสอบ</span>
+              <b className="num">{currentCount}</b>
+              <span>{selectedCount === 'all' ? 'ข้อสอบเต็มพาร์ท' : 'ข้อที่เลือกทำ'}</span>
             </div>
             <div className="part-hero__cell">
               <b className="num">∞</b>
               <span>ไม่จำกัดเวลา</span>
             </div>
             <div className="part-hero__cell">
-              <b className="num">100</b>
+              <b className="num">{currentCount}</b>
               <span>คะแนนเต็ม</span>
             </div>
           </div>
@@ -98,6 +168,83 @@ export default function PartDetail({
             </span>
           </div>
         )}
+
+        <section className="section part-batch-section">
+          <div className="section__head">
+            <div>
+              <h3 className="section__title">
+                <Icon name="layers" size={15} /> เลือกจำนวนข้อสอบที่จะทำ
+              </h3>
+              <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+                ทยอยทำทีละ 10, 20, 50 ข้อเพื่อไม่ให้ท้อ หรือเลือกทำครบทั้งหมด {totalCount} ข้อรอบเดียวได้
+              </p>
+            </div>
+            {selectedCount !== 'all' && (
+              <span className="section__link" style={{ color: 'var(--viol-600)', fontWeight: 600 }}>
+                {batchLabel}
+              </span>
+            )}
+          </div>
+
+          <div className="batch-size-grid">
+            {countOptions.map((opt) => {
+              const isActive = selectedCount === opt.count
+              return (
+                <button
+                  type="button"
+                  key={String(opt.count)}
+                  className={`batch-size-card ${isActive ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setSelectedCount(opt.count)
+                    if (opt.count !== 'all') setBatchIndex(0)
+                  }}
+                >
+                  <span className="batch-size-card__count num">
+                    {opt.count === 'all' ? totalCount : opt.count}
+                  </span>
+                  <b className="batch-size-card__label">{opt.label}</b>
+                  <small className="batch-size-card__desc">{opt.desc}</small>
+                </button>
+              )
+            })}
+          </div>
+
+          {selectedCount !== 'all' && (
+            <div className="batch-picker">
+              <div className="batch-picker__head">
+                <span className="batch-picker__title">
+                  <Icon name="checkCircle" size={13} /> เลือกชุดข้อสอบย่อย ({batches.length} ชุด):
+                </span>
+                <span className="batch-picker__hint">
+                  {batchIndex === 'random'
+                    ? `สุ่ม ${selectedCount} ข้อไม่ซ้ำกัน`
+                    : `${batches[batchIndex]?.label} · ${batches[batchIndex]?.range}`}
+                </span>
+              </div>
+
+              <div className="batch-chips-scroll">
+                <button
+                  type="button"
+                  className={`batch-chip batch-chip--random ${batchIndex === 'random' ? 'is-active' : ''}`}
+                  onClick={() => setBatchIndex('random')}
+                >
+                  <Icon name="wand" size={12} /> สุ่ม {selectedCount} ข้อ
+                </button>
+                {batches.map((b) => (
+                  <button
+                    type="button"
+                    key={b.index}
+                    className={`batch-chip ${batchIndex === b.index ? 'is-active' : ''}`}
+                    onClick={() => setBatchIndex(b.index)}
+                  >
+                    <b>{b.label}</b>
+                    <small>{b.range}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
 
         <div className="detail-grid">
           <section className="section" style={{ marginTop: 18 }}>
@@ -218,14 +365,22 @@ export default function PartDetail({
       </div>
 
       <div className="quiz-foot quiz-foot--split">
-        {attempt && (
-          <button className="btn btn--soft" onClick={() => onRestart?.(part.id)}>
+        {activeAttempt && (
+          <button className="btn btn--soft" onClick={() => onRestart?.(part.id, currentOpts)}>
             <Icon name="refresh" size={15} /> เริ่มใหม่
           </button>
         )}
-        <button className="btn btn--primary" style={{ flex: 1 }} onClick={() => onStart(part.id)}>
+        <button
+          className="btn btn--primary"
+          style={{ flex: 1 }}
+          onClick={() => onStart(part.id, currentOpts)}
+        >
           <Icon name="play" size={16} />{' '}
-          {attempt ? `ทำต่อ (${answered}/${part.questions.length})` : 'เริ่มทำข้อสอบ'}
+          {activeAttempt
+            ? `ทำต่อ (${answered}/${currentCount} ข้อ)`
+            : selectedCount === 'all'
+              ? 'เริ่มทำข้อสอบ'
+              : `เริ่มทำข้อสอบ (${batchLabel})`}
         </button>
       </div>
     </>
