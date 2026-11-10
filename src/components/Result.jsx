@@ -356,7 +356,7 @@ export default function Result({
                 </span>
                 <span style={{ flex: 1 }}>
                   <span className="download-row__title">ดาวน์โหลดข้อสอบต้นฉบับ (Google Drive)</span>
-                  <span className="download-row__desc">ไฟล์ PDF ฉบับเต็มพร้อมเฉลยจาก Drive</span>
+                  <span className="download-row__desc">{part.id === '2' ? 'พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? 'ไฟล์ Mock Exam · เฉลยอยู่ในไฟล์แยก' : 'ไฟล์ PDF ฉบับเต็มพร้อมเฉลยจาก Drive'}</span>
                 </span>
                 <Icon name="external" size={15} className="part-chev" />
               </a>

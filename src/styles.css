@@ -5567,3 +5567,61 @@ select {
 }
 [data-theme='dark'] .gh__auto b { color: #5eeaa0; }
 .gh__auto span { color: var(--ink-500); }
+
+/* One-time PIN reminder after successful registration */
+.pin-reminder__credentials {
+  display: grid;
+  gap: 5px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--border, #dbe5ec);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  overflow-wrap: anywhere;
+}
+.pin-reminder__credentials span { font-size: 12px; color: var(--muted, #64748b); }
+.pin-reminder__credentials strong + span { margin-top: 8px; }
+.pin-reminder__pin { font-size: 24px; letter-spacing: .14em; font-variant-numeric: tabular-nums; }
+.pin-reminder__warning {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff1e6;
+  color: #9a3412;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Recruitment notice shortcut immediately below the home hero */
+.announcement-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.announcement-link:hover { transform: translateY(-2px); box-shadow: var(--shadow-float); }
+.announcement-link:focus-visible { outline: 3px solid #3b82f6; outline-offset: 3px; }
+.announcement-link__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  color: #2563eb;
+  background: #e8f1ff;
+}
+.announcement-link__body { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.announcement-link__body strong { font-size: 13.5px; }
+.announcement-link__body small { color: var(--muted); font-size: 11.5px; }
+.announcement-link__action { display: inline-flex; align-items: center; flex: none; gap: 3px; color: var(--viol-600); font-size: 11.5px; font-weight: 600; }
+@media (max-width: 360px) { .announcement-link__action { font-size: 0; } }
