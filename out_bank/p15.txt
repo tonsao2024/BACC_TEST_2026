@@ -1,0 +1,1024 @@
+ชุดที่ 09
+แนวข้อสอบและคลังข้อสอบ ธ.ก.ส.
+ตำแหน่งพนักงานการเงิน ระดับ 4
+พาร์ท 1.5
+ความสามารถด้านภาษาอังกฤษ
+(วิชาที่ 1 ความรู้ความสามารถทั่วไป (Aptitude Test))
+จำนวน 100 ข้อ  •  พร้อมเฉลยและคำอธิบายรายข้อ
+แนะนำเวลาทำ 100 ข้อ : 70–80 นาที
+ฟอนต์ที่ใช้ : IBM Plex Sans Thai
+เอกสารนี้จัดทำขึ้นเพื่อการเตรียมสอบ มิใช่ข้อสอบจริงของธนาคาร
+คำชี้แจงและโครงสร้างของพาร์ท
+พาร์ทนี้วัดความสามารถทางภาษาอังกฤษในระดับที่ใช้ในข้อสอบ ธ.ก.ส. ได้แก่ คำศัพท์ที่ใช้ในงานธนาคาร ไวยากรณ์และโครงสร้างประโยค การหาส่วนที่ผิดหลักไวยากรณ์ บทสนทนาในสถานการณ์ให้บริการ และการอ่านจับใจความจากบทความสั้นด้านการเงิน การธนาคาร และการเกษตร
+[TABLE]
+| หัวข้อย่อยในพาร์ทนี้ | จำนวนข้อ | รูปแบบข้อสอบ
+| Vocabulary | 20 | หาคำที่มีความหมายเหมือน/ตรงข้าม และเติมคำให้เหมาะกับบริบท
+| Structure and Grammar | 30 | กาล กริยาให้สอดคล้องกับประธาน คำบุพบท อนุประโยค เงื่อนไข
+| Error Identification | 12 | หาส่วนของประโยคที่ผิดหลักไวยากรณ์ 1 ใน 4 ส่วน
+| Conversation | 8 | เลือกคำตอบที่เหมาะสมที่สุดในบทสนทนาให้บริการลูกค้า
+| Reading Comprehension | 30 | อ่านบทความสั้น 1 ย่อหน้า แล้วตอบคำถาม 3 ข้อ (ใจความหลัก รายละเอียด คำศัพท์)
+| รวม | 100 | 
+[/TABLE]
+วิธีทำและวิธีใช้
+•  ข้อสอบในพาร์ทนี้เป็นแบบเลือกตอบ 4 ตัวเลือก (กากบาท/ระบาย 1 ช่องต่อข้อ)
+•  แนะนำ 40–50 วินาทีต่อข้อ ส่วนบทอ่านให้อ่านคำถามก่อนแล้วค่อยไล่หาคำตอบในบทความ
+•  ข้อที่มีเครื่องหมาย ◆ คือข้อที่มี “กับดัก” — ตัวลวงถูกออกแบบจากความเข้าใจผิดที่พบบ่อย
+•  ใต้เลขข้อมีหัวข้อย่อยกำกับไว้ เพื่อให้กลับไปทบทวนเฉพาะจุดได้ทันทีเมื่อตอบผิด
+•  เฉลยพร้อมคำอธิบายอยู่ท้ายพาร์ท และมีตารางสรุปเฉลย 100 ข้อไว้ตรวจเร็ว
+เกณฑ์การอ่านผล (ใช้กับการทบทวนรายพาร์ท)
+[TABLE]
+| ตอบถูก | ระดับ | คำแนะนำ
+| 85–100 | ดีมาก | เก็บจุดที่พลาดไว้ทบทวนซ้ำ 1 รอบ แล้วไปพาร์ทถัดไป
+| 70–84 | พอใช้ | ทบทวนหัวข้อย่อยที่ตอบผิดเกิน 3 ข้อ ก่อนไปพาร์ทถัดไป
+| ต่ำกว่า 70 | ต้องปรับ | อ่านคำอธิบายทุกข้อของหัวข้อย่อยที่พลาด แล้วทำพาร์ทนี้ซ้ำ
+[/TABLE]
+พาร์ท 1.5  ความสามารถด้านภาษาอังกฤษ
+จำนวน 100 ข้อ
+ข้อ 1. Choose the word closest in meaning to “collateral” in a loan context.
+ภาษาอังกฤษ › Vocabulary
+1)  the amount of money paid back each month
+2)  security pledged for repayment
+3)  a fee charged by the bank for using a card
+4)  the percentage charged on a loan per year
+ข้อ 2. The bank offers a ______ period of six months before the first repayment is due.
+ภาษาอังกฤษ › Vocabulary
+1)  grant
+2)  gross
+3)  grace
+4)  grade
+ข้อ 3. Choose the antonym of “surplus”.
+ภาษาอังกฤษ › Vocabulary
+1)  excess
+2)  balance
+3)  profit
+4)  shortage
+ข้อ 4. Customers who repay on time build a good ______ record.
+ภาษาอังกฤษ › Vocabulary
+1)  credit
+2)  credible
+3)  creditor
+4)  credential
+ข้อ 5. The bank will ______ the borrower's assets before approving the loan.
+ภาษาอังกฤษ › Vocabulary
+1)  access
+2)  assess
+3)  excess
+4)  process
+ข้อ 6. Choose the word that best completes: The repayment schedule is ______ monthly over five years.
+ภาษาอังกฤษ › Vocabulary
+1)  made
+2)  paid
+3)  repaid
+4)  billed
+ข้อ 7. Choose the word closest in meaning to “collateral”.
+ภาษาอังกฤษ › Vocabulary
+1)  collateral damage
+2)  guarantee
+3)  interest
+4)  penalty
+ข้อ 8. Choose the word OPPOSITE in meaning to “surplus”.
+ภาษาอังกฤษ › Vocabulary
+1)  excess
+2)  profit
+3)  balance
+4)  shortage
+ข้อ 9. The bank will ______ the loan over a period of ten years.
+ภาษาอังกฤษ › Vocabulary
+1)  repaid
+2)  repayment
+3)  repay
+4)  repayable
+ข้อ 10. Choose the word closest in meaning to “remittance”.
+ภาษาอังกฤษ › Vocabulary
+1)  goods delivered
+2)  money borrowed
+3)  tax paid
+4)  money sent
+ข้อ 11. “The company is ______ for the damage caused by the delay.” Choose the best word.
+ภาษาอังกฤษ › Vocabulary
+1)  liaised
+2)  reliable
+3)  reliant
+4)  liable
+ข้อ 12. Choose the word closest in meaning to “subsidy”.
+ภาษาอังกฤษ › Vocabulary
+1)  financial support
+2)  tax reduction
+3)  interest rate
+4)  loan repayment
+ข้อ 13. Choose the word OPPOSITE in meaning to “appreciate” (in value).
+ภาษาอังกฤษ › Vocabulary
+1)  depreciate
+2)  increase
+3)  evaluate
+4)  accumulate
+ข้อ 14. A person who is ______ always pays attention to small details.
+ภาษาอังกฤษ › Vocabulary
+1)  talkative
+2)  generous
+3)  ambitious
+4)  meticulous
+ข้อ 15. Choose the word closest in meaning to “audit”.
+ภาษาอังกฤษ › Vocabulary
+1)  increase in capital
+2)  examination of accounts
+3)  application for a loan
+4)  reduction of staff
+ข้อ 16. The interest rate was ______ from 5% to 6% last month.
+ภาษาอังกฤษ › Vocabulary
+1)  arose
+2)  risen
+3)  raised
+4)  lift
+ข้อ 17. Choose the word closest in meaning to “default”.
+ภาษาอังกฤษ › Vocabulary
+1)  failure to pay
+2)  early repayment
+3)  extra charge
+4)  written promise
+ข้อ 18. Choose the word OPPOSITE in meaning to “withdraw”.
+ภาษาอังกฤษ › Vocabulary
+1)  deposit
+2)  deduct
+3)  transfer
+4)  collect
+ข้อ 19. The borrowers must provide a ______ plan before the loan is approved.
+ภาษาอังกฤษ › Vocabulary
+1)  repaid
+2)  repay
+3)  repaying
+4)  repayment
+ข้อ 20. Choose the word closest in meaning to “viable”.
+ภาษาอังกฤษ › Vocabulary
+1)  valuable
+2)  visible
+3)  variable
+4)  feasible
+ข้อ 21. The branch manager insisted that every officer ______ the new procedure before the end of the month.
+ภาษาอังกฤษ › Structure and Grammar
+1)  attends
+2)  attend
+3)  attended
+4)  attending
+ข้อ 22. By the time the auditors arrived, the staff ______ all the documents.
+ภาษาอังกฤษ › Structure and Grammar
+1)  prepare
+2)  have prepared
+3)  had prepared
+4)  will prepare
+◆ ข้อ 23. The number of customers using mobile banking ______ increasing every year.
+ภาษาอังกฤษ › Structure and Grammar
+1)  are
+2)  were
+3)  have
+4)  is
+ข้อ 24. She is one of the most experienced officers ______ have ever worked in this branch.
+ภาษาอังกฤษ › Structure and Grammar
+1)  who
+2)  which
+3)  whom
+4)  whose
+ข้อ 25. If the interest rate ______ lower, more farmers would apply for the loan.
+ภาษาอังกฤษ › Structure and Grammar
+1)  is
+2)  were
+3)  was
+4)  will be
+ข้อ 26. The documents must be submitted ______ Friday at the latest.
+ภาษาอังกฤษ › Structure and Grammar
+1)  until
+2)  since
+3)  by
+4)  during
+ข้อ 27. Neither the manager nor the officers ______ available for comment yesterday.
+ภาษาอังกฤษ › Structure and Grammar
+1)  was
+2)  has been
+3)  is
+4)  were
+ข้อ 28. The new software ______ installed by the IT team next week.
+ภาษาอังกฤษ › Structure and Grammar
+1)  will be
+2)  will
+3)  is going
+4)  be
+ข้อ 29. Neither the manager nor the staff members ______ aware of the new regulation.
+ภาษาอังกฤษ › Structure and Grammar
+1)  was
+2)  is
+3)  were
+4)  has been
+ข้อ 30. The report ______ by the accounting department yesterday.
+ภาษาอังกฤษ › Structure and Grammar
+1)  was submitted
+2)  submitted
+3)  has submitted
+4)  is submitting
+ข้อ 31. If the customer ______ the form, he would have received the loan.
+ภาษาอังกฤษ › Structure and Grammar
+1)  fills
+2)  filled
+3)  has filled
+4)  had filled
+ข้อ 32. The bank has been operating in this province ______ 1998.
+ภาษาอังกฤษ › Structure and Grammar
+1)  for
+2)  from
+3)  since
+4)  in
+ข้อ 33. She is the officer ______ approved my application.
+ภาษาอังกฤษ › Structure and Grammar
+1)  which
+2)  whose
+3)  who
+4)  whom
+ข้อ 34. He suggested ______ the meeting until next week.
+ภาษาอังกฤษ › Structure and Grammar
+1)  to postpone
+2)  postponing
+3)  postpone
+4)  postponed
+ข้อ 35. The interest rate is ______ than it was last year.
+ภาษาอังกฤษ › Structure and Grammar
+1)  high
+2)  higher
+3)  highest
+4)  more high
+ข้อ 36. ______ the heavy rain, the branch still opened on time.
+ภาษาอังกฤษ › Structure and Grammar
+1)  Although
+2)  Despite
+3)  Because
+4)  However
+ข้อ 37. Neither of the two proposals ______ acceptable to the committee.
+ภาษาอังกฤษ › Structure and Grammar
+1)  are
+2)  were
+3)  is
+4)  have been
+ข้อ 38. The staff are required ______ a uniform at work.
+ภาษาอังกฤษ › Structure and Grammar
+1)  wear
+2)  wearing
+3)  to wear
+4)  worn
+ข้อ 39. We have been waiting for the approval ______ two weeks.
+ภาษาอังกฤษ › Structure and Grammar
+1)  for
+2)  since
+3)  during
+4)  ago
+ข้อ 40. The manager asked me ______ the documents before Friday.
+ภาษาอังกฤษ › Structure and Grammar
+1)  filing
+2)  filed
+3)  to file
+4)  file
+ข้อ 41. This is the branch ______ we opened last year.
+ภาษาอังกฤษ › Structure and Grammar
+1)  which
+2)  when
+3)  where
+4)  what
+ข้อ 42. By the time the auditor arrived, the staff ______ the accounts.
+ภาษาอังกฤษ › Structure and Grammar
+1)  closed
+2)  were closing
+3)  have closed
+4)  had closed
+ข้อ 43. The new system will ______ installed next month.
+ภาษาอังกฤษ › Structure and Grammar
+1)  been
+2)  be
+3)  being
+4)  is
+ข้อ 44. Not only the farmers ______ the cooperative also benefited from the programme.
+ภาษาอังกฤษ › Structure and Grammar
+1)  also
+2)  and
+3)  or
+4)  but
+ข้อ 45. The document needs ______ by the head of the department.
+ภาษาอังกฤษ › Structure and Grammar
+1)  sign
+2)  to sign
+3)  signed
+4)  signing
+ข้อ 46. He has worked here ______ he graduated.
+ภาษาอังกฤษ › Structure and Grammar
+1)  since
+2)  for
+3)  when
+4)  while
+ข้อ 47. If I ______ you, I would apply for the position.
+ภาษาอังกฤษ › Structure and Grammar
+1)  were
+2)  was
+3)  am
+4)  be
+ข้อ 48. Each of the applicants ______ to submit a copy of the ID card.
+ภาษาอังกฤษ › Structure and Grammar
+1)  has
+2)  have
+3)  are
+4)  were
+ข้อ 49. The loan was approved ______ the condition that the land is used as collateral.
+ภาษาอังกฤษ › Structure and Grammar
+1)  in
+2)  on
+3)  at
+4)  for
+ข้อ 50. Please let me ______ the figures again before we submit the report.
+ภาษาอังกฤษ › Structure and Grammar
+1)  checking
+2)  to check
+3)  checked
+4)  check
+ข้อ 51. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  The number of customers
+2)  this year
+3)  significantly
+4)  have increased
+ข้อ 52. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  She has been working
+2)  since five years
+3)  in this bank
+4)  and enjoys it
+ข้อ 53. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  The manager, together with his staff,
+2)  are going
+3)  to attend
+4)  the seminar
+ข้อ 54. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  to hear
+2)  I look forward
+3)  from you
+4)  soon
+ข้อ 55. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  Each farmer
+2)  their documents
+3)  must submit
+4)  by Friday
+ข้อ 56. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  The bank provides
+2)  a various services
+3)  to customers
+4)  in rural areas
+ข้อ 57. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  He is interested
+2)  since 2020
+3)  at the credit department
+4)  in working
+ข้อ 58. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  The report must
+2)  to the head office
+3)  be submit
+4)  before the deadline
+ข้อ 59. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  Neither of the answers
+2)  the answer key
+3)  according to
+4)  are correct
+ข้อ 60. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  We discussed
+2)  for more than
+3)  about the problem
+4)  two hours
+ข้อ 61. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  many information
+2)  There are
+3)  available
+4)  on the website
+ข้อ 62. Choose the part that is grammatically INCORRECT.
+ภาษาอังกฤษ › Error Identification
+1)  The farmers were
+2)  loan programme
+3)  about the new
+4)  very exciting
+ข้อ 63. Customer: “Could you tell me the interest rate for a one-year fixed deposit?”
+Officer: “______”
+ภาษาอังกฤษ › Conversation
+1)  It is 1.75% per annum.
+2)  I don't know, sorry.
+3)  You must ask the manager.
+4)  Yes, I told you already.
+ข้อ 64. Officer: “May I have your ID card, please?”
+Customer: “______”
+ภาษาอังกฤษ › Conversation
+1)  That's all right.
+2)  Yes, I do.
+3)  No, thank you.
+4)  Here you are.
+ข้อ 65. Customer: “Thank you for your help.”
+Officer: “______”
+ภาษาอังกฤษ › Conversation
+1)  Of course not.
+2)  Never mind.
+3)  You're welcome.
+4)  I'm afraid not.
+ข้อ 66. Officer: “I'm afraid the branch is closed now.”
+Customer: “______”
+ภาษาอังกฤษ › Conversation
+1)  You are welcome.
+2)  When does it open again?
+3)  Thank you for nothing.
+4)  I don't care.
+ข้อ 67. Customer: “I'd like to open a savings account.”
+Officer: “______”
+ภาษาอังกฤษ › Conversation
+1)  Maybe next time.
+2)  No, you can't.
+3)  Certainly. Could you fill in this form, please?
+4)  Why do you want that?
+ข้อ 68. Officer: “Would you mind waiting a few minutes?”
+Customer: “______”
+ภาษาอังกฤษ › Conversation
+1)  Not at all.
+2)  Yes, I would mind.
+3)  You're welcome.
+4)  That's correct.
+ข้อ 69. A: “I'm sorry. I made a mistake on the form.”
+B: “______”
+ภาษาอังกฤษ › Conversation
+1)  I told you so.
+2)  You should be fired.
+3)  It's your problem.
+4)  That's all right. Let's correct it together.
+ข้อ 70. Customer: “How long does it take to process the loan?”
+Officer: “______”
+ภาษาอังกฤษ › Conversation
+1)  It depends on you.
+2)  About seven working days, provided the documents are complete.
+3)  I am not sure about anything.
+4)  Two days ago.
+ข้อ 71. Read the passage and answer the question.
+“Mobile banking has changed the way rural customers in Thailand access financial services. Instead of travelling to a branch, farmers can now check their loan balances, transfer money, and pay for agricultural supplies using a smartphone. However, digital literacy remains a challenge, and many customers still rely on staff at local branches for assistance.”
+What is the main idea of the passage?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Mobile banking is completely replacing bank branches in Thailand.
+2)  Branches will close because of the growth of mobile banking.
+3)  Farmers are unable to use smartphones for financial transactions.
+4)  Mobile banking benefits rural customers but some still need human support.
+ข้อ 72. From the passage above, the word “digital literacy” most nearly means
+ภาษาอังกฤษ › Reading Comprehension
+1)  the ability to use digital technology effectively
+2)  the cost of accessing internet services in rural areas
+3)  the total number of smartphone users in the country
+4)  the speed of mobile networks provided by operators
+ข้อ 73. From the passage above, what is mentioned as a remaining problem?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Farmers cannot check loan balances.
+2)  Many customers lack digital skills.
+3)  Transferring money is not allowed on mobile.
+4)  Agricultural supplies are too expensive.
+ข้อ 74. Read the passage and answer the question.
+“The Bank for Agriculture and Agricultural Cooperatives (BAAC) was established on 1 November 1966 under the BAAC Act B.E. 2509. Its main objective is to provide fair sources of funds to farmers, farmer groups, and agricultural cooperatives, thereby reducing their dependence on informal lenders.”
+According to the passage, the main purpose of BAAC is to
+ภาษาอังกฤษ › Reading Comprehension
+1)  provide loans to large corporations
+2)  operate only in Bangkok
+3)  give farmers access to fair sources of funds
+4)  replace agricultural cooperatives
+ข้อ 75. From the passage above, the word “dependence” is closest in meaning to
+ภาษาอังกฤษ › Reading Comprehension
+1)  advantage
+2)  independence
+3)  difference
+4)  reliance
+◆ ข้อ 76. From the passage above, when did BAAC begin operating?
+ภาษาอังกฤษ › Reading Comprehension
+1)  1 November 1966
+2)  1 November 2509
+3)  31 March 1966
+4)  1 December 1966
+ข้อ 77. Read the passage and choose the best answer.
+BAAC was established in 1966 to provide credit to farmers who had little access to commercial banks. Today the bank serves millions of households through more than a thousand branches nationwide. Its main mission remains the improvement of rural living standards.
+What was the original purpose of BAAC?
+ภาษาอังกฤษ › Reading Comprehension
+1)  To collect taxes from farmers
+2)  To compete with commercial banks
+3)  To provide credit to farmers
+4)  To build roads in rural areas
+ข้อ 78. Read the passage and choose the best answer.
+BAAC was established in 1966 to provide credit to farmers who had little access to commercial banks. Today the bank serves millions of households through more than a thousand branches nationwide. Its main mission remains the improvement of rural living standards.
+Which statement is TRUE according to the passage?
+ภาษาอังกฤษ › Reading Comprehension
+1)  BAAC has no branches in the countryside.
+2)  BAAC stopped serving farmers.
+3)  BAAC was founded in 1996.
+4)  BAAC has more than one thousand branches.
+ข้อ 79. Read the passage and choose the best answer.
+BAAC was established in 1966 to provide credit to farmers who had little access to commercial banks. Today the bank serves millions of households through more than a thousand branches nationwide. Its main mission remains the improvement of rural living standards.
+The word “mission” in the passage is closest in meaning to ______.
+ภาษาอังกฤษ › Reading Comprehension
+1)  profit
+2)  duty
+3)  address
+4)  permission
+ข้อ 80. Read the passage and choose the best answer.
+A credit officer must assess three things before approving a loan: the borrower's ability to repay, the value of the collateral, and the purpose of the loan. If any of these is unclear, the officer should ask for more documents rather than approve the application quickly.
+What should an officer do when information is unclear?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Reject the application immediately
+2)  Approve the loan quickly
+3)  Ask for more documents
+4)  Ignore the missing data
+ข้อ 81. Read the passage and choose the best answer.
+A credit officer must assess three things before approving a loan: the borrower's ability to repay, the value of the collateral, and the purpose of the loan. If any of these is unclear, the officer should ask for more documents rather than approve the application quickly.
+Which of the following is NOT mentioned as one of the three things to assess?
+ภาษาอังกฤษ › Reading Comprehension
+1)  The borrower's age
+2)  The ability to repay
+3)  The value of the collateral
+4)  The purpose of the loan
+ข้อ 82. Read the passage and choose the best answer.
+A credit officer must assess three things before approving a loan: the borrower's ability to repay, the value of the collateral, and the purpose of the loan. If any of these is unclear, the officer should ask for more documents rather than approve the application quickly.
+The word “assess” is closest in meaning to ______.
+ภาษาอังกฤษ › Reading Comprehension
+1)  evaluate
+2)  assist
+3)  assume
+4)  announce
+ข้อ 83. Read the passage and choose the best answer.
+Digital banking has changed the way people save money. Customers can now transfer funds, pay bills and check their balances at any time. However, elderly customers sometimes find mobile applications difficult to use, so branches still play an important role for them.
+Why do branches remain important for some customers?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Because some elderly customers find apps difficult
+2)  Because apps are always offline
+3)  Because branches pay higher interest
+4)  Because transfers are not allowed online
+ข้อ 84. Read the passage and choose the best answer.
+Digital banking has changed the way people save money. Customers can now transfer funds, pay bills and check their balances at any time. However, elderly customers sometimes find mobile applications difficult to use, so branches still play an important role for them.
+What can customers NOT do according to the passage?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Open a fixed deposit account online
+2)  Transfer funds
+3)  Pay bills
+4)  Check their balances
+ข้อ 85. Read the passage and choose the best answer.
+Digital banking has changed the way people save money. Customers can now transfer funds, pay bills and check their balances at any time. However, elderly customers sometimes find mobile applications difficult to use, so branches still play an important role for them.
+What is the main idea of the passage?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Mobile applications are always dangerous
+2)  Branches should be closed
+3)  Elderly people should not save money
+4)  Digital banking is convenient but branches are still needed
+ข้อ 86. Read the passage and choose the best answer.
+Farmers who grow only one crop face a high risk when the price of that crop falls. Growing several crops, or raising animals alongside crops, helps spread the risk. Banks that understand this can design loan products that match the harvest calendar.
+According to the passage, what helps reduce risk?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Borrowing more money
+2)  Growing only one crop
+3)  Growing several crops
+4)  Selling at a lower price
+ข้อ 87. Read the passage and choose the best answer.
+Farmers who grow only one crop face a high risk when the price of that crop falls. Growing several crops, or raising animals alongside crops, helps spread the risk. Banks that understand this can design loan products that match the harvest calendar.
+What does “harvest calendar” refer to?
+ภาษาอังกฤษ › Reading Comprehension
+1)  The interest rate table
+2)  A list of bank holidays
+3)  The schedule of planting and harvesting
+4)  A type of loan contract
+ข้อ 88. Read the passage and choose the best answer.
+Farmers who grow only one crop face a high risk when the price of that crop falls. Growing several crops, or raising animals alongside crops, helps spread the risk. Banks that understand this can design loan products that match the harvest calendar.
+The word “spread” in the passage is closest in meaning to ______.
+ภาษาอังกฤษ › Reading Comprehension
+1)  distribute
+2)  increase
+3)  prevent
+4)  record
+ข้อ 89. Read the passage and choose the best answer.
+The cooperative collects money from its members and lends it back to them at a low interest rate. Members must attend the annual meeting, where they vote on how the profit will be used. This model keeps decision-making within the community.
+Who makes decisions in the cooperative described?
+ภาษาอังกฤษ › Reading Comprehension
+1)  A commercial bank
+2)  The government
+3)  The members, by voting
+4)  A single manager
+ข้อ 90. Read the passage and choose the best answer.
+The cooperative collects money from its members and lends it back to them at a low interest rate. Members must attend the annual meeting, where they vote on how the profit will be used. This model keeps decision-making within the community.
+What is one advantage mentioned in the passage?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Free membership
+2)  A low interest rate for members
+3)  No meetings required
+4)  Government ownership
+ข้อ 91. Read the passage and choose the best answer.
+The cooperative collects money from its members and lends it back to them at a low interest rate. Members must attend the annual meeting, where they vote on how the profit will be used. This model keeps decision-making within the community.
+The pronoun “its” in “its members” refers to ______.
+ภาษาอังกฤษ › Reading Comprehension
+1)  the interest rate
+2)  the cooperative
+3)  the profit
+4)  the community
+ข้อ 92. Read the passage and choose the best answer.
+Good customer service is not only about speed. A bank officer should listen carefully, explain the product in simple words, and never promise something that the bank cannot deliver. A promise that is not kept damages trust more than a slow answer.
+What does the writer consider most damaging to trust?
+ภาษาอังกฤษ › Reading Comprehension
+1)  A simple explanation
+2)  A slow answer
+3)  A promise that is not kept
+4)  Careful listening
+ข้อ 93. Read the passage and choose the best answer.
+Good customer service is not only about speed. A bank officer should listen carefully, explain the product in simple words, and never promise something that the bank cannot deliver. A promise that is not kept damages trust more than a slow answer.
+Which behaviour is NOT recommended in the passage?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Being honest about what the bank can do
+2)  Listening carefully
+3)  Explaining products simply
+4)  Promising anything the customer asks
+ข้อ 94. Read the passage and choose the best answer.
+Good customer service is not only about speed. A bank officer should listen carefully, explain the product in simple words, and never promise something that the bank cannot deliver. A promise that is not kept damages trust more than a slow answer.
+What is the passage mainly about?
+ภาษาอังกฤษ › Reading Comprehension
+1)  How to close an account
+2)  How to approve loans quickly
+3)  The interest rate policy of banks
+4)  Qualities of good customer service
+ข้อ 95. Read the passage and choose the best answer.
+Before signing a loan contract, borrowers should read the repayment schedule, the penalty for late payment, and the conditions under which the interest rate may change. Signing without reading these terms often leads to unexpected costs later.
+What may happen if borrowers sign without reading the terms?
+ภาษาอังกฤษ › Reading Comprehension
+1)  They will pay no interest
+2)  They may face unexpected costs
+3)  The contract becomes invalid
+4)  The bank will cancel the loan
+ข้อ 96. Read the passage and choose the best answer.
+Before signing a loan contract, borrowers should read the repayment schedule, the penalty for late payment, and the conditions under which the interest rate may change. Signing without reading these terms often leads to unexpected costs later.
+Which item is NOT mentioned in the passage?
+ภาษาอังกฤษ › Reading Comprehension
+1)  The borrower's credit history
+2)  The repayment schedule
+3)  The penalty for late payment
+4)  The conditions for a change in the interest rate
+ข้อ 97. Read the passage and choose the best answer.
+Before signing a loan contract, borrowers should read the repayment schedule, the penalty for late payment, and the conditions under which the interest rate may change. Signing without reading these terms often leads to unexpected costs later.
+The word “penalty” in the passage is closest in meaning to ______.
+ภาษาอังกฤษ › Reading Comprehension
+1)  fine
+2)  benefit
+3)  discount
+4)  bonus
+ข้อ 98. Read the passage and choose the best answer.
+Rice prices rose sharply last year, so many farmers increased the area they planted. This year the supply is larger than demand, and prices have fallen. Economists warn that planting decisions based only on last year's prices can be risky.
+Why have prices fallen this year?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Demand is larger than supply
+2)  Supply is larger than demand
+3)  The government banned rice exports
+4)  Farmers planted less rice
+ข้อ 99. Read the passage and choose the best answer.
+Rice prices rose sharply last year, so many farmers increased the area they planted. This year the supply is larger than demand, and prices have fallen. Economists warn that planting decisions based only on last year's prices can be risky.
+What do economists warn against?
+ภาษาอังกฤษ › Reading Comprehension
+1)  Selling rice too early
+2)  Planting rice at all
+3)  Deciding what to plant based only on last year's prices
+4)  Borrowing money from banks
+ข้อ 100. Read the passage and choose the best answer.
+Rice prices rose sharply last year, so many farmers increased the area they planted. This year the supply is larger than demand, and prices have fallen. Economists warn that planting decisions based only on last year's prices can be risky.
+The word “sharply” is closest in meaning to ______.
+ภาษาอังกฤษ › Reading Comprehension
+1)  slowly
+2)  significantly
+3)  slightly
+4)  suddenly and briefly
+เฉลยและคำอธิบาย — พาร์ท 1.5 ความสามารถด้านภาษาอังกฤษ
+คำอธิบายอ้างอิงหลักการ/สูตร/ระเบียบที่เกี่ยวข้อง และชี้เหตุผลของตัวลวงในข้อที่มีกับดัก (◆)
+ข้อ 1. เฉลย  2. security pledged for repayment
+collateral = หลักประกันที่ใช้ค้ำประกันการชำระหนี้ (security pledged for repayment)
+ข้อ 2. เฉลย  3. grace
+grace period = ระยะผ่อนผันการชำระหนี้ เป็นศัพท์ที่ใช้ในธุรกิจสินเชื่อ
+ข้อ 3. เฉลย  4. shortage
+surplus = ส่วนเกิน, คำตรงข้ามคือ shortage = การขาดแคลน
+ข้อ 4. เฉลย  1. credit
+credit record = ประวัติทางการเงิน/เครดิต (credible = น่าเชื่อถือ, creditor = เจ้าหนี้, credential = หลักฐานยืนยันตัวตน)
+ข้อ 5. เฉลย  2. assess
+assess = ประเมิน (การประเมินสินทรัพย์ก่อนอนุมัติสินเชื่อ) ส่วน access = เข้าถึง
+ข้อ 6. เฉลย  3. repaid
+โครงสร้าง is repaid monthly = ถูกชำระคืนเป็นรายเดือน (กริยา repay ใช้กับหนี้/เงินกู้)
+ข้อ 7. เฉลย  2. guarantee
+Collateral = หลักประกัน (guarantee/security) ที่ใช้ค้ำประกันเงินกู้
+ข้อ 8. เฉลย  4. shortage
+Surplus = ส่วนเกิน; คำตรงข้ามคือ shortage = การขาดแคลน
+ข้อ 9. เฉลย  3. repay
+ตำแหน่งนี้ต้องใช้คำกริยา (verb) “repay” หลัง modal “will”
+ข้อ 10. เฉลย  4. money sent
+Remittance = เงินที่ส่งไป (การโอนเงิน) โดยเฉพาะเงินโอนข้ามถิ่น
+ข้อ 11. เฉลย  4. liable
+be liable for = ต้องรับผิดชอบต่อ (ค่าเสียหาย) ส่วน reliable = เชื่อถือได้
+ข้อ 12. เฉลย  1. financial support
+Subsidy = เงินอุดหนุนจากรัฐ (financial support)
+ข้อ 13. เฉลย  1. depreciate
+Appreciate = มีค่าเพิ่มขึ้น; คำตรงข้ามคือ depreciate = เสื่อมค่า
+ข้อ 14. เฉลย  4. meticulous
+Meticulous = ละเอียดรอบคอบ (สนใจรายละเอียดเล็ก ๆ)
+ข้อ 15. เฉลย  2. examination of accounts
+Audit = การตรวจสอบบัญชี (examination of financial records)
+ข้อ 16. เฉลย  3. raised
+Raise เป็นสกรรมกริยา (raise something) จึงใช้ในรูป passive ได้ ส่วน rise ไม่ต้องมีกรรม
+ข้อ 17. เฉลย  1. failure to pay
+Default = การผิดนัดชำระหนี้ (failure to pay)
+ข้อ 18. เฉลย  1. deposit
+Withdraw = ถอนเงิน; คำตรงข้ามคือ deposit = ฝากเงิน
+ข้อ 19. เฉลย  4. repayment
+ตำแหน่งหน้าคำนาม “plan” ต้องใช้คำขยายประเภทคำนาม คือ repayment ( repayment plan )
+ข้อ 20. เฉลย  4. feasible
+Viable = เป็นไปได้/มีความเป็นไปได้ในการปฏิบัติ (feasible)
+ข้อ 21. เฉลย  2. attend
+หลังกริยา insisted that ในรูป subjunctive ต้องใช้กริยาช่องที่ 1 (base form) โดยไม่ผันตามประธาน จึงใช้ attend
+(เทียบกับ require/propose/suggest/recommend that + S + V1)
+อ้างอิง: Subjunctive after verbs of demand
+ข้อ 22. เฉลย  3. had prepared
+เหตุการณ์ที่เกิดขึ้นก่อนอีกเหตุการณ์หนึ่งในอดีตใช้ Past Perfect (had + V3) โดยมี by the time + Past Simple เป็นตัวบอกลำดับเวลา
+ข้อ 23. เฉลย  4. is
+ประธานคือ The number of (จำนวนของ) ซึ่งเป็นเอกพจน์ แม้คำนามตามหลังจะเป็นพหูพจน์ กริยาจึงใช้ is (เทียบกับ A number of + คำนามพหูพจน์ + กริยาพหูพจน์)
+ข้อ 24. เฉลย  1. who
+สรรพนามที่ใช้แทนบุคคลที่ทำหน้าที่เป็นประธานของกริยา have worked คือ who (whom ใช้เมื่อเป็นกรรม)
+ข้อ 25. เฉลย  2. were
+ประโยคเงื่อนไขแบบที่ 2 (ไม่จริงในปัจจุบัน) ใช้ If + Past Simple และนิยมใช้ were กับทุกประธานในโครงสร้าง if I/he/she were
+ข้อ 26. เฉลย  3. by
+by + จุดเวลา หมายถึง ไม่เกินกำหนดเวลา (deadline) ส่วน until หมายถึง ต่อเนื่องไปจนถึงเวลาใดเวลาหนึ่ง
+ข้อ 27. เฉลย  4. were
+ประธานที่เชื่อมด้วย neither … nor ใช้กริยาตามประธานตัวหลัง (the officers = พหูพจน์) และประโยคเป็นอดีต จึงใช้ were
+ข้อ 28. เฉลย  1. will be
+ประโยคกรรมวาจก (passive voice) ในอนาคตใช้ will be + V3 เนื่องจากประธาน (software) เป็นผู้ถูกกระทำ
+ข้อ 29. เฉลย  3. were
+กับ “neither … nor …” กริยาต้องใช้กริยาให้สอดคล้องกับประธานตัวหลังสุด คือ “staff members” (พหูพจน์) จึงใช้ were
+ข้อ 30. เฉลย  1. was submitted
+ประธาน “The report” เป็นผู้ถูกกระทำ และมี “yesterday” บอกอดีต → past simple passive
+ข้อ 31. เฉลย  4. had filled
+เงื่อนไขแบบที่ 3 (อดีตที่ไม่ได้เกิดขึ้นจริง) → if + past perfect, would have + V3
+ข้อ 32. เฉลย  3. since
+“since” ใช้กับจุดเริ่มต้นของเวลา (1998) ส่วน “for” ใช้กับช่วงเวลา
+ข้อ 33. เฉลย  3. who
+ขยายคำนามบุคคลที่ทำหน้าที่เป็นประธานของกริยา “approved” → who
+ข้อ 34. เฉลย  2. postponing
+suggest + V-ing (gerund) ไม่ใช้ to + V
+ข้อ 35. เฉลย  2. higher
+มีการเปรียบเทียบ (than) → ใช้รูป comparative “higher”
+ข้อ 36. เฉลย  2. Despite
+ตามด้วยคำนามวลี “the heavy rain” → ใช้ Despite ( Although ต้องตามด้วยประโยค)
+ข้อ 37. เฉลย  3. is
+“neither of” ถือเป็นเอกพจน์ → ใช้ is
+ข้อ 38. เฉลย  3. to wear
+be required to + V (infinitive)
+ข้อ 39. เฉลย  1. for
+“for” ใช้กับช่วงเวลา (two weeks)
+ข้อ 40. เฉลย  3. to file
+ask someone to do something → to + V
+ข้อ 41. เฉลย  3. where
+ขยายสถานที่ (branch) ที่ตามด้วยประโยคสมบูรณ์ → where
+ข้อ 42. เฉลย  4. had closed
+เหตุการณ์ที่เกิดก่อนอีกเหตุการณ์ในอดีต → past perfect
+ข้อ 43. เฉลย  2. be
+will + be + V3 (future passive)
+ข้อ 44. เฉลย  4. but
+โครงสร้าง “not only … but also …”
+ข้อ 45. เฉลย  4. signing
+need + V-ing มีความหมาย passive (need signing = ต้องได้รับการเซ็น)
+ข้อ 46. เฉลย  1. since
+ตามด้วยอนุประโยคบอกจุดเวลา → since
+ข้อ 47. เฉลย  1. were
+ประโยคสมมติที่ตรงข้ามความจริง (second conditional) ใช้ were กับทุกประธาน
+ข้อ 48. เฉลย  1. has
+“each of” เป็นเอกพจน์ → has
+ข้อ 49. เฉลย  2. on
+on the condition that = ภายใต้เงื่อนไขว่า
+ข้อ 50. เฉลย  4. check
+let someone do something → V ไม่มี to
+ข้อ 51. เฉลย  4. have increased
+“The number of + นามพหูพจน์” ถือเป็นเอกพจน์ → ต้องใช้ has increased
+ข้อ 52. เฉลย  2. since five years
+“since” ใช้กับจุดเวลา ต้องเปลี่ยนเป็น “for five years” (ช่วงเวลา)
+ข้อ 53. เฉลย  2. are going
+ประธานหลักคือ “The manager” (เอกพจน์) ส่วน “together with” ไม่ทำให้ประธานเป็นพหูพจน์ → is going
+ข้อ 54. เฉลย  1. to hear
+look forward to + V-ing → to hearing
+ข้อ 55. เฉลย  2. their documents
+“Each” เป็นเอกพจน์ ควรใช้ “his or her documents”
+ข้อ 56. เฉลย  2. a various services
+“a various” ผิด ต้องเป็น “various services” (ไม่ใช้ a กับ various)
+ข้อ 57. เฉลย  2. since 2020
+ส่วน “since 2020” บอกช่วงเวลาต่อเนื่อง ต้องใช้กับรูป perfect (has been interested / has worked) ไม่สามารถใช้กับ present simple “is interested” จึงเป็นส่วนที่ผิดไวยากรณ์
+ข้อ 58. เฉลย  3. be submit
+passive ต้องเป็น be + V3 → be submitted
+ข้อ 59. เฉลย  4. are correct
+“neither of” เป็นเอกพจน์ → is correct
+ข้อ 60. เฉลย  3. about the problem
+discuss เป็นสกรรมกริยาที่ไม่ต้องมี “about” → discussed the problem
+ข้อ 61. เฉลย  1. many information
+“information” เป็นนามนับไม่ได้ → much information
+ข้อ 62. เฉลย  4. very exciting
+ขยายความรู้สึกของคนต้องใช้ excited ไม่ใช่ exciting (ซึ่งใช้กับสิ่งของ)
+ข้อ 63. เฉลย  1. It is 1.75% per annum.
+ตอบข้อมูลตามที่ถูกถามอย่างตรงประเด็นและสุภาพ ข้ออื่นไม่ให้ข้อมูลหรือไม่สุภาพ
+ข้อ 64. เฉลย  4. Here you are.
+เมื่อให้สิ่งของแก่ผู้ขอ ใช้ “Here you are.” (นี่ครับ/ค่ะ)
+ข้อ 65. เฉลย  3. You're welcome.
+ตอบรับคำขอบคุณด้วย “You're welcome.”
+ข้อ 66. เฉลย  2. When does it open again?
+ตอบด้วยการถามข้อมูลต่ออย่างสุภาพ
+ข้อ 67. เฉลย  3. Certainly. Could you fill in this form, please?
+ตอบรับและแนะนำขั้นตอนต่อไปอย่างสุภาพ
+ข้อ 68. เฉลย  1. Not at all.
+ตอบรับคำขอด้วย “Not at all.” (ไม่รังเกียจ/ยินดี)
+ข้อ 69. เฉลย  4. That's all right. Let's correct it together.
+ตอบอย่างให้อภัยและเสนอทางแก้ ตรงกับสถานการณ์การทำงาน
+ข้อ 70. เฉลย  2. About seven working days, provided the documents are complete.
+ตอบข้อมูลระยะเวลาอย่างชัดเจนและมีเงื่อนไขที่สมเหตุสมผล
+ข้อ 71. เฉลย  4. Mobile banking benefits rural customers but some still need human support.
+ใจความหลักคือคุณประโยชน์ของโมบายแบงก์กิงต่อลูกค้าในชนบท ควบคู่กับข้อจำกัดด้านทักษะดิจิทัลที่ยังต้องพึ่งเจ้าหน้าที่
+ข้อ 1 และ 4 กล่าวเกินข้อความ ข้อ 3 ขัดกับข้อความ
+ข้อ 72. เฉลย  1. the ability to use digital technology effectively
+digital literacy = ความสามารถในการใช้เทคโนโลยีดิจิทัลอย่างมีประสิทธิภาพ
+ข้อ 73. เฉลย  2. Many customers lack digital skills.
+ข้อความระบุตรง ๆ ว่า “digital literacy remains a challenge” จึงตรงกับข้อ 3
+ข้อ 74. เฉลย  3. give farmers access to fair sources of funds
+ข้อความระบุชัดเจนว่า main objective คือการให้เกษตรกรเข้าถึงแหล่งเงินทุนที่เป็นธรรม (fair sources of funds)
+ข้อ 75. เฉลย  4. reliance
+dependence = reliance = การพึ่งพา
+ข้อ 76. เฉลย  1. 1 November 1966
+ข้อความระบุ “1 November 1966” ซึ่งตรงกับ 1 พฤศจิกายน พ.ศ. 2509
+ข้อ 2 เป็นการเขียนปี พ.ศ. ปนกับรูปแบบ ค.ศ. จึงไม่ถูกต้อง
+ข้อ 77. เฉลย  3. To provide credit to farmers
+ประโยคแรกบอกจุดประสงค์เดิมคือ “provide credit to farmers who had little access to commercial banks”
+ข้อ 78. เฉลย  4. BAAC has more than one thousand branches.
+ข้อความระบุ “more than a thousand branches nationwide”
+ข้อ 79. เฉลย  2. duty
+Mission = ภารกิจ/หน้าที่ = duty
+ข้อ 80. เฉลย  3. Ask for more documents
+ประโยคสุดท้ายระบุ “ask for more documents rather than approve … quickly”
+ข้อ 81. เฉลย  1. The borrower's age
+ผู้อ่านต้องจับว่าข้อความกล่าวถึง ability to repay, collateral และ purpose เท่านั้น ไม่ได้กล่าวถึงอายุ
+ข้อ 82. เฉลย  1. evaluate
+Assess = ประเมิน = evaluate
+ข้อ 83. เฉลย  1. Because some elderly customers find apps difficult
+ข้อความระบุ “elderly customers sometimes find mobile applications difficult to use, so branches still play an important role”
+ข้อ 84. เฉลย  1. Open a fixed deposit account online
+ข้อความกล่าวถึงการโอนเงิน จ่ายบิล และตรวจสอบยอดเงิน แต่ไม่ได้กล่าวถึงการเปิดบัญชีเงินฝากประจำออนไลน์
+ข้อ 85. เฉลย  4. Digital banking is convenient but branches are still needed
+ข้อความกล่าวถึงประโยชน์ของดิจิทัลแบงก์กิงและเหตุที่สาขายังจำเป็น = แนวคิดหลัก
+ข้อ 86. เฉลย  3. Growing several crops
+ข้อความระบุ “Growing several crops … helps spread the risk”
+ข้อ 87. เฉลย  3. The schedule of planting and harvesting
+harvest calendar = ปฏิทินการเพาะปลูกและเก็บเกี่ยว
+ข้อ 88. เฉลย  1. distribute
+spread the risk = กระจายความเสี่ยง = distribute
+ข้อ 89. เฉลย  3. The members, by voting
+ข้อความระบุ “Members … vote on how the profit will be used”
+ข้อ 90. เฉลย  2. A low interest rate for members
+ข้อความระบุ “lends it back to them at a low interest rate”
+ข้อ 91. เฉลย  2. the cooperative
+“its” ย้อนกลับไปยังคำนามที่กล่าวก่อนหน้าคือ the cooperative
+ข้อ 92. เฉลย  3. A promise that is not kept
+ประโยคสุดท้ายระบุ “A promise that is not kept damages trust more than a slow answer”
+ข้อ 93. เฉลย  4. Promising anything the customer asks
+ข้อความแนะนำให้ “never promise something that the bank cannot deliver”
+ข้อ 94. เฉลย  4. Qualities of good customer service
+เนื้อหาทั้งย่อหน้าพูดถึงลักษณะของบริการที่ดี
+ข้อ 95. เฉลย  2. They may face unexpected costs
+ประโยคสุดท้ายระบุ “often leads to unexpected costs later”
+ข้อ 96. เฉลย  1. The borrower's credit history
+ข้อความกล่าวถึงตารางการชำระ ค่าปรับ และเงื่อนไขการเปลี่ยนดอกเบี้ย ไม่ได้กล่าวถึงประวัติเครดิต
+ข้อ 97. เฉลย  1. fine
+Penalty = ค่าปรับ = fine
+ข้อ 98. เฉลย  2. Supply is larger than demand
+ข้อความระบุ “the supply is larger than demand, and prices have fallen”
+ข้อ 99. เฉลย  3. Deciding what to plant based only on last year's prices
+ประโยคสุดท้ายระบุ “planting decisions based only on last year's prices can be risky”
+ข้อ 100. เฉลย  2. significantly
+sharply = อย่างรวดเร็วและมาก = significantly (ในบริบทของราคา)
+ตารางสรุปเฉลย (Answer Key)
+[TABLE]
+| 1 = 2 | 2 = 3 | 3 = 4 | 4 = 1 | 5 = 2 | 6 = 3 | 7 = 2 | 8 = 4 | 9 = 3 | 10 = 4
+| 11 = 4 | 12 = 1 | 13 = 1 | 14 = 4 | 15 = 2 | 16 = 3 | 17 = 1 | 18 = 1 | 19 = 4 | 20 = 4
+| 21 = 2 | 22 = 3 | 23 = 4 | 24 = 1 | 25 = 2 | 26 = 3 | 27 = 4 | 28 = 1 | 29 = 3 | 30 = 1
+| 31 = 4 | 32 = 3 | 33 = 3 | 34 = 2 | 35 = 2 | 36 = 2 | 37 = 3 | 38 = 3 | 39 = 1 | 40 = 3
+| 41 = 3 | 42 = 4 | 43 = 2 | 44 = 4 | 45 = 4 | 46 = 1 | 47 = 1 | 48 = 1 | 49 = 2 | 50 = 4
+[/TABLE]
+[TABLE]
+| 51 = 4 | 52 = 2 | 53 = 2 | 54 = 1 | 55 = 2 | 56 = 2 | 57 = 2 | 58 = 3 | 59 = 4 | 60 = 3
+| 61 = 1 | 62 = 4 | 63 = 1 | 64 = 4 | 65 = 3 | 66 = 2 | 67 = 3 | 68 = 1 | 69 = 4 | 70 = 2
+| 71 = 4 | 72 = 1 | 73 = 2 | 74 = 3 | 75 = 4 | 76 = 1 | 77 = 3 | 78 = 4 | 79 = 2 | 80 = 3
+| 81 = 1 | 82 = 1 | 83 = 1 | 84 = 1 | 85 = 4 | 86 = 3 | 87 = 3 | 88 = 1 | 89 = 3 | 90 = 2
+| 91 = 2 | 92 = 3 | 93 = 4 | 94 = 4 | 95 = 2 | 96 = 1 | 97 = 1 | 98 = 2 | 99 = 3 | 100 = 2
+[/TABLE]
+กระดาษคำตอบ (ใช้ฝึกกากบาทจริง)
+[TABLE]
+| 1 | ○ | ○ | ○ | ○ | 26
+| 2 | ○ | ○ | ○ | ○ | 27
+| 3 | ○ | ○ | ○ | ○ | 28
+| 4 | ○ | ○ | ○ | ○ | 29
+| 5 | ○ | ○ | ○ | ○ | 30
+| 6 | ○ | ○ | ○ | ○ | 31
+| 7 | ○ | ○ | ○ | ○ | 32
+| 8 | ○ | ○ | ○ | ○ | 33
+| 9 | ○ | ○ | ○ | ○ | 34
+| 10 | ○ | ○ | ○ | ○ | 35
+| 11 | ○ | ○ | ○ | ○ | 36
+| 12 | ○ | ○ | ○ | ○ | 37
+| 13 | ○ | ○ | ○ | ○ | 38
+| 14 | ○ | ○ | ○ | ○ | 39
+| 15 | ○ | ○ | ○ | ○ | 40
+| 16 | ○ | ○ | ○ | ○ | 41
+| 17 | ○ | ○ | ○ | ○ | 42
+| 18 | ○ | ○ | ○ | ○ | 43
+| 19 | ○ | ○ | ○ | ○ | 44
+| 20 | ○ | ○ | ○ | ○ | 45
+| 21 | ○ | ○ | ○ | ○ | 46
+| 22 | ○ | ○ | ○ | ○ | 47
+| 23 | ○ | ○ | ○ | ○ | 48
+| 24 | ○ | ○ | ○ | ○ | 49
+| 25 | ○ | ○ | ○ | ○ | 50
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+[/TABLE]
+[TABLE]
+| 51 | ○ | ○ | ○ | ○ | 76
+| 52 | ○ | ○ | ○ | ○ | 77
+| 53 | ○ | ○ | ○ | ○ | 78
+| 54 | ○ | ○ | ○ | ○ | 79
+| 55 | ○ | ○ | ○ | ○ | 80
+| 56 | ○ | ○ | ○ | ○ | 81
+| 57 | ○ | ○ | ○ | ○ | 82
+| 58 | ○ | ○ | ○ | ○ | 83
+| 59 | ○ | ○ | ○ | ○ | 84
+| 60 | ○ | ○ | ○ | ○ | 85
+| 61 | ○ | ○ | ○ | ○ | 86
+| 62 | ○ | ○ | ○ | ○ | 87
+| 63 | ○ | ○ | ○ | ○ | 88
+| 64 | ○ | ○ | ○ | ○ | 89
+| 65 | ○ | ○ | ○ | ○ | 90
+| 66 | ○ | ○ | ○ | ○ | 91
+| 67 | ○ | ○ | ○ | ○ | 92
+| 68 | ○ | ○ | ○ | ○ | 93
+| 69 | ○ | ○ | ○ | ○ | 94
+| 70 | ○ | ○ | ○ | ○ | 95
+| 71 | ○ | ○ | ○ | ○ | 96
+| 72 | ○ | ○ | ○ | ○ | 97
+| 73 | ○ | ○ | ○ | ○ | 98
+| 74 | ○ | ○ | ○ | ○ | 99
+| 75 | ○ | ○ | ○ | ○ | 100
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+|  | ○ | ○ | ○ | ○ | 
+[/TABLE]
