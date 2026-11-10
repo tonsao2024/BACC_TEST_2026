@@ -12,14 +12,17 @@ create table if not exists public.friend_profiles (
 
 alter table public.friend_profiles enable row level security;
 
+drop policy if exists friend_profiles_select on public.friend_profiles;
 create policy friend_profiles_select
   on public.friend_profiles for select to authenticated
   using (true);
 
+drop policy if exists friend_profiles_insert on public.friend_profiles;
 create policy friend_profiles_insert
   on public.friend_profiles for insert to authenticated
   with check ((select auth.uid()) = user_id);
 
+drop policy if exists friend_profiles_update on public.friend_profiles;
 create policy friend_profiles_update
   on public.friend_profiles for update to authenticated
   using ((select auth.uid()) = user_id)
@@ -44,23 +47,16 @@ create table if not exists public.friend_matches (
 
 alter table public.friend_matches enable row level security;
 
+drop policy if exists friend_matches_select on public.friend_matches;
 create policy friend_matches_select
   on public.friend_matches for select to authenticated
   using (true);
 
+drop policy if exists friend_matches_insert on public.friend_matches;
 create policy friend_matches_insert
   on public.friend_matches for insert to authenticated
   with check ((select auth.uid()) = host_user_id);
 
-create policy friend_matches_update
-  on public.friend_matches for update to authenticated
-  using (
-    (select auth.uid()) = host_user_id
-    or exists (
-      select 1 from public.friend_match_players mp
-      where mp.match_id = id and mp.user_id = (select auth.uid())
-    )
-  );
 
 grant select, insert, update on public.friend_matches to authenticated;
 
@@ -87,10 +83,12 @@ create index if not exists idx_friend_matches_updated on public.friend_matches(u
 
 alter table public.friend_match_players enable row level security;
 
+drop policy if exists friend_match_players_select on public.friend_match_players;
 create policy friend_match_players_select
   on public.friend_match_players for select to authenticated
   using (true);
 
+drop policy if exists friend_match_players_insert on public.friend_match_players;
 create policy friend_match_players_insert
   on public.friend_match_players for insert to authenticated
   with check (
@@ -101,6 +99,7 @@ create policy friend_match_players_insert
     )
   );
 
+drop policy if exists friend_match_players_update on public.friend_match_players;
 create policy friend_match_players_update
   on public.friend_match_players for update to authenticated
   using (
@@ -112,6 +111,18 @@ create policy friend_match_players_update
   );
 
 grant select, insert, update on public.friend_match_players to authenticated;
+
+-- policy นี้ต้องสร้างหลังตาราง friend_match_players มีอยู่จริง ไม่อย่างนั้น migration จะล้มทั้งก้อน
+drop policy if exists friend_matches_update on public.friend_matches;
+create policy friend_matches_update
+  on public.friend_matches for update to authenticated
+  using (
+    (select auth.uid()) = host_user_id
+    or exists (
+      select 1 from public.friend_match_players mp
+      where mp.match_id = id and mp.user_id = (select auth.uid())
+    )
+  );
 
 -- Extract public stats summary from exam_user_state.data so existing accounts appear immediately
 create or replace function public.extract_public_exam_stats(state_data jsonb)

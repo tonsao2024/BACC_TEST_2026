@@ -34,6 +34,10 @@
 - `⚠️ ซิงก์รายชื่อไม่สำเร็จ: …` = แอปบอกสาเหตุตรง ๆ (ตารางหาย / RLS ไม่อนุญาต / เครือข่าย) ให้แก้ตามข้อความ
 - `📱 ยังไม่ได้ซิงก์จากคลาวด์` = ยังไม่ล็อกอินหรือออฟไลน์ ระบบใช้รายชื่อที่บันทึกไว้ในเครื่อง
 
+> **สถานะโปรเจกต์ `oqigdiwdblppeombecyi` (10 พ.ย. 2026):** ลง migration ครบแล้ว — ตาราง `friend_profiles`, `friend_matches`, `friend_match_players` (RLS 3 policies ต่อตาราง), trigger 2 ตัว, realtime publication และ RPC `list_friend_directory()` พร้อม backfill บัญชีทั้ง 4 บัญชีในระบบ
+>
+> สาเหตุเดิมที่ตารางไม่เคยถูกสร้าง: ไฟล์ `20261110010000_friend_arena.sql` สร้าง policy `friend_matches_update` ซึ่งอ้างตาราง `friend_match_players` **ก่อน** ที่ตารางนั้นจะมีอยู่ ทำให้ migration ล้มทั้งก้อนและ rollback → แอปเห็นแค่บัญชีของตัวเอง ลำดับถูกแก้แล้วในไฟล์ (สร้าง policy นี้หลังตาราง players) และใส่ `drop policy if exists` ให้รันซ้ำได้
+
 ### วิธีแก้ฝั่งฐานข้อมูล
 
 รัน migration ให้ครบทั้งสองไฟล์ (ทำซ้ำได้ ปลอดภัย)
