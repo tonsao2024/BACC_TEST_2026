@@ -663,6 +663,7 @@ export default function App() {
             onImport={handleImportSet}
             onToast={showToast}
             onReadDoc={() => navigate('sources')}
+            onOpenAccount={() => setAccountOpen(true)}
           />
         )}
 

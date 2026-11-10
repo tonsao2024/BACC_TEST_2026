@@ -263,10 +263,19 @@ async function run() {
   await tap(byText('.size-card', 'ชุดย่อ'), 60)
   await tap(byText('.btn', 'สร้างชุดข้อสอบนี้'), 120)
   check('creation sheet shown', text().includes('สร้างชุดข้อสอบสำเร็จ'))
+  check(
+    'set storage location explained (page + sheet)',
+    document.querySelectorAll('.store-note').length >= 2 &&
+      (document.querySelector('.store-note')?.textContent || '').includes('bacc2569:sets'),
+  )
   check('share code shown', !!document.querySelector('.share-box code'))
 
   const sets = json('bacc2569:sets', [])
   check('set persisted', sets.length === 1 && sets[0].seed)
+  check(
+    'localStorage sets key holds the created set',
+    json('bacc2569:sets', []).length === 1 && !!json('bacc2569:sets', [])[0].seed,
+  )
   check('set owner recorded', sets[0]?.owner === 'สมชาย ใจดี', sets[0]?.owner)
 
   /* exam pdf export (direct, full set) */
@@ -459,6 +468,14 @@ async function run() {
     (document.querySelector('.sync-chip')?.textContent || '').includes('GitHub'),
     (document.querySelector('.sync-chip')?.textContent || '').slice(0, 40),
   )
+
+  await tap(byText('.nav-item', 'ชุดสอบ'), 60)
+  check(
+    'sets page shows github backup target once connected',
+    (document.querySelector('.store-note')?.textContent || '').includes('GitHub'),
+    (document.querySelector('.store-note')?.textContent || '').slice(0, 50),
+  )
+  await tap(byText('.nav-item', 'หน้าแรก'), 60)
 
   /* pull + merge from a pre-existing remote snapshot */
   const remoteSnap = {

@@ -2,8 +2,38 @@ import { useMemo, useState } from 'react'
 import { EXAM_SECTIONS, EXAM_SIZES, generateExam, newSeed } from '../lib/generator.js'
 import { exportExamPdf } from '../lib/pdf.js'
 import { formatThaiDateTime, humanTime, makeShareCode, parseShareCode } from '../lib/storage.js'
+import { getGithubConfig } from '../lib/remote.js'
 import Icon from './Icons.jsx'
 import { Sheet } from './ui.jsx'
+
+function StoreNote({ onOpenAccount }) {
+  const cfg = getGithubConfig()
+  return (
+    <div className="store-note">
+      <Icon name="info" size={15} />
+      <div className="store-note__text">
+        <b>ชุดข้อสอบเก็บไว้ที่ไหน</b>
+        <span>
+          อุปกรณ์นี้ · <code>bacc2569:sets</code> (เก็บ 40 ชุดล่าสุด) — เก็บเฉพาะ “รหัสชุด”
+          แล้วสร้างข้อสอบใหม่ได้ตรงกันทุกครั้ง
+        </span>
+        {cfg ? (
+          <span className="is-ok">
+            <Icon name="checkCircle" size={11} stroke={2.2} /> ซิงก์ขึ้น GitHub อัตโนมัติ ·{' '}
+            {cfg.mode === 'gist' ? 'secret gist' : `${cfg.owner}/${cfg.repo}`} → <code>{cfg.path}</code>
+          </span>
+        ) : (
+          <span className="is-warn">
+            <Icon name="refresh" size={11} /> ยังไม่เชื่อมต่อ GitHub — ข้อมูลอยู่เฉพาะเครื่องนี้
+            <button type="button" className="link-btn" onClick={onOpenAccount}>
+              เชื่อมต่อเพื่อสำรอง
+            </button>
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
 
 const sizeMeta = (sizeKey) =>
   sizeKey === 'mini'
@@ -22,6 +52,7 @@ export default function ExamBuilder({
   onImport,
   onToast,
   onReadDoc,
+  onOpenAccount,
 }) {
   const [name, setName] = useState(() => `ชุดสอบเสมือนจริง ชุดที่ ${sets.length + 1}`)
   const [sizeKey, setSizeKey] = useState('official')
@@ -207,6 +238,8 @@ export default function ExamBuilder({
             </label>
           </div>
 
+          <StoreNote onOpenAccount={onOpenAccount} />
+
           {sets.length === 0 && (
             <div className="empty-card">
               <Icon name="layers" size={26} />
@@ -335,6 +368,8 @@ export default function ExamBuilder({
               <Icon name="copy" size={14} /> คัดลอกรหัส
             </button>
           </div>
+          <StoreNote onOpenAccount={onOpenAccount} />
+
           <div className="sheet__actions">
             <button className="btn btn--ghost" onClick={() => setCreated(null)}>
               ไว้ก่อน
