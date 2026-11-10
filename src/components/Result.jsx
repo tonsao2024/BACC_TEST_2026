@@ -34,6 +34,12 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
   const [busy, setBusy] = useState('')
   const [examinee, setExaminee] = useState(result.name || loadName() || '')
   const animated = useCountUp(result.score)
+  const [ringP, setRingP] = useState(0)
+
+  useEffect(() => {
+    const id = setTimeout(() => setRingP(Math.max(0, Math.min(100, result.score))), 160)
+    return () => clearTimeout(id)
+  }, [result.score])
   const passed = result.score >= 60
   const excellent = result.score >= 85
 
@@ -103,7 +109,7 @@ export default function Result({ result, part, onHome, onRetry, onHistory, onOpe
       <div style={{ padding: '6px 0 0' }}>
         <div className="result-hero" style={{ position: 'relative' }}>
           {passed && <Confetti />}
-          <div className="score-ring" style={{ '--p': Math.max(0, Math.min(100, result.score)) }}>
+          <div className="score-ring" style={{ '--p': ringP }}>
             <svg viewBox="0 0 120 120">
               <defs>
                 <linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">

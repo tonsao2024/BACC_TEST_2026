@@ -1,8 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from './Icons.jsx'
 
+function useAnimatedValue(value, delay = 90) {
+  const [v, setV] = useState(0)
+  useEffect(() => {
+    const id = setTimeout(() => setV(value), delay)
+    return () => clearTimeout(id)
+  }, [value, delay])
+  return v
+}
+
 export function Ring({ value = 0, size = 78, thickness = 7, className = '', children }) {
-  const p = Math.max(0, Math.min(100, value))
+  const animated = useAnimatedValue(value)
+  const p = Math.max(0, Math.min(100, animated))
   return (
     <div className={`ring ${className}`} style={{ '--p': p, width: size, height: size }}>
       <svg viewBox="0 0 100 100" width={size} height={size}>
@@ -31,14 +41,15 @@ export function Ring({ value = 0, size = 78, thickness = 7, className = '', chil
 }
 
 export function MiniRing({ value = 0, size = 38 }) {
-  const p = Math.max(0, Math.min(100, value))
+  const animated = useAnimatedValue(value, 200)
+  const p = Math.max(0, Math.min(100, animated))
   return (
     <div className="mini-ring" style={{ '--p': p, width: size, height: size }}>
       <svg viewBox="0 0 100 100" width={size} height={size}>
         <circle className="mini-ring__track" cx="50" cy="50" r="44" fill="none" strokeWidth="10" pathLength="100" />
         <circle className="mini-ring__bar" cx="50" cy="50" r="44" fill="none" strokeWidth="10" pathLength="100" />
       </svg>
-      <b>{Math.round(p)}</b>
+      <b>{Math.round(value)}</b>
     </div>
   )
 }
