@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   CHALLENGE_SNOOZE_MS,
   MAX_CHALLENGE_DECLINES,
+  buildRaceLanes,
   computePublicStats,
   createArenaController,
   getChallengePref,
@@ -303,4 +304,85 @@ test('ถ้าดึงรายชื่อจากคลาวด์ไม�
   assert.ok(latest.directory.error, 'ต้องมีข้อความบอกว่าซิงก์ไม่สำเร็จ')
   assert.equal(latest.directory.syncing, false)
   ctrl.destroy()
+})
+
+/* ------------------------------------------------------------------
+   Regression: "แข่งขันกับเพื่อน" ต้องไม่บังกันจนมองไม่เห็น
+   และความก้าวหน้าของแต่ละคนต้องไปอยู่บนตัววิ่ง (ไม่ใช่ตัวเลขซ้ำอีกที่)
+   ------------------------------------------------------------------ */
+
+test('เลนแข่งขัน: ทุกคนที่แข่งได้เลนของตัวเอง และความก้าวหน้าถูกคำนวณบนตัววิ่ง', () => {
+  const players = [
+    { userId: 'u1', name: 'อลิซ', role: 'host', status: 'playing', answeredCount: 12, totalQuestions: 30, timeUsedSec: 300 },
+    { userId: 'u2', name: 'บ็อบ', role: 'guest', status: 'finished', answeredCount: 30, totalQuestions: 30, score: 92, timeUsedSec: 750 },
+    { userId: 'u3', name: 'ชาร์ลี', role: 'guest', status: 'invited' },
+    { userId: 'u4', name: 'ไดอาน่า', role: 'guest', status: 'declined' },
+    { userId: 'u5', name: 'อีฟ', role: 'guest', status: 'accepted' },
+  ]
+
+  const lanes = buildRaceLanes(players, { meId: 'u1' })
+
+  // เฉพาะคนที่ลงวิ่งจริง (accepted/playing/finished) เท่านั้นที่ได้เลน
+  assert.equal(lanes.length, 3)
+  assert.deepEqual(lanes.map((l) => l.userId), ['u2', 'u1', 'u5'])
+
+  // ผู้จบก่อนอยู่เลนบนสุด และได้ 100% + คะแนน + เวลา
+  assert.equal(lanes[0].finished, true)
+  assert.equal(lanes[0].pct, 100)
+  assert.equal(lanes[0].score, 92)
+  assert.equal(lanes[0].medal, '🥇')
+  assert.match(lanes[0].progressText, /^92% · \d{2}:\d{2}$/)
+
+  // คนที่กำลังทำอยู่ได้เปอร์เซ็นต์จากจำนวนข้อที่ตอบไปแล้ว
+  const me = lanes.find((l) => l.userId === 'u1')
+  assert.equal(me.isMe, true)
+  assert.equal(me.pct, 40)
+  assert.equal(me.progressText, '12/30 · 40%')
+  assert.match(me.summary, /อลิซ ทำแล้ว 12 จาก 30 ข้อ \(40%\)/)
+
+  // คนที่เพิ่งตอบรับยังไม่เริ่มวิ่ง
+  const waiting = lanes.find((l) => l.userId === 'u5')
+  assert.equal(waiting.pct, 0)
+  assert.equal(waiting.progressText, 'กำลังวิ่ง')
+
+  // แต่ละเลนมีสีคนละสี (ใช้แยกตัวได้แม้ชื่อซ้ำ) และไม่มีเลนซ้ำ
+  assert.equal(new Set(lanes.map((l) => l.color)).size, 3)
+  assert.equal(new Set(lanes.map((l) => l.rank)).size, 3)
+})
+
+test('เลนแข่งขัน: ผู้เล่นที่ความก้าวหน้าเท่ากันยังได้คนละเลน (ไม่บังกัน)', () => {
+  const players = [
+    { userId: 'a', name: 'เอ', role: 'host', status: 'playing', answeredCount: 5, totalQuestions: 10 },
+    { userId: 'b', name: 'บี', role: 'guest', status: 'playing', answeredCount: 5, totalQuestions: 10 },
+  ]
+  const lanes = buildRaceLanes(players)
+  assert.equal(lanes.length, 2)
+  assert.equal(lanes[0].pct, lanes[1].pct)
+  assert.notEqual(lanes[0].color, lanes[1].color)
+  assert.equal(lanes[0].rank, 1)
+  assert.equal(lanes[1].rank, 2)
+})
+
+test('เลนแข่งขัน: ความก้าวหน้าถูกจำกัดไว้ที่ 0-100 และรองรับจำนวนข้อที่ยังไม่ทราบ', () => {
+  const lanes = buildRaceLanes(
+    [
+      { userId: 'x', name: 'เอ็กซ์', role: 'guest', status: 'playing', answeredCount: 99, totalQuestions: 10 },
+      { userId: 'y', name: 'วาย', role: 'guest', status: 'playing', answeredCount: 3 },
+    ],
+    { totalQuestions: 20 },
+  )
+  assert.equal(lanes.find((l) => l.userId === 'x').pct, 100)
+  assert.equal(lanes.find((l) => l.userId === 'x').progressText, '10/10 · 100%')
+  const y = lanes.find((l) => l.userId === 'y')
+  assert.equal(y.totalQuestions, 20)
+  assert.equal(y.pct, 15)
+  assert.equal(y.progressText, '3/20 · 15%')
+})
+
+test('เลนแข่งขัน: ห้องที่ยังไม่มีใครแข่ง ไม่ต้องเรนเดอร์ลู่', () => {
+  assert.deepEqual(buildRaceLanes([]), [])
+  assert.deepEqual(
+    buildRaceLanes([{ userId: 'z', name: 'ทดสอบ', role: 'guest', status: 'invited' }]),
+    [],
+  )
 })

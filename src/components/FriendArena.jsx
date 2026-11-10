@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom'
 import { MOCK_PART, PARTS } from '../data/index.js'
 import { EXAM_SIZES, newSeed } from '../lib/generator.js'
 import { formatThaiDateTime, humanTime, mmss } from '../lib/storage.js'
-import { MAX_CHALLENGE_DECLINES, rankMatchPlayers } from '../lib/friends.js'
+import { MAX_CHALLENGE_DECLINES, buildRaceLanes, rankMatchPlayers } from '../lib/friends.js'
 import { PASS_SCORE, certTier } from '../lib/certs.js'
 import Icon from './Icons.jsx'
 import { MiniRing, Sheet } from './ui.jsx'
 import { RunningRacers } from './Mascot.jsx'
+import RaceTrack from './RaceTrack.jsx'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -20,13 +21,10 @@ const TAUNT_PRESETS = [
 
 function statusBadgeForPlayer(p) {
   if (!p) return { text: 'รอตอบรับ', cls: 'wait' }
-  if (p.status === 'finished') return { text: `ส่งคำตอบแล้ว · ${Math.round(p.score || 0)}%`, cls: 'done' }
-  if (p.status === 'playing') {
-    return {
-      text: `กำลังทำข้อ ${p.answeredCount || 0}/${p.totalQuestions || '?'}`,
-      cls: 'play',
-    }
-  }
+  // ความก้าวหน้า/คะแนนถูกย้ายไปแสดงบนป้ายกำกับตัววิ่งแล้ว (ดู RaceTrack)
+  // ที่นี่จึงแสดงแค่ "สถานะ" เพื่อไม่ให้ข้อมูลซ้ำซ้อนกัน
+  if (p.status === 'finished') return { text: 'ส่งคำตอบแล้ว', cls: 'done' }
+  if (p.status === 'playing') return { text: 'กำลังทำข้อสอบ', cls: 'play' }
   if (p.status === 'accepted') return { text: 'พร้อมแข่ง ✅', cls: 'ok' }
   if (p.status === 'declined' || (p.declineCount || 0) >= MAX_CHALLENGE_DECLINES) {
     return { text: 'ไม่สะดวกแข่ง (ครบ 3 ครั้ง)', cls: 'no' }
@@ -609,6 +607,8 @@ export function MatchRoomCard({
 }) {
   const [inviteOpen, setInviteOpen] = useState(false)
   const ranked = useMemo(() => rankMatchPlayers(match.players || []), [match.players])
+  // เลนแข่งขันสด: แต่ละคนได้เลนของตัวเอง + ความก้าวหน้าแสดงบนตัววิ่ง
+  const lanes = useMemo(() => buildRaceLanes(match.players || [], { meId }), [match.players, meId])
   const mePlayer = (match.players || []).find((p) => p.userId === meId)
   const isHost = match.hostUserId === meId
   const pendingGuests = (match.players || []).filter(
@@ -653,11 +653,16 @@ export function MatchRoomCard({
 
       {match.message && <p className="match-card__quote">💬 “{match.message}”</p>}
 
+      {lanes.length > 0 && (
+        <div className="match-card__track">
+          <RaceTrack lanes={lanes} meId={meId} />
+          <span className="match-card__track-note">ความก้าวหน้าของแต่ละคนแสดงอยู่บนตัววิ่งของเขา</span>
+        </div>
+      )}
+
       <div className="match-players">
         {ranked.map((p, idx) => {
           const badge = statusBadgeForPlayer(p)
-          const pct =
-            p.totalQuestions > 0 ? Math.round(((p.answeredCount || 0) / p.totalQuestions) * 100) : 0
           return (
             <div
               key={p.userId}
@@ -679,25 +684,7 @@ export function MatchRoomCard({
                   {p.userId === meId && <em className="board__me">ฉัน</em>}
                 </b>
                 <span className={`match-pill is-${badge.cls}`}>{badge.text}</span>
-                {(p.status === 'playing' || p.status === 'finished') && (
-                  <span className="match-player__bar">
-                    <i style={{ width: `${p.status === 'finished' ? 100 : Math.max(4, pct)}%` }} />
-                  </span>
-                )}
               </button>
-              <div className="match-player__right num">
-                {p.status === 'finished' ? (
-                  <>
-                    <b>{Math.round(p.score || 0)}%</b>
-                    <small>{mmss(p.timeUsedSec || 0)}</small>
-                  </>
-                ) : p.status === 'playing' ? (
-                  <>
-                    <b>{pct}%</b>
-                    <small>{mmss(p.timeUsedSec || 0)}</small>
-                  </>
-                ) : null}
-              </div>
             </div>
           )
         })}

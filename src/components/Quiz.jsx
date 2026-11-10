@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { humanTime, mmss } from '../lib/storage.js'
+import { buildRaceLanes } from '../lib/friends.js'
 import Icon from './Icons.jsx'
 import { FigureModal, Sheet } from './ui.jsx'
+import RaceTrack from './RaceTrack.jsx'
 
 const LETTERS = ['ก', 'ข', 'ค', 'ง']
 
@@ -54,6 +56,12 @@ export default function Quiz({
   const wrongCount = useMemo(
     () => answers.reduce((sum, a, i) => (a !== null && a !== questions[i].a ? sum + 1 : sum), 0),
     [answers, questions],
+  )
+
+  /* ---------- live race lanes (ความก้าวหน้าอยู่บนตัววิ่งของแต่ละคน) ---------- */
+  const matchLanes = useMemo(
+    () => buildRaceLanes(match?.players || [], { meId, totalQuestions: total }),
+    [match, meId, total],
   )
 
   /* ---------- autosave snapshot ---------- */
@@ -369,32 +377,15 @@ export default function Quiz({
         </button>
       </header>
 
-      {match && Array.isArray(match.players) && match.players.length > 0 && (
+      {match && matchLanes.length > 0 && (
         <div className="quiz-match-strip" aria-label="สถานะผู้ร่วมแข่งขันสด">
-          <span className="quiz-match-strip__label">
-            <Icon name="trophy" size={13} /> แข่งสด {match.players.length} คน:
-          </span>
-          <div className="quiz-match-strip__list">
-            {match.players.map((p) => (
-              <span
-                key={p.userId}
-                className={`quiz-match-pill ${p.userId === meId ? 'is-me' : ''} is-${p.status}`}
-              >
-                <b>{p.name}</b>
-                <small className="num">
-                  {p.status === 'finished'
-                    ? `🏁 ${Math.round(p.score || 0)}%`
-                    : p.status === 'playing'
-                      ? `${p.answeredCount || 0}/${p.totalQuestions || total}`
-                      : p.status === 'accepted'
-                        ? 'พร้อม'
-                        : p.status === 'declined'
-                          ? 'ไม่แข่ง'
-                          : 'รอตอบรับ'}
-                </small>
-              </span>
-            ))}
+          <div className="quiz-match-strip__head">
+            <span className="quiz-match-strip__label">
+              <Icon name="trophy" size={13} /> แข่งสด {matchLanes.length} คน
+            </span>
+            <span className="quiz-match-strip__hint">ความก้าวหน้าอยู่บนตัววิ่งของแต่ละคน</span>
           </div>
+          <RaceTrack lanes={matchLanes} meId={meId} variant="compact" />
         </div>
       )}
 
