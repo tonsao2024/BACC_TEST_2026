@@ -158,7 +158,8 @@ export default function PartDetail({
           <div className="download-card">
             <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ไฟล์ข้อสอบฉบับเต็ม</p>
             <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
-              {partFileName || `${part.label}_ข้อสอบ_${part.officialCount}ข้อ.pdf`} · เฉลยพร้อมคำอธิบาย
+              {partFileName || `${part.label}_ข้อสอบ_${part.officialCount}ข้อ.pdf`}
+              {part.id === '2' ? ' · พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? ' · เฉลย Mock Exam อยู่ในไฟล์แยกที่หน้าเอกสาร' : ' · เฉลยพร้อมคำอธิบาย'}
             </p>
             <button
               type="button"

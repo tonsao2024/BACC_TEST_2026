@@ -118,6 +118,7 @@ export default function Home({
   onStartMock,
   onOpenHistory,
   onOpenSources,
+  onReadAnnouncement,
   onOpenResult,
   onOpenAccount,
   onOpenSets,
@@ -241,6 +242,15 @@ export default function Home({
           </Ring>
         </div>
       </section>
+
+      <button type="button" className="announcement-link" onClick={onReadAnnouncement}>
+        <span className="announcement-link__icon"><Icon name="docs" size={20} /></span>
+        <span className="announcement-link__body">
+          <strong>อ่านประกาศรับสมัคร</strong>
+          <small>พนักงานการเงิน ระดับ 4 · ปีบัญชี 2569</small>
+        </span>
+        <span className="announcement-link__action">อ่าน PDF <Icon name="chevron" size={15} /></span>
+      </button>
 
       <div className="stat-row">
         <div className="stat-card" style={{ animationDelay: '60ms' }}>

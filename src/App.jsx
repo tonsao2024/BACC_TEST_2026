@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { getPart, SOURCE_FILES } from './data/index.js'
+import { getPart, RECRUITMENT_NOTICE, SOURCE_FILES } from './data/index.js'
 import {
   clearResults,
   createProfile,
@@ -16,6 +16,8 @@ import {
   getSettings,
   getTheme,
   listAttempts,
+  legacyProfiles,
+  importLegacyProfile,
   loadResults,
   renameProfile,
   makeShareCode,
@@ -28,22 +30,6 @@ import {
   uidPublic,
 } from './lib/storage.js'
 import { generateExam, newSeed } from './lib/generator.js'
-import {
-  clearGithubConfig,
-  getSyncConfig,
-  parseSyncLink,
-  saveGithubConfig,
-  stripSyncLinkParam,
-} from './lib/remote.js'
-import {
-  getSyncState,
-  pullAndMerge,
-  pushNow,
-  resetSyncState,
-  schedulePush,
-  snapshotSignature,
-  subscribeSync,
-} from './lib/sync.js'
 import Home from './components/Home.jsx'
 import PartDetail from './components/PartDetail.jsx'
 import Quiz from './components/Quiz.jsx'
@@ -52,17 +38,16 @@ import History from './components/History.jsx'
 import Sources from './components/Sources.jsx'
 import ExamBuilder from './components/ExamBuilder.jsx'
 import DocReader from './components/DocReader.jsx'
-import { AccountSheet, ProfileGate } from './components/Profile.jsx'
-import GitHubPanel from './components/GitHubPanel.jsx'
+import { ProfileGate } from './components/Profile.jsx'
 import Icon from './components/Icons.jsx'
-import { Toast } from './components/ui.jsx'
+import { Toast, Sheet } from './components/ui.jsx'
 
 const fileNameFor = (part) => {
   const file = SOURCE_FILES.find((f) => f.id === part.file)
   return file ? `${file.name}.pdf` : null
 }
 
-export default function App() {
+export default function App({ cloudSync, onCloudSignOut, onCloudRetry, onDiscardLocal }) {
   const [profiles, setProfiles] = useState(() => getProfiles())
   const [profile, setProfile] = useState(() => getCurrentProfile())
   const [results, setResults] = useState(() => {
@@ -76,9 +61,6 @@ export default function App() {
   const [sets, setSets] = useState(() => getSets())
   const [theme, setThemeState] = useState(() => getTheme())
   const [settings, setSettings] = useState(() => getSettings())
-  const [sync, setSync] = useState(() => getSyncState())
-  const [hydrated, setHydrated] = useState(() => !getSyncConfig())
-  const lastSyncedSig = useRef('')
 
   const [view, setView] = useState('home')
   const [partId, setPartId] = useState(null)
@@ -86,6 +68,7 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [doc, setDoc] = useState(null)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [legacyId, setLegacyId] = useState('')
   const [toast, setToast] = useState(null)
   const [stack, setStack] = useState([])
   const toastTimer = useRef(null)
@@ -115,74 +98,6 @@ export default function App() {
   useEffect(() => {
     refreshProfileData(profile?.id)
   }, [profile?.id, refreshProfileData])
-
-  /* ---------------- GitHub sync ---------------- */
-  useEffect(() => subscribeSync(setSync), [])
-
-  const reloadAll = useCallback(() => {
-    const p = getCurrentProfile()
-    setProfilesAndCurrent()
-    setResults(p ? loadResults(p.id) : [])
-    setAttempts(p ? listAttempts(p.id) : [])
-    setSets(getSets())
-    setSettings(getSettings())
-    setThemeState(getTheme())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function setProfilesAndCurrent() {
-    const list = getProfiles()
-    setProfiles(list)
-    const cur = getCurrentProfile()
-    if (cur) setProfile((prev) => list.find((x) => x.id === (prev?.id || cur.id)) || cur)
-    else setProfile(null)
-  }
-
-  const parsedSyncRef = useRef(false)
-
-  useEffect(() => {
-    /* ลิงก์เชื่อมอัตโนมัติ: ?sync=gist:{token}:{gistId?} | cloud:{key}:{url} — ทำครั้งเดียวพอ */
-    if (!parsedSyncRef.current) {
-      parsedSyncRef.current = true
-      const autoCfg = parseSyncLink(window.location)
-      if (autoCfg) {
-        saveGithubConfig(autoCfg)
-        window.history.replaceState(null, '', stripSyncLinkParam(window.location))
-        setTimeout(() => showToast('เปิดซิงก์อัตโนมัติแล้ว ☁️ ไม่ต้องตั้งค่าเพิ่ม'), 10)
-      }
-    }
-    /* หมายเหตุ: อย่าใช้ ref กัน effect นี้ทั้งก้อน — React StrictMode ใน dev จะ mount ซ้ำ
-       แล้ว cleanup รอบแรกทำให้ async รอบแรกถูกยกเลิก ต้องให้รอบสองทำงานต่อได้เสมอ */
-    const syncCfg = getSyncConfig()
-    if (!syncCfg) {
-      setHydrated(true)
-      return undefined
-    }
-    const storeName = syncCfg.mode === 'cloud' ? 'คลาวด์' : 'GitHub'
-    let alive = true
-    ;(async () => {
-      const ok = await pullAndMerge()
-      if (!alive) return
-      if (ok) {
-        reloadAll()
-        showToast(`ดึงข้อมูลล่าสุดจาก${storeName}แล้ว`)
-      }
-      setHydrated(true)
-    })()
-    return () => {
-      alive = false
-    }
-  }, [reloadAll, showToast])
-
-  useEffect(() => {
-    if (!hydrated) return
-    if (!getSyncConfig()) return
-    const sig = snapshotSignature(exportSnapshot())
-    if (sig === lastSyncedSig.current) return
-    lastSyncedSig.current = sig
-    schedulePush()
-  }, [hydrated, profiles, results, attempts, sets, theme, settings])
-
 
   const navigate = useCallback(
     (nextView, payload = {}) => {
@@ -490,22 +405,6 @@ export default function App() {
     setSettings(next)
   }, [])
 
-  const connectAndSync = useCallback(async () => {
-    const pulled = await pullAndMerge()
-    if (!pulled) return false
-    reloadAll()
-    const ok = await pushNow()
-    lastSyncedSig.current = snapshotSignature(exportSnapshot())
-    return ok
-  }, [reloadAll])
-
-  const disconnectGithub = useCallback(() => {
-    clearGithubConfig()
-    resetSyncState()
-    setHydrated(true)
-    showToast('ยกเลิกการเชื่อมต่อ GitHub แล้ว', 'info')
-  }, [showToast])
-
   /* ---------------- misc ---------------- */
   const part = useMemo(() => (partId ? getPart(partId) : null), [partId])
   const attemptForPart = useMemo(
@@ -650,11 +549,12 @@ export default function App() {
             onStartMock={() => navigate('part', { partId: 'mock' })}
             onOpenHistory={() => navigate('history')}
             onOpenSources={() => navigate('sources')}
+            onReadAnnouncement={() => setDoc(RECRUITMENT_NOTICE)}
             onOpenResult={(r) => navigate('result', { result: r })}
             onOpenAccount={() => setAccountOpen(true)}
             onOpenSets={() => navigate('sets')}
             onNewSet={() => navigate('sets')}
-            sync={sync}
+            sync={cloudSync}
             board={board}
             onChallenge={createMatchSet}
             onCreateMatch={createMatchSet}
@@ -687,6 +587,7 @@ export default function App() {
             onSave={handleSaveAttempt}
             onExit={() => back()}
             onFinish={handleFinish}
+            cloudSync={cloudSync}
           />
         )}
 
@@ -762,32 +663,28 @@ export default function App() {
       {toast && <Toast message={toast.message} icon={toast.icon} />}
 
       {accountOpen && (
-        <AccountSheet
-          profile={profile}
-          profiles={profiles}
-          results={results}
-          theme={theme}
-          onClose={() => setAccountOpen(false)}
-          onSwitch={handleSwitchProfile}
-          onCreate={handleCreateProfile}
-          onRename={handleRenameProfile}
-          onDelete={handleDeleteProfile}
-          onClear={handleClearResults}
-          onToggleTheme={toggleTheme}
-          settings={settings}
-          onToggleInstantReveal={toggleInstantReveal}
-          syncPanel={
-            <GitHubPanel
-              sync={sync}
-            board={board}
-            onChallenge={createMatchSet}
-            onCreateMatch={createMatchSet}
-              onSaved={connectAndSync}
-              onDisconnected={disconnectGithub}
-              onToast={showToast}
-            />
-          }
-        />
+        <Sheet onClose={() => setAccountOpen(false)} title="บัญชีของฉัน">
+          <div className="acct__panel">
+            <h2>{profile.name}</h2>
+            <p>ข้อมูลและประวัติการสอบบันทึกแยกตามบัญชีนี้</p>
+            <p role="status">{cloudSync?.status === 'saved' || cloudSync?.status === 'idle' ? '☁️ ซิงก์กับ Supabase แล้ว' : cloudSync?.error || 'กำลังบันทึกข้อมูล…'}</p>
+            {cloudSync?.status === 'error' && <><button className="btn btn--soft" onClick={onCloudRetry}>ลองซิงก์อีกครั้ง</button>{cloudSync.error?.includes('อุปกรณ์อื่น') && <button className="btn btn--soft" onClick={onDiscardLocal}>ใช้ข้อมูลล่าสุดจากคลาวด์</button>}</>}
+            <button className="btn btn--soft btn--block" onClick={toggleTheme}>เปลี่ยนธีม</button>
+            <button className="btn btn--soft btn--block" onClick={toggleInstantReveal}>เฉลยทันที: {settings.instantReveal ? 'เปิด' : 'ปิด'}</button>
+            {legacyProfiles().length > 0 && <div style={{ margin: '16px 0' }}>
+              <p>มีประวัติจากแอปเดิมบนเครื่องนี้ เลือกโปรไฟล์ที่ต้องการนำเข้า (ข้อมูลเดิมจะไม่ถูกลบ)</p>
+              <select className="field__input" value={legacyId} onChange={e => setLegacyId(e.target.value)} aria-label="เลือกโปรไฟล์เดิม">
+                <option value="">เลือกโปรไฟล์เดิม</option>{legacyProfiles().map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <button className="btn btn--soft btn--block" disabled={!legacyId} onClick={() => {
+                if (!window.confirm('นำเข้าประวัติของโปรไฟล์ที่เลือกมายังบัญชีนี้ใช่หรือไม่?')) return
+                if (importLegacyProfile(legacyId, profile.id)) { setResults(loadResults(profile.id)); setAttempts(listAttempts(profile.id)); setSets(getSets()); showToast('นำเข้าประวัติแล้ว กำลังซิงก์'); setLegacyId('') }
+              }}>นำเข้าประวัติจากเครื่องนี้</button>
+            </div>}
+            <button className="btn btn--soft btn--block" onClick={onCloudSignOut}>ออกจากระบบ / สลับบัญชี</button>
+            <p className="acct__hint">ใช้ชื่อและ PIN เดิมเมื่อเข้าสู่ระบบบนอุปกรณ์อื่น รอให้ซิงก์เสร็จก่อนเปลี่ยนอุปกรณ์</p>
+          </div>
+        </Sheet>
       )}
 
       {doc &&

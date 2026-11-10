@@ -16,6 +16,7 @@ export default function Quiz({
   onSave,
   onExit,
   onFinish,
+  cloudSync,
 }) {
   const questions = exam.questions
   const total = questions.length
@@ -317,6 +318,7 @@ export default function Quiz({
 
   return (
     <>
+      {cloudSync?.status === 'error' && <div role="alert" style={{ padding: '10px 16px', background: '#fff3df', color: '#9a3412', fontSize: 13 }}>☁️ {cloudSync.error} · กลับหน้าแรกเพื่อจัดการการซิงก์</div>}
       <header className="topbar topbar--sticky">
         <button
           className="icon-btn icon-btn--ghost"

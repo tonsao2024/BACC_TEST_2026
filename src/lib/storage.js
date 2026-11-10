@@ -16,9 +16,17 @@ const K = {
   settings: 'bacc2569:settings',
 }
 
+// Each authenticated account has a separate local cache; legacy keys are left untouched.
+let storageScope = ''
+export function setStorageScope(userId) { storageScope = userId ? `bacc-user:${userId}:` : '' }
+const scoped = (key) => storageScope + key
+const changed = () => {
+  if (storageScope && typeof window !== 'undefined') window.dispatchEvent(new Event('bacc-storage-change'))
+}
+
 const read = (key, fallback) => {
   try {
-    const raw = localStorage.getItem(key)
+    const raw = localStorage.getItem(scoped(key))
     if (!raw) return fallback
     return JSON.parse(raw)
   } catch {
@@ -28,7 +36,11 @@ const read = (key, fallback) => {
 
 const write = (key, value) => {
   try {
-    localStorage.setItem(key, JSON.stringify(value))
+    const serialized = JSON.stringify(value)
+    if (localStorage.getItem(scoped(key)) !== serialized) {
+      localStorage.setItem(scoped(key), serialized)
+      changed()
+    }
     return true
   } catch {
     return false
@@ -53,7 +65,7 @@ function migrateLegacy() {
   }
   const legacyName = (() => {
     try {
-      return localStorage.getItem(K.legacyName) || ''
+      return localStorage.getItem(scoped(K.legacyName)) || ''
     } catch {
       return ''
     }
@@ -96,15 +108,18 @@ export function deleteProfile(id) {
   const rest = getProfiles().filter((p) => p.id !== id)
   write(K.profiles, rest)
   try {
-    localStorage.removeItem(K.results(id))
-    localStorage.removeItem(K.attempts(id))
+    localStorage.removeItem(scoped(K.results(id)))
+    changed()
+    localStorage.removeItem(scoped(K.attempts(id)))
+    changed()
   } catch {
     /* noop */
   }
   if (rest.length) write(K.current, rest[0].id)
   else {
     try {
-      localStorage.removeItem(K.current)
+      localStorage.removeItem(scoped(K.current))
+      changed()
     } catch {
       /* noop */
     }
@@ -129,7 +144,7 @@ export function loadResults(profileId) {
 export function saveResult(profileId, result) {
   const arr = loadResults(profileId)
   arr.unshift(result)
-  write(K.results(profileId), arr.slice(0, 60))
+  write(K.results(profileId), arr)
 }
 
 export function deleteResult(profileId, id) {
@@ -141,7 +156,8 @@ export function deleteResult(profileId, id) {
 
 export function clearResults(profileId) {
   try {
-    localStorage.removeItem(K.results(profileId))
+    localStorage.removeItem(scoped(K.results(profileId)))
+    changed()
   } catch {
     /* noop */
   }
@@ -257,7 +273,7 @@ export const parseShareCode = (code) => {
 /* ---------------- theme ---------------- */
 export function getTheme() {
   try {
-    const t = localStorage.getItem(K.theme)
+    const t = localStorage.getItem(scoped(K.theme))
     if (t === 'dark' || t === 'light') return t
   } catch {
     /* noop */
@@ -267,7 +283,10 @@ export function getTheme() {
 
 export function setTheme(theme) {
   try {
-    localStorage.setItem(K.theme, theme)
+    if (localStorage.getItem(scoped(K.theme)) !== theme) {
+      localStorage.setItem(scoped(K.theme), theme)
+      changed()
+    }
   } catch {
     /* noop */
   }
@@ -311,7 +330,7 @@ export function exportSnapshot() {
     settings: getSettings(),
     theme: (() => {
       try {
-        const t = localStorage.getItem(K.theme)
+        const t = localStorage.getItem(scoped(K.theme))
         return t === 'dark' || t === 'light' ? t : ''
       } catch {
         return ''
@@ -329,7 +348,7 @@ export function importSnapshot(data) {
     }
     if (data.attempts && typeof data.attempts === 'object') {
       Object.entries(data.attempts).forEach(([pid, list]) =>
-        write(K.attempts(pid), Array.isArray(list) ? list : []),
+        write(K.attempts(pid), Array.isArray(list) ? Object.fromEntries(list.filter(a => a?.key).map(a => [a.key, a])) : (list && typeof list === 'object' ? list : {})),
       )
     }
     if (Array.isArray(data.sets)) write(K.sets, data.sets)
@@ -337,7 +356,7 @@ export function importSnapshot(data) {
     if (data.settings && typeof data.settings === 'object') write(K.settings, { ...DEFAULT_SETTINGS, ...data.settings })
     if (data.theme === 'dark' || data.theme === 'light') {
       try {
-        localStorage.setItem(K.theme, data.theme)
+        localStorage.setItem(scoped(K.theme), data.theme)
       } catch {
         /* noop */
       }
@@ -468,3 +487,34 @@ export const downloadBlob = (blob, filename) => {
 }
 
 export const uidPublic = uid
+
+// One-time, explicit import from the pre-account version. Never deletes legacy data.
+export function legacyProfiles() {
+  try {
+    const list = JSON.parse(localStorage.getItem(K.profiles) || '[]')
+    return Array.isArray(list) ? list : []
+  } catch { return [] }
+}
+export function importLegacyProfile(legacyId, profileId) {
+  const profile = legacyProfiles().find(p => p.id === legacyId)
+  if (!profile || !profileId) return false
+  const oldRead = (key, fallback) => {
+    try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback } catch { return fallback }
+  }
+  const existing = loadResults(profileId)
+  const ids = new Set(existing.map(r => r.id))
+  const oldResults = oldRead(K.results(legacyId), [])
+  const mergedResults = [...existing, ...(Array.isArray(oldResults) ? oldResults.filter(r => r && !ids.has(r.id)) : [])]
+  mergedResults.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  write(K.results(profileId), mergedResults)
+  const attempts = loadAttempts(profileId)
+  const oldAttempts = oldRead(K.attempts(legacyId), {})
+  for (const attempt of Object.values(oldAttempts || {})) {
+    if (attempt?.key && (!attempts[attempt.key] || new Date(attempt.updatedAt || 0) > new Date(attempts[attempt.key].updatedAt || 0))) attempts[attempt.key] = attempt
+  }
+  write(K.attempts(profileId), attempts)
+  for (const set of oldRead(K.sets, [])) if (!getSets().some(s => s.id === set.id)) saveSet(set)
+  const qbank = oldRead(K.qbank, {})
+  Object.entries(qbank || {}).forEach(([part, questions]) => { if (Array.isArray(questions)) saveImportedQuestions(part, questions) })
+  return true
+}

@@ -5,24 +5,39 @@ import { importedQuestions } from '../lib/storage.js'
 
 /* ไฟล์ต้นฉบับทั้งหมดบน Google Drive (โฟลเดอร์กลางของชุดเอกสารเตรียมสอบ ธ.ก.ส. 2569) */
 export const DRIVE_FOLDER_ID = '1zcaLIPT0u6estLdIFIm-0PPyF2ACkh7f'
+export const DRIVE_FOLDER_URL = `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}?usp=sharing`
+// Verified subfolder containing the exam PDFs. The requested link above remains the root folder.
+export const DRIVE_OUTPUT_FOLDER_URL = 'https://drive.google.com/drive/folders/1Gs9Qv1lBvJHuz0HvcjtExP5fE8us85uc'
 
 export const SOURCE_FILES = [
-  { id: '1t-vrNSbxhQh1G9Sfzf-F-F00RzN907_O', name: '00_อ่านก่อน_สารบัญชุดเอกสาร', type: 'MD' },
-  { id: '1yyNSVKclly5RgXlHpoZheQSoeKph4_BN', name: '01_คลังข้อสอบ_300ข้อ_ธกส', type: 'PDF' },
-  { id: '1Ke0jdg_g4H3AoDvQ5P9iyBHw72uKDwnm', name: '02_Mock_Exam_230ข้อ_ธกส', type: 'PDF' },
-  { id: '1LmS9ENbao3BLhiE5qeHJGgHh2L53m8D3', name: '03_เฉลย_Mock_Exam_230ข้อ_ธกส', type: 'PDF' },
-  { id: '1gLaCbczdoS3i6O82Ma38m7oRi0OXKcf_', name: '04_รายงานตรวจสอบคุณภาพข้อสอบ_12รอบ', type: 'PDF' },
-  { id: '1XDk1whM4xVtNnwHaH2_-WdjtpWOC9TBb', name: '05_พาร์ท1-1_คณิตศาสตร์_100ข้อ', type: 'PDF' },
-  { id: '1zrHLIiLxBGOb2Hv7w7JSPhHZvHelorSY', name: '06_พาร์ท1-2_วิเคราะห์และเหตุผล_100ข้อ', type: 'PDF' },
-  { id: '1JfBDrw8UKIVfqrCgSG0erioWPUIISiZ4', name: '07_พาร์ท1-3_ภาษาไทย_100ข้อ', type: 'PDF' },
-  { id: '11CyixZgNB1oCCK7DQ2Vh6uoDG9pH6-aS', name: '08_พาร์ท1-4_มิติสัมพันธ์_100ข้อ', type: 'PDF' },
-  { id: '1wBlxul9ijFX_S33OV3VNMDw3obKDOJ9e', name: '09_พาร์ท1-5_ภาษาอังกฤษ_100ข้อ', type: 'PDF' },
-  { id: '1jSB0ANlg8lKQY12luDkXVYxyrZ2XBfIX', name: '10_พาร์ท3-1_หลักการบัญชี_100ข้อ', type: 'PDF' },
-  { id: '1VMqSuwzocAwboHoC9S8WlrSiVV7yWXgC', name: '11_พาร์ท3-2_การเงินการธนาคาร_100ข้อ', type: 'PDF' },
-  { id: '1TZVmSS-0kjBi8eIWQqHKN6FJQhC95aM7', name: '12_พาร์ท3-3_เศรษฐศาสตร์_100ข้อ', type: 'PDF' },
-  { id: '18_Y3pioXouro8aOt9ZdsuWxmVSLlC4Ou', name: '13_พาร์ท3-4_สินเชื่อและพัฒนาชนบท_100ข้อ', type: 'PDF' },
-  { id: '1nb1hKxHlz1QpilabRhOa-h3HeyYFGTf5', name: '14_พาร์ท3-5_การตลาด_100ข้อ', type: 'PDF' },
-  { id: '1QyIxxYbdmV6DV-JzOme-bLkGpS9c87Sx', name: '15_รายงานตรวจสอบคุณภาพ_ชุดขยาย11พาร์ท', type: 'PDF' },
+  { id: '1-prDA30BIW0GhXc91R2OO-nB7Oefzs_c', name: 'ประกาศรับสมัครพนักงานการเงิน ระดับ 4 ปีบัญชี 2569', type: 'PDF', category: 'notice' },
+  { id: '1t-vrNSbxhQh1G9Sfzf-F-F00RzN907_O', name: '00_อ่านก่อน_สารบัญชุดเอกสาร', type: 'MD', category: 'other' },
+  { id: '1yyNSVKclly5RgXlHpoZheQSoeKph4_BN', name: '01_คลังข้อสอบ_300ข้อ_ธกส', type: 'PDF', category: 'exam' },
+  { id: '1Ke0jdg_g4H3AoDvQ5P9iyBHw72uKDwnm', name: '02_Mock_Exam_230ข้อ_ธกส', type: 'PDF', category: 'exam' },
+  { id: '1LmS9ENbao3BLhiE5qeHJGgHh2L53m8D3', name: '03_เฉลย_Mock_Exam_230ข้อ_ธกส', type: 'PDF', category: 'exam' },
+  { id: '1gLaCbczdoS3i6O82Ma38m7oRi0OXKcf_', name: '04_รายงานตรวจสอบคุณภาพข้อสอบ_12รอบ', type: 'PDF', category: 'quality' },
+  { id: '1XDk1whM4xVtNnwHaH2_-WdjtpWOC9TBb', name: '05_พาร์ท1-1_คณิตศาสตร์_100ข้อ', type: 'PDF', category: 'part1' },
+  { id: '1zrHLIiLxBGOb2Hv7w7JSPhHZvHelorSY', name: '06_พาร์ท1-2_วิเคราะห์และเหตุผล_100ข้อ', type: 'PDF', category: 'part1' },
+  { id: '1JfBDrw8UKIVfqrCgSG0erioWPUIISiZ4', name: '07_พาร์ท1-3_ภาษาไทย_100ข้อ', type: 'PDF', category: 'part1' },
+  { id: '11CyixZgNB1oCCK7DQ2Vh6uoDG9pH6-aS', name: '08_พาร์ท1-4_มิติสัมพันธ์_100ข้อ', type: 'PDF', category: 'part1' },
+  { id: '1wBlxul9ijFX_S33OV3VNMDw3obKDOJ9e', name: '09_พาร์ท1-5_ภาษาอังกฤษ_100ข้อ', type: 'PDF', category: 'part1' },
+  { id: '1jSB0ANlg8lKQY12luDkXVYxyrZ2XBfIX', name: '10_พาร์ท3-1_หลักการบัญชี_100ข้อ', type: 'PDF', category: 'part3' },
+  { id: '1VMqSuwzocAwboHoC9S8WlrSiVV7yWXgC', name: '11_พาร์ท3-2_การเงินการธนาคาร_100ข้อ', type: 'PDF', category: 'part3' },
+  { id: '1TZVmSS-0kjBi8eIWQqHKN6FJQhC95aM7', name: '12_พาร์ท3-3_เศรษฐศาสตร์_100ข้อ', type: 'PDF', category: 'part3' },
+  { id: '18_Y3pioXouro8aOt9ZdsuWxmVSLlC4Ou', name: '13_พาร์ท3-4_สินเชื่อและพัฒนาชนบท_100ข้อ', type: 'PDF', category: 'part3' },
+  { id: '1nb1hKxHlz1QpilabRhOa-h3HeyYFGTf5', name: '14_พาร์ท3-5_การตลาด_100ข้อ', type: 'PDF', category: 'part3' },
+  { id: '1QyIxxYbdmV6DV-JzOme-bLkGpS9c87Sx', name: '15_รายงานตรวจสอบคุณภาพ_ชุดขยาย11พาร์ท', type: 'PDF', category: 'quality' },
+]
+
+export const RECRUITMENT_NOTICE = SOURCE_FILES.find((file) => file.category === 'notice' && file.type === 'PDF')
+
+export const SOURCE_GROUPS = [
+  { id: 'notice', title: 'ประกาศรับสมัคร' },
+  { id: 'exam', title: 'คลังข้อสอบและ Mock Exam' },
+  { id: 'part1', title: 'พาร์ท 1 · ความรู้ความสามารถทั่วไป' },
+  { id: 'part3', title: 'พาร์ท 3 · ความรู้เฉพาะตำแหน่ง' },
+  { id: 'quality', title: 'รายงานตรวจสอบคุณภาพ' },
+  { id: 'other', title: 'สารบัญและข้อมูลเพิ่มเติม' },
 ]
 
 export const driveView = (id) => `https://drive.google.com/file/d/${id}/view`
