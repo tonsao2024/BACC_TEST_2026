@@ -100,6 +100,7 @@ export function AccountSheet({
   const [tab, setTab] = useState('me')
   const [newName, setNewName] = useState('')
   const [editing, setEditing] = useState(false)
+  const [confirming, setConfirming] = useState(null)
   const [draftName, setDraftName] = useState(profile?.name || '')
 
   const stats = useMemo(() => {
@@ -226,18 +227,41 @@ export function AccountSheet({
               </button>
             </div>
 
-            <button type="button" className="acct__link" onClick={onClear}>
+            <button
+              type="button"
+              className={`acct__link ${confirming === 'clear' ? 'acct__link--danger' : ''}`}
+              onClick={() => {
+                if (confirming === 'clear') {
+                  setConfirming(null)
+                  onClear()
+                  return
+                }
+                setConfirming('clear')
+              }}
+            >
               <Icon name="trash" size={17} />
-              ล้างประวัติการทำข้อสอบของฉัน
+              {confirming === 'clear'
+                ? 'แตะอีกครั้งเพื่อยืนยันล้างประวัติทั้งหมด'
+                : 'ล้างประวัติการทำข้อสอบของฉัน'}
             </button>
             <button
               type="button"
-              className="acct__link acct__link--danger"
-              onClick={onDelete}
+              className={`acct__link ${confirming === 'delete' ? 'acct__link--danger' : ''}`}
+              onClick={() => {
+                if (profiles.length <= 1 && confirming !== 'delete') return
+                if (confirming === 'delete') {
+                  setConfirming(null)
+                  onDelete()
+                  return
+                }
+                setConfirming('delete')
+              }}
               disabled={profiles.length <= 1}
             >
               <Icon name="close" size={17} />
-              ลบโปรไฟล์นี้และประวัติทั้งหมด
+              {confirming === 'delete'
+                ? 'แตะอีกครั้งเพื่อยืนยันลบโปรไฟล์'
+                : 'ลบโปรไฟล์นี้และประวัติทั้งหมด'}
             </button>
             <p className="acct__hint">
               ประวัติแต่ละชื่อถูกแยกออกจากกัน แม้จะใช้เครื่องเดียวกันหรือทำชุดข้อสอบเดียวกัน
