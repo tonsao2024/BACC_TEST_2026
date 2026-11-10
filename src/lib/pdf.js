@@ -167,12 +167,12 @@ function paintReport(result) {
   const pad = 78
   const W = PAGE.w
 
-  ctx.fillStyle = '#F7F5FF'
+  ctx.fillStyle = '#F2F7FF'
   ctx.fillRect(0, 0, W, PAGE.h)
 
   const grad = ctx.createLinearGradient(0, 0, W, 520)
-  grad.addColorStop(0, '#6C4CF1')
-  grad.addColorStop(0.55, '#8B5CF6')
+  grad.addColorStop(0, '#2563EB')
+  grad.addColorStop(0.55, '#3B82F6')
   grad.addColorStop(1, '#A97BFF')
   ctx.fillStyle = grad
   roundRect(ctx, 36, 36, W - 72, 470, 46)
@@ -242,11 +242,11 @@ function paintReport(result) {
   const stats = [
     { label: 'ตอบถูก', value: `${result.correct}/${result.total}`, color: '#10B981' },
     { label: 'ตอบผิด', value: `${result.wrong}`, color: '#FF6B57' },
-    { label: 'ไม่ได้ตอบ', value: `${result.skipped}`, color: '#7D7799' },
+    { label: 'ไม่ได้ตอบ', value: `${result.skipped}`, color: '#64748B' },
     {
       label: result.maxPoints ? 'คะแนนรวม' : 'คะแนน',
       value: result.maxPoints ? `${Math.round(result.points)}/${result.maxPoints}` : `${Math.round(result.score)}`,
-      color: '#6C4CF1',
+      color: '#2563EB',
     },
   ]
   const cw = (W - pad * 2 - 3 * 18) / 4
@@ -256,14 +256,14 @@ function paintReport(result) {
     ctx.fillStyle = '#fff'
     roundRect(ctx, x, y, cw, 148, 26)
     ctx.fill()
-    ctx.strokeStyle = 'rgba(25,21,57,0.07)'
+    ctx.strokeStyle = 'rgba(11,31,58,0.07)'
     ctx.lineWidth = 2
     ctx.stroke()
 
     ctx.fillStyle = s.color
     ctx.font = FONT(700, s.value.length > 7 ? 34 : 42)
     ctx.fillText(String(s.value), x + 24, y + 66)
-    ctx.fillStyle = '#7D7799'
+    ctx.fillStyle = '#64748B'
     ctx.font = FONT(400, 22)
     ctx.fillText(s.label, x + 24, y + 108)
   })
@@ -279,7 +279,7 @@ function paintReport(result) {
   ctx.fillText(badgeText, pad + 32, 786)
 
   let y = 856
-  ctx.fillStyle = '#191539'
+  ctx.fillStyle = '#0B1F3A'
   ctx.font = FONT(600, 32)
   ctx.fillText(result.sections?.length ? 'สรุปผลรายวิชา' : 'สรุปผลรายหัวข้อ', pad, y)
   y += 18
@@ -294,34 +294,34 @@ function paintReport(result) {
   rows.forEach((t) => {
     y += 46
     const ratio = t.total ? t.correct / t.total : 0
-    ctx.fillStyle = '#3A3460'
+    ctx.fillStyle = '#274060'
     ctx.font = FONT(400, 24)
     const name = t.name.length > 32 ? `${t.name.slice(0, 31)}…` : t.name
     ctx.fillText(name, pad, y + 8)
 
-    ctx.fillStyle = '#ECE7FF'
+    ctx.fillStyle = '#DBEAFE'
     roundRect(ctx, bx, y - 8, barMax, 18, 9)
     ctx.fill()
 
     const g2 = ctx.createLinearGradient(bx, 0, bx + barMax, 0)
-    g2.addColorStop(0, '#8B5CF6')
-    g2.addColorStop(1, '#B78BFF')
+    g2.addColorStop(0, '#3B82F6')
+    g2.addColorStop(1, '#60A5FA')
     ctx.fillStyle = g2
     if (ratio > 0) {
       roundRect(ctx, bx, y - 8, Math.max(18, barMax * ratio), 18, 9)
       ctx.fill()
     }
 
-    ctx.fillStyle = '#7D7799'
+    ctx.fillStyle = '#64748B'
     ctx.font = FONT(500, 22)
     ctx.fillText(`${t.correct}/${t.total}`, bx + barMax + 20, y + 8)
   })
 
   const footY = PAGE.h - 150
-  ctx.fillStyle = 'rgba(25,21,57,0.06)'
+  ctx.fillStyle = 'rgba(11,31,58,0.06)'
   ctx.fillRect(pad, footY, W - pad * 2, 2)
 
-  ctx.fillStyle = '#7D7799'
+  ctx.fillStyle = '#64748B'
   ctx.font = FONT(400, 21)
   wrapText(
     ctx,
@@ -330,9 +330,13 @@ function paintReport(result) {
   ).forEach((line, i) => {
     ctx.fillText(line, pad, footY + 48 + i * 32)
   })
-  ctx.fillStyle = '#6C4CF1'
+  ctx.fillStyle = '#2563EB'
   ctx.font = FONT(600, 21)
-  ctx.fillText('drive.google.com/drive/folders/1zcaLIPT0u6estLdIFIm-0PPyF2ACkh7f', pad, footY + 116)
+  ctx.fillText('drive.google.com/drive/folders/1zcaLIPT0u6estLdIFIm-0PPyF2ACkh7f', pad, footY + 112)
+
+  ctx.fillStyle = 'rgba(11,31,58,0.45)'
+  ctx.font = FONT(400, 19)
+  ctx.fillText('© 2569 Ton Skywalker · ห้ามเผยแพร่ (All rights reserved)', pad, footY + 158)
 
   return canvas
 }
@@ -372,12 +376,12 @@ function paintCover(exam, meta) {
   const pad = 78
   const W = PAGE.w
 
-  ctx.fillStyle = '#F7F5FF'
+  ctx.fillStyle = '#F2F7FF'
   ctx.fillRect(0, 0, W, PAGE.h)
 
   const grad = ctx.createLinearGradient(0, 0, W, 760)
-  grad.addColorStop(0, '#4B2ED8')
-  grad.addColorStop(0.5, '#6C4CF1')
+  grad.addColorStop(0, '#1E40AF')
+  grad.addColorStop(0.5, '#2563EB')
   grad.addColorStop(1, '#A97BFF')
   ctx.fillStyle = grad
   roundRect(ctx, 36, 36, W - 72, 780, 46)
@@ -417,18 +421,18 @@ function paintCover(exam, meta) {
   ctx.fillText(`รหัสชุดข้อสอบ: ${exam.seed}`, pad, 596)
 
   /* structure table */
-  ctx.fillStyle = '#191539'
+  ctx.fillStyle = '#0B1F3A'
   ctx.font = FONT(600, 34)
   ctx.fillText('โครงสร้างชุดข้อสอบ', pad, 900)
 
   let y = 940
   ctx.font = FONT(500, 24)
-  ctx.fillStyle = '#7D7799'
+  ctx.fillStyle = '#64748B'
   ctx.fillText('รายวิชา', pad + 24, y)
   ctx.fillText('จำนวนข้อ', pad + 640, y)
   ctx.fillText('คะแนน', pad + 880, y)
   y += 16
-  ctx.strokeStyle = 'rgba(25,21,57,0.12)'
+  ctx.strokeStyle = 'rgba(11,31,58,0.12)'
   ctx.lineWidth = 2
   ctx.beginPath()
   ctx.moveTo(pad, y)
@@ -440,7 +444,7 @@ function paintCover(exam, meta) {
     ctx.fillStyle = s.color
     roundRect(ctx, pad, y - 30, 10, 40, 5)
     ctx.fill()
-    ctx.fillStyle = '#191539'
+    ctx.fillStyle = '#0B1F3A'
     ctx.font = FONT(400, 26)
     ctx.fillText(s.label, pad + 28, y)
     ctx.font = FONT(500, 26)
@@ -452,18 +456,22 @@ function paintCover(exam, meta) {
   ctx.fillStyle = '#F1ECFF'
   roundRect(ctx, pad, y - 44, W - pad * 2, 76, 20)
   ctx.fill()
-  ctx.fillStyle = '#4B2ED8'
+  ctx.fillStyle = '#1E40AF'
   ctx.font = FONT(600, 26)
   ctx.fillText(`รวม ${exam.totalCount} ข้อ · ${exam.totalPoints} คะแนน`, pad + 28, y + 4)
 
-  ctx.fillStyle = '#7D7799'
+  ctx.fillStyle = '#64748B'
   ctx.font = FONT(400, 22)
   ctx.fillText(
     'ข้อสอบชุดนี้สร้างจากระบบ BACC Exam 2569 เพื่อใช้ฝึกซ้อมเท่านั้น',
     pad,
-    PAGE.h - 120,
+    PAGE.h - 132,
   )
-  ctx.fillText('ไม่ใช่ข้อสอบจริงของธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร', pad, PAGE.h - 86)
+  ctx.fillText('ไม่ใช่ข้อสอบจริงของธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร', pad, PAGE.h - 100)
+
+  ctx.fillStyle = 'rgba(11,31,58,0.55)'
+  ctx.font = FONT(600, 19)
+  ctx.fillText('© 2569 Ton Skywalker · ห้ามเผยแพร่ (All rights reserved)', pad, PAGE.h - 58)
 
   return canvas
 }
@@ -479,28 +487,28 @@ function paintQuestionPage(items, meta) {
   ctx.fillRect(0, 0, W, PAGE.h)
 
   const head = ctx.createLinearGradient(0, 0, W, 0)
-  head.addColorStop(0, '#6C4CF1')
-  head.addColorStop(0.6, '#8B5CF6')
-  head.addColorStop(1, '#C9A9FF')
+  head.addColorStop(0, '#2563EB')
+  head.addColorStop(0.6, '#3B82F6')
+  head.addColorStop(1, '#93C5FD')
   ctx.fillStyle = head
   ctx.fillRect(0, 0, W, 10)
 
-  ctx.fillStyle = '#7D7799'
+  ctx.fillStyle = '#64748B'
   ctx.font = FONT(400, 20)
   ctx.fillText('BACC EXAM 2569 · ข้อสอบเสมือนจริง', pad, 58)
   ctx.textAlign = 'right'
   ctx.fillText(`หน้า ${meta.pageIndex}/${meta.pageCount}`, W - pad, 58)
   ctx.textAlign = 'left'
 
-  ctx.fillStyle = '#191539'
+  ctx.fillStyle = '#0B1F3A'
   ctx.font = FONT(600, 28)
   ctx.fillText(meta.title, pad, 100)
 
-  ctx.fillStyle = '#7D7799'
+  ctx.fillStyle = '#64748B'
   ctx.font = FONT(400, 19)
   ctx.fillText(`${meta.examinee} · ${meta.dateText}`, pad, 130)
 
-  ctx.strokeStyle = 'rgba(25,21,57,0.1)'
+  ctx.strokeStyle = 'rgba(11,31,58,0.1)'
   ctx.lineWidth = 2
   ctx.beginPath()
   ctx.moveTo(pad, 150)
@@ -514,7 +522,7 @@ function paintQuestionPage(items, meta) {
       ctx.fillStyle = '#F1ECFF'
       roundRect(ctx, pad, y - 30, contentW, 52, 14)
       ctx.fill()
-      ctx.fillStyle = '#4B2ED8'
+      ctx.fillStyle = '#1E40AF'
       ctx.font = FONT(600, 24)
       ctx.fillText(item.sectionHeader, pad + 18, y + 4)
       y += 62
@@ -524,7 +532,7 @@ function paintQuestionPage(items, meta) {
     const q = item.q
     const indent = 46
 
-    ctx.fillStyle = '#191539'
+    ctx.fillStyle = '#0B1F3A'
     ctx.font = FONT(600, 23)
     ctx.fillText(`${item.number}.`, pad, y)
 
@@ -544,10 +552,10 @@ function paintQuestionPage(items, meta) {
       for (let c = 0; c < 2; c += 1) {
         const idx = r * 2 + c
         const x = pad + indent + c * (colW + 24)
-        ctx.fillStyle = '#6C4CF1'
+        ctx.fillStyle = '#2563EB'
         ctx.font = FONT(600, 21)
         ctx.fillText(`${LETTERS[idx]}.`, x, rowY)
-        ctx.fillStyle = '#3A3460'
+        ctx.fillStyle = '#274060'
         ctx.font = FONT(400, 21)
         const first = optionLines[idx][0] || ''
         ctx.fillText(first, x + 26, rowY)
@@ -562,7 +570,7 @@ function paintQuestionPage(items, meta) {
             const idx = r * 2 + c
             if (optionLines[idx][e]) {
               const x = pad + indent + c * (colW + 24)
-              ctx.fillStyle = '#3A3460'
+              ctx.fillStyle = '#274060'
               ctx.font = FONT(400, 21)
               ctx.fillText(optionLines[idx][e], x + 26, rowY + e * 24)
             }
@@ -573,7 +581,7 @@ function paintQuestionPage(items, meta) {
     const maxOptLines = Math.max(...optionLines.map((l) => l.length))
     y += 2 * rowH + (maxOptLines - 1) * 24 + 26
 
-    ctx.strokeStyle = 'rgba(25,21,57,0.05)'
+    ctx.strokeStyle = 'rgba(11,31,58,0.05)'
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(pad, y - 14)
@@ -582,9 +590,9 @@ function paintQuestionPage(items, meta) {
   })
 
   /* footer */
-  ctx.fillStyle = '#7D7799'
+  ctx.fillStyle = '#64748B'
   ctx.font = FONT(400, 18)
-  ctx.fillText('BACC Exam 2569 · ชุดข้อสอบเสมือนจริง', pad, PAGE.h - 46)
+  ctx.fillText('BACC Exam 2569 · ชุดข้อสอบเสมือนจริง · © Ton Skywalker (ห้ามเผยแพร่)', pad, PAGE.h - 46)
   ctx.textAlign = 'right'
   ctx.fillText(`หน้า ${meta.pageIndex}/${meta.pageCount}`, W - pad, PAGE.h - 46)
   ctx.textAlign = 'left'
@@ -607,10 +615,10 @@ function paintAnswerKey(items, meta) {
   ctx.fillStyle = head
   ctx.fillRect(0, 0, W, 10)
 
-  ctx.fillStyle = '#191539'
+  ctx.fillStyle = '#0B1F3A'
   ctx.font = FONT(600, 36)
   ctx.fillText('เฉลยคำตอบ', pad, 100)
-  ctx.fillStyle = '#7D7799'
+  ctx.fillStyle = '#64748B'
   ctx.font = FONT(400, 20)
   ctx.fillText(`${meta.title} · ${meta.examinee}`, pad, 140)
 
@@ -624,13 +632,17 @@ function paintAnswerKey(items, meta) {
     const x = pad + c * colW
     const y = 210 + row * rowH
     if (y > PAGE.h - 90) return
-    ctx.fillStyle = '#7D7799'
+    ctx.fillStyle = '#64748B'
     ctx.font = FONT(400, 22)
     ctx.fillText(`${item.number}.`, x, y)
     ctx.fillStyle = '#067A55'
     ctx.font = FONT(600, 22)
     ctx.fillText(LETTERS[item.q.a], x + 52, y)
   })
+
+  ctx.fillStyle = 'rgba(11,31,58,0.45)'
+  ctx.font = FONT(400, 17)
+  ctx.fillText('© 2569 Ton Skywalker · ห้ามเผยแพร่', pad, PAGE.h - 46)
 
   return canvas
 }

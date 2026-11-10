@@ -122,9 +122,9 @@ export default function Result({
             <svg viewBox="0 0 120 120">
               <defs>
                 <linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#6C4CF1" />
+                  <stop offset="0%" stopColor="#2563EB" />
                   <stop offset="60%" stopColor="#9B7BFF" />
-                  <stop offset="100%" stopColor="#C9A9FF" />
+                  <stop offset="100%" stopColor="#93C5FD" />
                 </linearGradient>
               </defs>
               <circle className="score-ring__track" cx="60" cy="60" r="54" fill="none" strokeWidth="11" pathLength="100" />
@@ -182,7 +182,7 @@ export default function Result({
             <div className="stat-box__label">ตอบผิด</div>
           </div>
           <div className="stat-box" style={{ '--i': 2 }}>
-            <div className="stat-box__ico" style={{ background: '#f3f1fb', color: 'var(--muted)' }}>
+            <div className="stat-box__ico" style={{ background: '#eef4ff', color: 'var(--muted)' }}>
               <Icon name="clock" size={15} />
             </div>
             <div className="stat-box__num num" style={{ fontSize: 14, paddingTop: 3 }}>
@@ -278,7 +278,7 @@ export default function Result({
                   padding: '9px 12px',
                   borderRadius: 12,
                   border: '1.5px solid var(--line)',
-                  background: '#fbfaff',
+                  background: '#f8fbff',
                   fontSize: 12.5,
                   outline: 'none',
                 }}

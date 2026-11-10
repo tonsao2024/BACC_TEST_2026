@@ -90,7 +90,7 @@ export function Toast({ message, icon = 'checkCircle' }) {
 }
 
 export function Confetti({ count = 26 }) {
-  const colors = ['#6C4CF1', '#A98CFF', '#FFB020', '#10B981', '#FF6B57', '#5EEAD4']
+  const colors = ['#2563EB', '#60A5FA', '#FFB020', '#10B981', '#FF6B57', '#5EEAD4']
   return (
     <div className="confetti" aria-hidden="true">
       {Array.from({ length: count }).map((_, i) => (

@@ -244,7 +244,7 @@ export default function Home({
           className="part-card"
           onClick={onStartMock}
           style={{
-            background: 'linear-gradient(135deg,#241D52,#4B3BB0 60%,#7C5CFF)',
+            background: 'linear-gradient(135deg,#0B2149,#1E40AF 60%,#3B82F6)',
             color: '#fff',
             border: 'none',
             padding: 18,

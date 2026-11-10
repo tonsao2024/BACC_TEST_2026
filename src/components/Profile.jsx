@@ -89,6 +89,9 @@ export function AccountSheet({
   profiles = [],
   results = [],
   theme = 'light',
+  settings = { instantReveal: true },
+  onToggleInstantReveal,
+  syncPanel = null,
   onClose,
   onSwitch,
   onCreate,
@@ -227,6 +230,26 @@ export function AccountSheet({
               </button>
             </div>
 
+            <div className="acct__row">
+              <div className="acct__row-text">
+                <b>เฉลยทันทีเมื่อเลือกคำตอบ</b>
+                <span>แสดงคำตอบที่ถูกและคำอธิบายละเอียดทันทีที่เลือก</span>
+              </div>
+              <button
+                type="button"
+                className={`switch ${settings.instantReveal ? 'is-on' : ''}`}
+                onClick={onToggleInstantReveal}
+                aria-label="สลับการเฉลยทันที"
+                aria-pressed={settings.instantReveal}
+              >
+                <span className="switch__knob">
+                  <Icon name={settings.instantReveal ? 'eye' : 'lock'} size={13} />
+                </span>
+              </button>
+            </div>
+
+            {syncPanel}
+
             <button
               type="button"
               className={`acct__link ${confirming === 'clear' ? 'acct__link--danger' : ''}`}
@@ -265,6 +288,7 @@ export function AccountSheet({
             </button>
             <p className="acct__hint">
               ประวัติแต่ละชื่อถูกแยกออกจากกัน แม้จะใช้เครื่องเดียวกันหรือทำชุดข้อสอบเดียวกัน
+              — และเมื่อเชื่อมต่อ GitHub ข้อมูลจะถูกเก็บไว้บนคลาวด์ของคุณ
             </p>
           </div>
         ) : (

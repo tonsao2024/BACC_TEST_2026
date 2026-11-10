@@ -11,6 +11,7 @@ import {
   getCurrentProfile,
   getProfiles,
   getSets,
+  getSettings,
   getTheme,
   listAttempts,
   loadResults,
@@ -18,11 +19,14 @@ import {
   saveAttempt,
   saveResult,
   saveSet,
+  saveSettings,
   setCurrentProfile,
   setTheme,
   uidPublic,
 } from './lib/storage.js'
 import { generateExam } from './lib/generator.js'
+import { clearGithubConfig, getGithubConfig } from './lib/remote.js'
+import { getSyncState, pullAndMerge, pushNow, resetSyncState, schedulePush, subscribeSync } from './lib/sync.js'
 import Home from './components/Home.jsx'
 import PartDetail from './components/PartDetail.jsx'
 import Quiz from './components/Quiz.jsx'
@@ -32,6 +36,7 @@ import Sources from './components/Sources.jsx'
 import ExamBuilder from './components/ExamBuilder.jsx'
 import DocReader from './components/DocReader.jsx'
 import { AccountSheet, ProfileGate } from './components/Profile.jsx'
+import GitHubPanel from './components/GitHubPanel.jsx'
 import Icon from './components/Icons.jsx'
 import { Toast } from './components/ui.jsx'
 
@@ -53,6 +58,11 @@ export default function App() {
   })
   const [sets, setSets] = useState(() => getSets())
   const [theme, setThemeState] = useState(() => getTheme())
+  const [settings, setSettings] = useState(() => getSettings())
+  const [sync, setSync] = useState(() => getSyncState())
+  const [hydrated, setHydrated] = useState(() => !getGithubConfig())
+  const hydratedRef = useRef(false)
+  const suppressPushUntil = useRef(0)
 
   const [view, setView] = useState('home')
   const [partId, setPartId] = useState(null)
@@ -90,7 +100,58 @@ export default function App() {
     refreshProfileData(profile?.id)
   }, [profile?.id, refreshProfileData])
 
-  /* ---------------- navigation ---------------- */
+  /* ---------------- GitHub sync ---------------- */
+  useEffect(() => subscribeSync(setSync), [])
+
+  const reloadAll = useCallback(() => {
+    const p = getCurrentProfile()
+    setProfilesAndCurrent()
+    setResults(p ? loadResults(p.id) : [])
+    setAttempts(p ? listAttempts(p.id) : [])
+    setSets(getSets())
+    setSettings(getSettings())
+    setThemeState(getTheme())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function setProfilesAndCurrent() {
+    const list = getProfiles()
+    setProfiles(list)
+    const cur = getCurrentProfile()
+    if (cur) setProfile((prev) => list.find((x) => x.id === (prev?.id || cur.id)) || cur)
+    else setProfile(null)
+  }
+
+  useEffect(() => {
+    if (hydratedRef.current) return undefined
+    hydratedRef.current = true
+    if (!getGithubConfig()) {
+      setHydrated(true)
+      return undefined
+    }
+    let alive = true
+    ;(async () => {
+      const ok = await pullAndMerge()
+      if (!alive) return
+      if (ok) {
+        reloadAll()
+        showToast('ดึงข้อมูลล่าสุดจาก GitHub แล้ว')
+      }
+      setHydrated(true)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [reloadAll, showToast])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (!getGithubConfig()) return
+    if (Date.now() < suppressPushUntil.current) return
+    schedulePush()
+  }, [hydrated, profiles, results, attempts, sets, theme, settings])
+
+
   const navigate = useCallback(
     (nextView, payload = {}) => {
       setStack((prev) => [...prev, { view, partId, activeResult }])
@@ -157,7 +218,7 @@ export default function App() {
       setId: set.id,
       seed: set.seed,
       sizeKey: set.sizeKey,
-      color: '#6C4CF1',
+      color: '#2563EB',
       minutes: gen.minutes,
       questions: gen.questions,
       sections: gen.sections.map(({ key, label, count, points, color }) => ({
@@ -392,6 +453,26 @@ export default function App() {
     [startPart, startSet],
   )
 
+  const toggleInstantReveal = useCallback(() => {
+    const next = saveSettings({ instantReveal: !getSettings().instantReveal })
+    setSettings(next)
+  }, [])
+
+  const connectAndSync = useCallback(async () => {
+    const pulled = await pullAndMerge()
+    if (!pulled) return false
+    suppressPushUntil.current = Date.now() + 4000
+    reloadAll()
+    return pushNow()
+  }, [reloadAll])
+
+  const disconnectGithub = useCallback(() => {
+    clearGithubConfig()
+    resetSyncState()
+    setHydrated(true)
+    showToast('ยกเลิกการเชื่อมต่อ GitHub แล้ว', 'info')
+  }, [showToast])
+
   /* ---------------- misc ---------------- */
   const part = useMemo(() => (partId ? getPart(partId) : null), [partId])
   const attemptForPart = useMemo(
@@ -516,6 +597,8 @@ export default function App() {
             exam={session.exam}
             name={profile.name}
             attempt={session.attempt}
+            instantReveal={settings.instantReveal}
+            onToggleInstantReveal={toggleInstantReveal}
             onSave={handleSaveAttempt}
             onExit={() => back()}
             onFinish={handleFinish}
@@ -569,10 +652,13 @@ export default function App() {
             onReadDoc={() => navigate('sources')}
           />
         )}
+
+        <footer className="copyright">
+          © 2569 Ton Skywalker · ห้ามเผยแพร่ (All rights reserved)
+        </footer>
       </main>
 
-      {showNav && (
-        <nav className="bottom-nav" aria-label="เมนูหลัก">
+      <nav className={`bottom-nav ${showNav ? '' : 'is-mobile-hidden'}`} aria-label="เมนูหลัก">
           <div className="bottom-nav__inner">
             {navItems.map((item) => (
               <button
@@ -584,9 +670,8 @@ export default function App() {
                 {item.label}
               </button>
             ))}
-          </div>
-        </nav>
-      )}
+        </div>
+      </nav>
 
       {toast && <Toast message={toast.message} icon={toast.icon} />}
 
@@ -603,10 +688,27 @@ export default function App() {
           onDelete={handleDeleteProfile}
           onClear={handleClearResults}
           onToggleTheme={toggleTheme}
+          settings={settings}
+          onToggleInstantReveal={toggleInstantReveal}
+          syncPanel={
+            <GitHubPanel
+              sync={sync}
+              onSaved={connectAndSync}
+              onDisconnected={disconnectGithub}
+              onToast={showToast}
+            />
+          }
         />
       )}
 
-      {doc && <DocReader doc={doc} onClose={() => setDoc(null)} />}
+      {doc && (
+        <DocReader
+          doc={doc}
+          files={SOURCE_FILES}
+          onSelect={(f) => setDoc(f)}
+          onClose={() => setDoc(null)}
+        />
+      )}
     </div>
   )
 }

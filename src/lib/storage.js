@@ -1,6 +1,6 @@
 /* ============================================================
-   Storage layer — profiles, results, resumable attempts, exam sets, theme
-   ทุกอย่างเก็บใน localStorage ของเครื่องผู้ใช้ (ไม่มีการส่งออก)
+   Storage layer — profiles, results, resumable attempts, exam sets, theme, settings
+   เก็บสำเนาใน localStorage เพื่อให้ใช้งานออฟไลน์ได้ และซิงก์ขึ้น GitHub (ดู remote.js)
    ============================================================ */
 
 const K = {
@@ -12,6 +12,7 @@ const K = {
   attempts: (pid) => `bacc2569:attempts:${pid}`,
   sets: 'bacc2569:sets',
   theme: 'bacc2569:theme',
+  settings: 'bacc2569:settings',
 }
 
 const read = (key, fallback) => {
@@ -240,6 +241,141 @@ export function setTheme(theme) {
     localStorage.setItem(K.theme, theme)
   } catch {
     /* noop */
+  }
+}
+
+/* ---------------- settings ---------------- */
+const DEFAULT_SETTINGS = {
+  instantReveal: true, // เฉลยทันทีเมื่อเลือกคำตอบ
+  sound: false,
+}
+
+export function getSettings() {
+  const raw = read(K.settings, null)
+  return { ...DEFAULT_SETTINGS, ...(raw && typeof raw === 'object' ? raw : {}) }
+}
+
+export function saveSettings(patch) {
+  const next = { ...getSettings(), ...patch }
+  write(K.settings, next)
+  return next
+}
+
+/* ---------------- snapshot (สำหรับซิงก์ GitHub) ---------------- */
+export function exportSnapshot() {
+  const profiles = getProfiles()
+  const results = {}
+  const attempts = {}
+  profiles.forEach((p) => {
+    results[p.id] = loadResults(p.id)
+    attempts[p.id] = listAttempts(p.id)
+  })
+  return {
+    app: 'bacc-exam-2569',
+    version: 2,
+    updatedAt: new Date().toISOString(),
+    profiles,
+    results,
+    attempts,
+    sets: getSets(),
+    settings: getSettings(),
+    theme: (() => {
+      try {
+        const t = localStorage.getItem(K.theme)
+        return t === 'dark' || t === 'light' ? t : ''
+      } catch {
+        return ''
+      }
+    })(),
+  }
+}
+
+export function importSnapshot(data) {
+  if (!data || typeof data !== 'object') return false
+  try {
+    if (Array.isArray(data.profiles)) write(K.profiles, data.profiles)
+    if (data.results && typeof data.results === 'object') {
+      Object.entries(data.results).forEach(([pid, list]) => write(K.results(pid), Array.isArray(list) ? list : []))
+    }
+    if (data.attempts && typeof data.attempts === 'object') {
+      Object.entries(data.attempts).forEach(([pid, list]) =>
+        write(K.attempts(pid), Array.isArray(list) ? list : []),
+      )
+    }
+    if (Array.isArray(data.sets)) write(K.sets, data.sets)
+    if (data.settings && typeof data.settings === 'object') write(K.settings, { ...DEFAULT_SETTINGS, ...data.settings })
+    if (data.theme === 'dark' || data.theme === 'light') {
+      try {
+        localStorage.setItem(K.theme, data.theme)
+      } catch {
+        /* noop */
+      }
+    }
+    if (!read(K.current, null) && Array.isArray(data.profiles) && data.profiles.length) {
+      write(K.current, data.profiles[0].id)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** รวมข้อมูล 2 ชุด (union ตาม id) — ใช้เมื่อดึงข้อมูลจาก GitHub */
+export function mergeSnapshots(local, remote) {
+  const a = local || {}
+  const b = remote || {}
+  const byId = (x, y) => {
+    const map = new Map()
+    ;[...(x || []), ...(y || [])].forEach((item) => {
+      if (!item || !item.id) return
+      const prev = map.get(item.id)
+      if (!prev) {
+        map.set(item.id, item)
+        return
+      }
+      const t1 = new Date(prev.updatedAt || prev.date || prev.createdAt || 0).getTime()
+      const t2 = new Date(item.updatedAt || item.date || item.createdAt || 0).getTime()
+      if (t2 > t1) map.set(item.id, item)
+    })
+    return Array.from(map.values())
+  }
+  const mergeAttempts = (x, y) => {
+    const map = new Map()
+    ;[...(x || []), ...(y || [])].forEach((item) => {
+      if (!item || !item.key) return
+      const prev = map.get(item.key)
+      if (!prev) {
+        map.set(item.key, item)
+        return
+      }
+      if (new Date(item.updatedAt || 0).getTime() >= new Date(prev.updatedAt || 0).getTime()) map.set(item.key, item)
+    })
+    return Array.from(map.values())
+  }
+
+  const results = {}
+  const attempts = {}
+  const pids = new Set([...Object.keys(a.results || {}), ...Object.keys(b.results || {})])
+  pids.forEach((pid) => {
+    results[pid] = byId(a.results?.[pid], b.results?.[pid]).sort(
+      (x, y) => new Date(y.date || 0) - new Date(x.date || 0),
+    )
+  })
+  const apids = new Set([...Object.keys(a.attempts || {}), ...Object.keys(b.attempts || {})])
+  apids.forEach((pid) => {
+    attempts[pid] = mergeAttempts(a.attempts?.[pid], b.attempts?.[pid])
+  })
+
+  return {
+    app: 'bacc-exam-2569',
+    version: 2,
+    updatedAt: new Date().toISOString(),
+    profiles: byId(a.profiles, b.profiles),
+    results,
+    attempts,
+    sets: byId(a.sets, b.sets),
+    settings: { ...DEFAULT_SETTINGS, ...(a.settings || {}), ...(b.settings || {}) },
+    theme: b.theme || a.theme || '',
   }
 }
 

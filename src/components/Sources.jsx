@@ -3,7 +3,7 @@ import Icon from './Icons.jsx'
 
 const TYPE_STYLE = {
   PDF: { bg: '#FFEEEA', fg: '#E23D28' },
-  MD: { bg: '#EEF2FF', fg: '#4F46E5' },
+  MD: { bg: '#E0F2FE', fg: '#0369A1' },
 }
 
 export default function Sources({ onBack, onToast, onReadDoc }) {
@@ -75,7 +75,8 @@ export default function Sources({ onBack, onToast, onReadDoc }) {
                           fontWeight: 500,
                         }}
                       >
-                        <Icon name="checkCircle" size={11} stroke={2.2} /> อ่านในเว็บไซต์ได้
+                        <Icon name="checkCircle" size={11} stroke={2.2} />{' '}
+                        {f.type === 'PDF' ? 'อ่าน PDF ในเว็บไซต์ได้' : 'ไฟล์ข้อความ — ดาวน์โหลดเท่านั้น'}
                       </span>
                     </div>
                   </div>
@@ -85,7 +86,8 @@ export default function Sources({ onBack, onToast, onReadDoc }) {
                       className="icon-btn"
                       onClick={() => onReadDoc?.(f)}
                       aria-label={`อ่าน ${f.name} ในเว็บไซต์`}
-                      style={{ width: 34, height: 34, borderRadius: 11 }}
+                      title={f.type === 'PDF' ? 'อ่านในเว็บไซต์' : 'เปิดอ่านได้เฉพาะไฟล์ PDF'}
+                      style={{ width: 34, height: 34, borderRadius: 11, opacity: f.type === 'PDF' ? 1 : 0.45 }}
                     >
                       <Icon name="book" size={15} />
                     </button>

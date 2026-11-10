@@ -3,8 +3,8 @@
    โครงสร้างคำถาม: { t: หัวข้อ, l: ระดับ, q: โจทย์, o: ตัวเลือก, a: ดัชนีคำตอบ, e: คำอธิบาย, fig: ภาพ, ofigs: ภาพตัวเลือก } */
 
 /* ---------- helper: SVG รูปทรงสำหรับข้อสอบมิติสัมพันธ์ ---------- */
-const V = '#6C4CF1'
-const V2 = '#B49CFF'
+const V = '#2563EB'
+const V2 = '#60A5FA'
 
 const svgWrap = (inner, label = '') =>
   `<svg viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">${inner}</svg>`
@@ -22,7 +22,7 @@ const L_SHAPES = {
 
 const flag = (flip = 1, rotate = 0) =>
   `<g transform="translate(45 45) rotate(${rotate}) scale(${flip} 1) translate(-45 -45)">
-     <rect x="28" y="14" width="4" height="62" rx="2" fill="#8B5CF6"/>
+     <rect x="28" y="14" width="4" height="62" rx="2" fill="#3B82F6"/>
      <path d="M32 16 L72 31 L32 46 Z" fill="${V}"/>
    </g>`
 
@@ -365,7 +365,7 @@ const FIG_FLAG_UP = svgWrap(flag(1, -90), 'ภาพ ค')
 const FIG_FLAG_DOWN = svgWrap(flag(1, 90), 'ภาพ ง')
 
 const FIG_TRIANGLES = `<svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
-  <rect x="10" y="10" width="120" height="120" rx="6" fill="#F3EFFF" stroke="${V}" stroke-width="2.5"/>
+  <rect x="10" y="10" width="120" height="120" rx="6" fill="#E8F1FF" stroke="${V}" stroke-width="2.5"/>
   <line x1="10" y1="10" x2="130" y2="130" stroke="${V}" stroke-width="2.5"/>
   <line x1="130" y1="10" x2="10" y2="130" stroke="${V}" stroke-width="2.5"/>
 </svg>`

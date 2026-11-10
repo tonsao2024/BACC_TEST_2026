@@ -7,7 +7,16 @@ const LETTERS = ['ก', 'ข', 'ค', 'ง']
 
 const emptyAnswers = (n) => Array(n).fill(null)
 
-export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) {
+export default function Quiz({
+  exam,
+  name,
+  attempt,
+  instantReveal = true,
+  onToggleInstantReveal,
+  onSave,
+  onExit,
+  onFinish,
+}) {
   const questions = exam.questions
   const total = questions.length
   const duration = exam.minutes * 60
@@ -15,6 +24,7 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
 
   const [answers, setAnswers] = useState(() => attempt?.answers || emptyAnswers(total))
   const [flagged, setFlagged] = useState(() => new Set(attempt?.flagged || []))
+  const [revealed, setRevealed] = useState(() => new Set(attempt?.revealed || []))
   const [idx, setIdx] = useState(() => Math.min(attempt?.idx || 0, total - 1))
   const [remaining, setRemaining] = useState(() =>
     typeof attempt?.remaining === 'number' ? attempt.remaining : duration,
@@ -23,13 +33,27 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
   const [usedSec, setUsedSec] = useState(() => attempt?.usedSec || 0)
   const [paused, setPaused] = useState(false)
   const [sheet, setSheet] = useState(null)
+  const [flash, setFlash] = useState(null)
 
+  const feedbackRef = useRef(null)
   const submitted = useRef(false)
   const q = questions[idx]
   const sectionKey = q?.sectionKey || 'part'
   const sectionInfo = sections?.find((s) => s.key === sectionKey) || null
   const answeredCount = answers.filter((a) => a !== null).length
   const flaggedCount = flagged.size
+  const chosen = answers[idx]
+  const isRevealed = instantReveal && revealed.has(idx)
+  const isCorrect = chosen !== null && chosen === q?.a
+
+  const correctCount = useMemo(
+    () => answers.reduce((sum, a, i) => (a !== null && a === questions[i].a ? sum + 1 : sum), 0),
+    [answers, questions],
+  )
+  const wrongCount = useMemo(
+    () => answers.reduce((sum, a, i) => (a !== null && a !== questions[i].a ? sum + 1 : sum), 0),
+    [answers, questions],
+  )
 
   /* ---------- autosave snapshot ---------- */
   const snapshot = useMemo(
@@ -45,13 +69,14 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
       total,
       answers,
       flagged: Array.from(flagged),
+      revealed: Array.from(revealed),
       idx,
       remaining,
       usedSec,
       sectionSec,
       updatedAt: new Date().toISOString(),
     }),
-    [answers, exam, flagged, idx, remaining, sectionSec, total, usedSec],
+    [answers, exam, flagged, idx, remaining, revealed, sectionSec, total, usedSec],
   )
 
   const snapshotRef = useRef(snapshot)
@@ -65,7 +90,7 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
   }, [onSave])
 
   useEffect(() => {
-    if (submitted.current || paused) return
+    if (submitted.current || paused) return undefined
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => onSave?.(snapshotRef.current), 600)
     return () => {
@@ -73,7 +98,6 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
     }
   }, [snapshot, onSave, paused])
 
-  /* ---------- flush on unload ---------- */
   useEffect(() => {
     const handler = () => flush()
     window.addEventListener('pagehide', handler)
@@ -93,6 +117,17 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
     }, 1000)
     return () => clearInterval(id)
   }, [paused, sectionKey])
+
+  /* ---------- flash effect auto-clear ---------- */
+  useEffect(() => {
+    if (!flash) return undefined
+    const el = feedbackRef.current
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+    const id = setTimeout(() => setFlash(null), 1400)
+    return () => clearTimeout(id)
+  }, [flash])
 
   /* ---------- build result ---------- */
   const buildResult = useCallback(
@@ -132,7 +167,7 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
         return {
           key: s.key,
           label: s.label,
-          color: s.color || exam.color || '#6C4CF1',
+          color: s.color || exam.color || '#2563EB',
           correct: right,
           total: rows.length,
           points: s.count ? (right * s.points) / s.count : right,
@@ -142,9 +177,7 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
       })
 
       const maxPoints = sections ? sections.reduce((sum, s) => sum + s.points, 0) : total
-      const points = sections
-        ? secStats.reduce((sum, s) => sum + s.points, 0)
-        : correct
+      const points = sections ? secStats.reduce((sum, s) => sum + s.points, 0) : correct
 
       return {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -152,7 +185,7 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
         partId: exam.partId || null,
         partLabel: exam.partLabel || exam.label,
         partTitle: exam.partTitle || exam.title,
-        partColor: exam.color || '#6C4CF1',
+        partColor: exam.color || '#2563EB',
         setId: exam.setId || null,
         setName: exam.setName || null,
         seed: exam.seed || null,
@@ -195,16 +228,23 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
     if (remaining <= 0 && !submitted.current) submit(true)
   }, [remaining, submit])
 
-  /* ---------- navigation ---------- */
+  /* ---------- navigation & answering ---------- */
   const select = useCallback(
     (optionIdx) => {
+      if (submitted.current) return
+      if (instantReveal && revealed.has(idx)) return
       setAnswers((prev) => {
         const next = [...prev]
-        next[idx] = next[idx] === optionIdx ? null : optionIdx
+        next[idx] = optionIdx
         return next
       })
+      if (instantReveal) {
+        const ok = optionIdx === questions[idx].a
+        setRevealed((prev) => new Set(prev).add(idx))
+        setFlash({ idx, ok, at: Date.now() })
+      }
     },
-    [idx],
+    [idx, instantReveal, questions, revealed],
   )
 
   const go = useCallback(
@@ -246,7 +286,34 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
   const progress = ((idx + 1) / total) * 100
   const answeredPct = Math.round((answeredCount / total) * 100)
 
-  const sectionHeader = (key) => sections?.find((s) => s.key === key)?.label || null
+  const cellClass = (i) => {
+    const base = ['palette-cell']
+    if (answers[i] !== null) base.push('is-done')
+    if (instantReveal && revealed.has(i)) base.push(answers[i] === questions[i].a ? 'is-ok' : 'is-no')
+    if (i === idx) base.push('is-current')
+    if (flagged.has(i)) base.push('is-flag')
+    return base.join(' ')
+  }
+
+  const palette = (
+    <div className="palette-grid">
+      {questions.map((item, i) => (
+        <button
+          key={i}
+          type="button"
+          className={cellClass(i)}
+          onClick={() => {
+            setIdx(i)
+            setSheet(null)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          aria-label={`ข้อ ${i + 1}`}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  )
 
   return (
     <>
@@ -303,90 +370,236 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
         </div>
       )}
 
-      <div style={{ padding: '4px 0 0' }}>
-        <div className="progress-line">
-          <div className="progress-line__fill" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="progress-meta">
-          <span>
-            ข้อ{' '}
-            <b className="num" style={{ color: 'var(--ink)' }}>
-              {idx + 1}
-            </b>{' '}
-            จาก {total}
-          </span>
-          <span>
-            ตอบแล้ว{' '}
-            <b className="num" style={{ color: 'var(--viol-600)' }}>
-              {answeredCount}
-            </b>{' '}
-            ข้อ · {answeredPct}%
-          </span>
-        </div>
+      <div className="quiz-body">
+        <div className="quiz-main">
+          <div className="progress-line">
+            <div className="progress-line__fill" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="progress-meta">
+            <span>
+              ข้อ{' '}
+              <b className="num" style={{ color: 'var(--ink)' }}>
+                {idx + 1}
+              </b>{' '}
+              จาก {total}
+            </span>
+            <span>
+              ตอบแล้ว{' '}
+              <b className="num" style={{ color: 'var(--viol-600)' }}>
+                {answeredCount}
+              </b>{' '}
+              ข้อ · {answeredPct}%
+            </span>
+          </div>
 
-        <div className="q-wrap">
-          <div className="q-card" key={`${sectionKey}-${idx}`}>
-            <div className="q-tags">
-              {sectionInfo ? (
-                <span className="tag tag--section" style={{ '--sec': sectionInfo.color }}>
-                  {sectionInfo.label}
-                </span>
-              ) : null}
-              <span className="tag">{q.t}</span>
-              {q.l && (
-                <span
-                  className={`tag ${
-                    q.l === 'ง่าย' ? 'tag--easy' : q.l === 'ยาก' ? 'tag--hard' : 'tag--ghost'
-                  }`}
-                >
-                  ระดับ {q.l}
+          <div className="q-wrap">
+            <div
+              className={`q-card ${flash && flash.idx === idx ? (flash.ok ? 'pulse-ok' : 'shake') : ''}`}
+              key={`${sectionKey}-${idx}`}
+            >
+              {flash && flash.idx === idx && flash.ok && (
+                <span className="burst" aria-hidden="true">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <i key={i} style={{ '--a': `${i * 45}deg` }} />
+                  ))}
                 </span>
               )}
-              {q.part && <span className="tag tag--ghost">{q.part}</span>}
-              <button
-                type="button"
-                onClick={toggleFlag}
-                aria-label={flagged.has(idx) ? 'เอาธงออก' : 'ปักธงข้อนี้'}
-                className={`flag-btn ${flagged.has(idx) ? 'is-on' : ''}`}
-              >
-                <Icon name="flag" size={14} stroke={flagged.has(idx) ? 2.4 : 1.8} />
-                {flagged.has(idx) ? 'ปักธงแล้ว' : 'ปักธง'}
-              </button>
-            </div>
-
-            <p className="q-num">ข้อที่ {idx + 1}</p>
-            <p className="q-text">{q.q}</p>
-
-            {q.fig && <div className="q-figure" dangerouslySetInnerHTML={{ __html: q.fig }} />}
-
-            <div className="options">
-              {q.o.map((opt, i) => (
-                <button
-                  key={i}
-                  className={`option ${answers[idx] === i ? 'is-selected' : ''}`}
-                  onClick={() => select(i)}
-                  aria-pressed={answers[idx] === i}
-                >
-                  <span className="option__letter">{LETTERS[i]}</span>
-                  <span className="option__text" style={{ flex: 1 }}>
-                    {opt}
-                    {q.ofigs && q.ofigs[i] && (
-                      <span
-                        style={{ display: 'block', marginTop: 8 }}
-                        dangerouslySetInnerHTML={{ __html: q.ofigs[i] }}
-                      />
-                    )}
+              <div className="q-tags">
+                {sectionInfo ? (
+                  <span className="tag tag--section" style={{ '--sec': sectionInfo.color }}>
+                    {sectionInfo.label}
                   </span>
-                  {answers[idx] === i && (
-                    <span className="option__mark" style={{ color: 'var(--viol-600)' }}>
-                      <Icon name="checkCircle" size={18} stroke={2} />
-                    </span>
-                  )}
+                ) : null}
+                <span className="tag">{q.t}</span>
+                {q.l && (
+                  <span
+                    className={`tag ${
+                      q.l === 'ง่าย' ? 'tag--easy' : q.l === 'ยาก' ? 'tag--hard' : 'tag--ghost'
+                    }`}
+                  >
+                    ระดับ {q.l}
+                  </span>
+                )}
+                {q.part && <span className="tag tag--ghost">{q.part}</span>}
+                <button
+                  type="button"
+                  onClick={toggleFlag}
+                  aria-label={flagged.has(idx) ? 'เอาธงออก' : 'ปักธงข้อนี้'}
+                  className={`flag-btn ${flagged.has(idx) ? 'is-on' : ''}`}
+                >
+                  <Icon name="flag" size={14} stroke={flagged.has(idx) ? 2.4 : 1.8} />
+                  {flagged.has(idx) ? 'ปักธงแล้ว' : 'ปักธง'}
                 </button>
-              ))}
+              </div>
+
+              <p className="q-num">ข้อที่ {idx + 1}</p>
+              <p className="q-text">{q.q}</p>
+
+              {q.fig && <div className="q-figure" dangerouslySetInnerHTML={{ __html: q.fig }} />}
+
+              <div className="options">
+                {q.o.map((opt, i) => {
+                  const state = !isRevealed
+                    ? chosen === i
+                      ? 'is-selected'
+                      : ''
+                    : i === q.a
+                      ? 'is-correct'
+                      : i === chosen
+                        ? 'is-wrong'
+                        : 'is-dim'
+                  return (
+                    <button
+                      key={i}
+                      className={`option ${state}`}
+                      onClick={() => select(i)}
+                      aria-pressed={chosen === i}
+                      aria-disabled={isRevealed}
+                    >
+                      <span className="option__letter">{LETTERS[i]}</span>
+                      <span className="option__text" style={{ flex: 1 }}>
+                        {opt}
+                        {q.ofigs && q.ofigs[i] && (
+                          <span
+                            style={{ display: 'block', marginTop: 8 }}
+                            dangerouslySetInnerHTML={{ __html: q.ofigs[i] }}
+                          />
+                        )}
+                      </span>
+                      {isRevealed && i === q.a && (
+                        <span className="option__mark option__mark--ok">
+                          <Icon name="checkCircle" size={18} stroke={2} />
+                        </span>
+                      )}
+                      {isRevealed && i === chosen && i !== q.a && (
+                        <span className="option__mark option__mark--no">
+                          <Icon name="close" size={18} stroke={2.2} />
+                        </span>
+                      )}
+                      {!isRevealed && chosen === i && (
+                        <span className="option__mark" style={{ color: 'var(--viol-600)' }}>
+                          <Icon name="checkCircle" size={18} stroke={2} />
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {isRevealed ? (
+                <div
+                  ref={feedbackRef}
+                  className={`feedback ${isCorrect ? 'is-ok' : 'is-bad'}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div className="feedback__top">
+                    <span className="feedback__icon">
+                      <Icon name={isCorrect ? 'checkCircle' : 'close'} size={20} stroke={2.2} />
+                    </span>
+                    <div className="feedback__head">
+                      <b>{isCorrect ? 'ตอบถูกต้อง!' : 'ยังไม่ถูกต้อง'}</b>
+                      <span>
+                        {isCorrect
+                          ? 'เยี่ยมมาก — อ่านคำอธิบายแล้วไปข้อถัดไปได้เลย'
+                          : `คำตอบที่ถูกคือข้อ ${LETTERS[q.a]}`}
+                      </span>
+                    </div>
+                    <span className="feedback__badge">{isCorrect ? 'ถูก' : 'ผิด'}</span>
+                  </div>
+
+                  <div className="feedback__answer">
+                    <span className="feedback__label">เฉลย</span>
+                    <p>
+                      <b>{LETTERS[q.a]}.</b> {q.o[q.a]}
+                    </p>
+                    {!isCorrect && chosen !== null && (
+                      <p className="is-wrong-answer">
+                        <b>{LETTERS[chosen]}.</b> {q.o[chosen]} <em>(คำตอบของคุณ)</em>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="feedback__exp">
+                    <span className="feedback__label">คำอธิบายละเอียด</span>
+                    <p>{q.e}</p>
+                  </div>
+
+                  <div className="feedback__meta">
+                    <span>
+                      <Icon name="target" size={12} /> {q.t}
+                    </span>
+                    {q.l && (
+                      <span>
+                        <Icon name="chart" size={12} /> ระดับ {q.l}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                instantReveal && (
+                  <p className="reveal-hint">
+                    <Icon name="eye" size={14} /> เลือกคำตอบแล้วระบบจะเฉลยพร้อมคำอธิบายทันที
+                  </p>
+                )
+              )}
             </div>
           </div>
         </div>
+
+        <aside className="quiz-aside" aria-label="ภาพรวมการทำข้อสอบ">
+          <div className="aside-card">
+            <div className="aside-head">
+              <b>ภาพรวม</b>
+              <span className="num">
+                {answeredCount}/{total}
+              </span>
+            </div>
+            <div className="aside-stats">
+              <span className="is-ok">
+                <b>{correctCount}</b> ถูก
+              </span>
+              <span className="is-no">
+                <b>{wrongCount}</b> ผิด
+              </span>
+              <span>
+                <b>{total - answeredCount}</b> ค้าง
+              </span>
+            </div>
+            <div className="aside-progress">
+              <i style={{ width: `${(correctCount / total) * 100}%`, background: 'var(--mint)' }} />
+              <i style={{ width: `${(wrongCount / total) * 100}%`, background: 'var(--coral)' }} />
+            </div>
+            <div className="aside-palette">{palette}</div>
+          </div>
+
+          <div className="aside-card">
+            <div className="aside-head">
+              <b>เวลา / รายวิชา</b>
+              <span className="num">{humanTime(usedSec)}</span>
+            </div>
+            {(sections || [{ key: 'part', label: exam.label, count: total, color: 'var(--viol-600)' }]).map(
+              (s) => {
+                const rows = questions.filter((x) => (x.sectionKey || 'part') === s.key)
+                const done = rows.filter((x) => answers[questions.indexOf(x)] !== null).length
+                return (
+                  <div className="aside-sec" key={s.key}>
+                    <span className="aside-sec__dot" style={{ background: s.color }} />
+                    <span className="aside-sec__label">{s.label}</span>
+                    <span className="aside-sec__time num">{mmss(sectionSec[s.key] || 0)}</span>
+                    <span className="aside-sec__count">
+                      {done}/{s.count}
+                    </span>
+                  </div>
+                )
+              },
+            )}
+          </div>
+
+          <button className="btn btn--ghost btn--block" onClick={() => setSheet('pause')}>
+            <Icon name="pause" size={16} /> หยุดพัก / บันทึกความคืบหน้า
+          </button>
+        </aside>
       </div>
 
       <div className="quiz-foot">
@@ -508,11 +721,27 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
           desc="แตะหมายเลขเพื่อไปยังข้อนั้น · ปักธงเพื่อกลับมาตรวจทาน"
           onClose={() => setSheet(null)}
         >
+          <label className="toggle-row">
+            <span className="toggle-row__text">
+              <b>เฉลยทันทีเมื่อเลือกคำตอบ</b>
+              <i>ปิดเพื่อทำแบบไม่เห็นเฉลยจนกว่าจะส่งคำตอบ</i>
+            </span>
+            <button
+              type="button"
+              className={`switch ${instantReveal ? 'is-on' : ''}`}
+              onClick={() => onToggleInstantReveal?.()}
+              aria-pressed={instantReveal}
+              aria-label="สลับการเฉลยทันที"
+            >
+              <span className="switch__knob">
+                <Icon name={instantReveal ? 'eye' : 'lock'} size={13} />
+              </span>
+            </button>
+          </label>
+
           {sections ? (
             sections.map((s) => {
-              const rows = questions
-                .map((x, i) => ({ x, i }))
-                .filter((row) => row.x.sectionKey === s.key)
+              const rows = questions.map((x, i) => ({ x, i })).filter((row) => row.x.sectionKey === s.key)
               return (
                 <div key={s.key} className="palette-group">
                   <p className="palette-group__title" style={{ color: s.color }}>
@@ -523,9 +752,7 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
                       <button
                         key={i}
                         type="button"
-                        className={`palette-cell ${answers[i] !== null ? 'is-done' : ''} ${
-                          i === idx ? 'is-current' : ''
-                        } ${flagged.has(i) ? 'is-flag' : ''}`}
+                        className={cellClass(i)}
                         onClick={() => {
                           setIdx(i)
                           setSheet(null)
@@ -540,24 +767,7 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
               )
             })
           ) : (
-            <div className="palette-grid">
-              {Array.from({ length: total }).map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`palette-cell ${answers[i] !== null ? 'is-done' : ''} ${
-                    i === idx ? 'is-current' : ''
-                  } ${flagged.has(i) ? 'is-flag' : ''}`}
-                  onClick={() => {
-                    setIdx(i)
-                    setSheet(null)
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                  }}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
+            palette
           )}
 
           <div className="palette-legend">
@@ -565,7 +775,10 @@ export default function Quiz({ exam, name, attempt, onSave, onExit, onFinish }) 
               <i style={{ background: 'var(--viol-500)' }} /> ข้อปัจจุบัน
             </span>
             <span>
-              <i style={{ background: 'var(--viol-100)' }} /> ตอบแล้ว
+              <i style={{ background: 'var(--mint)' }} /> ตอบถูก
+            </span>
+            <span>
+              <i style={{ background: 'var(--coral)' }} /> ตอบผิด
             </span>
             <span>
               <i style={{ background: 'var(--amber)', border: 0 }} /> ปักธง

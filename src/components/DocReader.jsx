@@ -3,12 +3,13 @@ import { driveDownload, driveView } from '../data/index.js'
 import Icon from './Icons.jsx'
 
 /**
- * DocReader — อ่านเอกสารต้นฉบับในหน้าเว็บ (ไม่ต้องเด้งออกไป Google Drive)
- * ใช้ Google Drive preview ในกรอบ iframe + ปุ่มสำรองสำหรับดาวน์โหลด/เปิดแท็บใหม่
+ * DocReader — อ่านเอกสารต้นฉบับ (PDF เท่านั้น) ในหน้าเว็บ
+ * ใช้ Google Drive PDF preview ในกรอบของเว็บ พร้อมตัวเลือกไฟล์และสถานะการโหลด
  */
-export default function DocReader({ doc, onClose }) {
-  const [ready, setReady] = useState(false)
-  const [slow, setSlow] = useState(false)
+export default function DocReader({ doc, files = [], onSelect, onClose }) {
+  const [status, setStatus] = useState('loading')
+  const pdfFiles = files.filter((f) => f.type === 'PDF')
+  const isPdf = (doc?.type || 'PDF') === 'PDF'
 
   useEffect(() => {
     const onKey = (e) => {
@@ -17,13 +18,17 @@ export default function DocReader({ doc, onClose }) {
     document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const t = setTimeout(() => setSlow(true), 7000)
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
-      clearTimeout(t)
     }
   }, [onClose])
+
+  useEffect(() => {
+    setStatus('loading')
+    const t = setTimeout(() => setStatus((s) => (s === 'loading' ? 'slow' : s)), 9000)
+    return () => clearTimeout(t)
+  }, [doc?.id])
 
   if (!doc) return null
 
@@ -37,6 +42,7 @@ export default function DocReader({ doc, onClose }) {
           <p>อ่านในเว็บไซต์</p>
           <h2>{doc.name}</h2>
         </div>
+        <span className="reader__badge">PDF</span>
         <a
           className="icon-btn"
           href={driveDownload(doc.id)}
@@ -51,43 +57,79 @@ export default function DocReader({ doc, onClose }) {
           href={driveView(doc.id)}
           target="_blank"
           rel="noreferrer"
-          aria-label="เปิดใน Google Drive"
+          aria-label="เปิดในแท็บใหม่"
         >
           <Icon name="external" size={16} />
         </a>
       </header>
 
-      <div className="reader__stage">
-        {!ready && (
-          <div className="reader__loader">
-            <span className="spinner" />
-            <p>กำลังเปิดเอกสาร…</p>
-            <small>โหลดครั้งแรกอาจใช้เวลาสักครู่</small>
-          </div>
+      <div className="reader__body">
+        {pdfFiles.length > 1 && (
+          <aside className="reader__list" aria-label="รายการไฟล์ PDF">
+            <p className="reader__list-title">ไฟล์ PDF ({pdfFiles.length})</p>
+            {pdfFiles.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                className={`reader__file ${f.id === doc.id ? 'is-on' : ''}`}
+                onClick={() => onSelect?.(f)}
+                title={f.name}
+              >
+                <Icon name="docs" size={13} />
+                <span>{f.name}</span>
+              </button>
+            ))}
+          </aside>
         )}
-        <iframe
-          key={doc.id}
-          className={`reader__frame ${ready ? 'is-ready' : ''}`}
-          src={`https://drive.google.com/file/d/${doc.id}/preview`}
-          title={doc.name}
-          onLoad={() => setReady(true)}
-          allow="autoplay; fullscreen"
-          referrerPolicy="no-referrer"
-        />
+
+        <div className="reader__stage">
+          {!isPdf ? (
+            <div className="reader__blocked">
+              <Icon name="lock" size={30} />
+              <b>เปิดอ่านในเว็บได้เฉพาะไฟล์ PDF</b>
+              <span>ไฟล์นี้เป็นเอกสาร Markdown — ดาวน์โหลดเพื่อเปิดด้วยโปรแกรมอ่านข้อความ</span>
+              <a className="btn btn--soft btn--sm" href={driveDownload(doc.id)} target="_blank" rel="noreferrer">
+                <Icon name="download" size={14} /> ดาวน์โหลดไฟล์
+              </a>
+            </div>
+          ) : (
+            <>
+              {status !== 'ready' && (
+                <div className="reader__loader">
+                  <span className="spinner" />
+                  <p>กำลังเปิดเอกสาร PDF…</p>
+                  <small>โหลดครั้งแรกอาจใช้เวลาสักครู่</small>
+                </div>
+              )}
+              <iframe
+                key={doc.id}
+                className={`reader__frame ${status === 'ready' ? 'is-ready' : ''}`}
+                src={`https://drive.google.com/file/d/${doc.id}/preview`}
+                title={doc.name}
+                onLoad={() => setStatus('ready')}
+                allow="autoplay; fullscreen"
+                referrerPolicy="no-referrer"
+              />
+
+              {status === 'slow' && (
+                <div className="reader__slow">
+                  <Icon name="info" size={14} />
+                  <span>เอกสารใช้เวลาโหลดนานกว่าปกติ — ตรวจสอบอินเทอร์เน็ตหรือเปิดในแท็บใหม่</span>
+                  <a className="btn btn--soft btn--sm" href={driveView(doc.id)} target="_blank" rel="noreferrer">
+                    เปิดในแท็บใหม่
+                  </a>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <footer className="reader__foot">
         <span>
-          <Icon name="info" size={14} />
-          {slow ? (
-            <>ถ้าเอกสารไม่แสดง ตรวจสอบอินเทอร์เน็ตหรือเปิดไฟล์โดยตรงจากปุ่มด้านล่าง</>
-          ) : (
-            <>ปัด/เลื่อนในกรอบเพื่ออ่านเอกสาร · เอกสารต้นฉบับไม่ถูกแก้ไข</>
-          )}
+          <Icon name="book" size={14} /> เลื่อน/สองนิ้วเพื่อซูมในกรอบได้ · เอกสารต้นฉบับไม่ถูกแก้ไข
         </span>
-        <a className="btn btn--soft btn--sm" href={driveDownload(doc.id)} target="_blank" rel="noreferrer">
-          <Icon name="download" size={14} /> ดาวน์โหลด PDF
-        </a>
+        <span className="reader__copy">© 2569 Ton Skywalker · ห้ามเผยแพร่</span>
       </footer>
     </div>
   )

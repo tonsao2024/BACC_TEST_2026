@@ -58,5 +58,40 @@ dom.window.URL.revokeObjectURL = () => {}
 
 dom.window.HTMLAnchorElement.prototype.click = function click() {}
 
-export { dom, lastBlob }
+/* --- GitHub API mock (no real network in jsdom) --- */
+const fetchCalls = []
+const mockFetch = async (url, options = {}) => {
+  const method = (options.method || 'GET').toUpperCase()
+  const target = String(url)
+  fetchCalls.push({ url: target, method, body: options.body || null })
+
+  let status = 200
+  let payload = {}
+  if (target.endsWith('/user')) {
+    payload = { login: 'tester' }
+  } else if (target.includes('/gists')) {
+    payload = { id: 'gist-mock', files: { 'bacc-data.json': { content: '{}' } } }
+  } else if (target.includes('/contents/')) {
+    if (method === 'GET') {
+      status = 404
+      payload = { message: 'Not Found' }
+    } else {
+      payload = { content: { sha: `sha-${fetchCalls.length}` }, commit: { sha: 'commit-mock' } }
+    }
+  } else if (target.includes('/repos/')) {
+    payload = { full_name: 'tester/BACC_TEST_2026' }
+  }
+
+  const bodyText = JSON.stringify(payload)
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => bodyText,
+    json: async () => payload,
+  }
+}
+globalThis.fetch = mockFetch
+dom.window.fetch = mockFetch
+
+export { dom, lastBlob, fetchCalls }
 export const getLastBlob = () => lastBlob

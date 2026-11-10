@@ -476,7 +476,7 @@ export const EXAM_SECTIONS = [
     parts: ['1-1', '1-2', '1-3', '1-4', '1-5'],
     official: { count: 80, points: 100 },
     mini: { count: 21, points: 26 },
-    color: '#6C4CF1',
+    color: '#1D4ED8',
   },
   {
     key: 'detail',
@@ -485,7 +485,7 @@ export const EXAM_SECTIONS = [
     parts: ['2'],
     official: { count: 50, points: 50 },
     mini: { count: 13, points: 13 },
-    color: '#DB2777',
+    color: '#0891B2',
   },
   {
     key: 'professional',
@@ -494,7 +494,7 @@ export const EXAM_SECTIONS = [
     parts: ['3-1', '3-2', '3-3', '3-4', '3-5'],
     official: { count: 100, points: 100 },
     mini: { count: 26, points: 26 },
-    color: '#4F46E5',
+    color: '#0B3B8C',
   },
 ]
 

@@ -149,7 +149,13 @@ export default function PartDetail({
             <button
               type="button"
               className="download-row"
-              onClick={() => onReadDoc?.({ id: part.file, name: partFileName || `พาร์ท ${part.label}` })}
+              onClick={() =>
+                onReadDoc?.({
+                  id: part.file,
+                  name: partFileName || `พาร์ท ${part.label}`,
+                  type: 'PDF',
+                })
+              }
             >
               <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
                 <Icon name="book" size={18} />

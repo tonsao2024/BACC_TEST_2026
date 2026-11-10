@@ -1,4 +1,4 @@
-import { dom, getLastBlob } from './env.js'
+import { dom, fetchCalls, getLastBlob } from './env.js'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
@@ -6,7 +6,15 @@ import App from '../src/App.jsx'
 import { PARTS, MOCK_PART, TOTAL_QUESTIONS } from '../src/data/index.js'
 import { generateExam } from '../src/lib/generator.js'
 import { exportExamPdf } from '../src/lib/pdf.js'
-import { listAttempts, makeShareCode, parseShareCode } from '../src/lib/storage.js'
+import {
+  exportSnapshot,
+  getSettings,
+  listAttempts,
+  makeShareCode,
+  mergeSnapshots,
+  parseShareCode,
+  saveSettings,
+} from '../src/lib/storage.js'
 
 const root = createRoot(document.getElementById('root'))
 const text = () => document.body.textContent || ''
@@ -93,6 +101,25 @@ async function run() {
   )
   check('invalid share code rejected', parseShareCode('not-a-code!!') === null)
 
+  /* snapshot merge (GitHub sync core) */
+  const merged = mergeSnapshots(
+    { profiles: [{ id: 'a', name: 'A', updatedAt: '2026-01-02T00:00:00.000Z' }] },
+    {
+      profiles: [
+        { id: 'a', name: 'A เก่า', updatedAt: '2026-01-01T00:00:00.000Z' },
+        { id: 'b', name: 'B', updatedAt: '2026-01-01T00:00:00.000Z' },
+      ],
+    },
+  )
+  check(
+    'snapshot merge unions profiles (newest wins)',
+    merged.profiles.length === 2 && merged.profiles.find((p) => p.id === 'a').name === 'A',
+    `${merged.profiles.length} profiles`,
+  )
+  check('settings default = instant reveal on', getSettings().instantReveal === true)
+  check('settings persist', saveSettings({ sound: true }).sound === true && getSettings().sound === true)
+  saveSettings({ sound: false })
+
   /* ================= 2. profile gate ================= */
   await act(async () => {
     root.render(<App />)
@@ -119,6 +146,11 @@ async function run() {
   check('home lists all parts', document.querySelectorAll('.part-card').length >= 12)
   check('bottom nav has 5 items', document.querySelectorAll('.nav-item').length === 5)
   check('exam-set hero rendered', !!document.querySelector('.set-hero'))
+  check(
+    'copyright credit shown',
+    (document.querySelector('.copyright')?.textContent || '').includes('Ton Skywalker') &&
+      (document.querySelector('.copyright')?.textContent || '').includes('ห้ามเผยแพร่'),
+  )
 
   /* toggle dark mode */
   await tap(document.querySelector('.topbar__theme'), 30)
@@ -138,6 +170,30 @@ async function run() {
   check('timer running', /\d\d:\d\d/.test(text()))
 
   const partTotal = PARTS[0].questions.length
+  /* instant reveal + detailed explanation */
+  await tap(document.querySelectorAll('.option')[0], 40)
+  const fb = document.querySelector('.feedback')
+  check('choose answer reveals result instantly', !!fb)
+  check(
+    'feedback shows correct / wrong state',
+    !!document.querySelector('.feedback.is-ok, .feedback.is-bad') &&
+      !!document.querySelector('.option.is-correct'),
+  )
+  check(
+    'feedback includes detailed explanation',
+    (fb?.textContent || '').includes('คำอธิบายละเอียด') && (fb?.textContent || '').includes('เฉลย'),
+    (fb?.textContent || '').slice(0, 0),
+  )
+  check('quiz has desktop overview aside', !!document.querySelector('.quiz-aside .palette-grid'))
+  const beforeLock = Array.from(document.querySelectorAll('.option'))
+    .map((o) => o.className)
+    .join('|')
+  await tap(document.querySelectorAll('.option')[2], 30)
+  const afterLock = Array.from(document.querySelectorAll('.option'))
+    .map((o) => o.className)
+    .join('|')
+  check('answer locked after reveal', beforeLock === afterLock)
+
   for (let i = 0; i < 3; i += 1) {
     await tap(document.querySelectorAll('.option')[0], 15)
     await tap(byText('.quiz-foot button', 'ข้อถัดไป'), 15)
@@ -286,14 +342,86 @@ async function run() {
   /* ================= 8. sources + reader ================= */
   await tap(byText('.nav-item', 'เอกสาร'), 50)
   check('sources page lists 16 files', document.querySelectorAll('.source-item').length === 16)
-  await tap(document.querySelector('.source-item .icon-btn'), 120)
-  check('document reader opens in-app', !!document.querySelector('.reader iframe'))
-  check(
-    'reader uses drive preview embed',
-    (document.querySelector('.reader iframe')?.getAttribute('src') || '').includes('/preview'),
-  )
+  await tap(document.querySelectorAll('.source-item .icon-btn')[0], 120)
+  check('reader blocks non-PDF documents', !!document.querySelector('.reader__blocked'))
+  check('blocked document renders no iframe', !document.querySelector('.reader iframe'))
   await tap(document.querySelector('.reader__bar button'), 40)
   check('reader closes', !document.querySelector('.reader'))
+
+  await tap(document.querySelectorAll('.source-item')[1].querySelector('.icon-btn'), 120)
+  check('document reader opens PDF in-app', !!document.querySelector('.reader iframe'))
+  check(
+    'reader uses drive pdf preview embed',
+    (document.querySelector('.reader iframe')?.getAttribute('src') || '').includes('/preview'),
+  )
+  check('reader lists only PDF files', document.querySelectorAll('.reader__file').length === 15)
+  check(
+    'reader footer credit',
+    (document.querySelector('.reader__copy')?.textContent || '').includes('Ton Skywalker'),
+  )
+  await tap(document.querySelector('.reader__bar button'), 40)
+  check('reader closes again', !document.querySelector('.reader'))
+
+  /* ================= 9. github sync ================= */
+  await tap(byText('.nav-item', 'หน้าแรก'), 50)
+  await tap(document.querySelector('.avatar--btn'), 50)
+  check('github panel rendered in settings', !!document.querySelector('.gh'))
+  check('github panel explains storage', text().includes('คลังข้อมูล GitHub'))
+
+  const ghInputs = document.querySelectorAll('.gh__grid input')
+  await act(async () => {
+    type(ghInputs[0], 'tester')
+    type(ghInputs[1], 'BACC_TEST_2026')
+    await sleep(20)
+  })
+  const tokenInput = document.querySelector('.gh__form input[type="password"]')
+  await act(async () => {
+    type(tokenInput, 'ghp_smoke_token')
+    await sleep(20)
+  })
+  await tap(byText('.gh__actions button', 'เชื่อมต่อและบันทึก'), 600)
+
+  const ghCfg = json('bacc2569:github', null)
+  check(
+    'github config saved locally',
+    !!ghCfg && ghCfg.owner === 'tester' && ghCfg.repo === 'BACC_TEST_2026' && ghCfg.token === 'ghp_smoke_token',
+  )
+  check(
+    'connection verified against GitHub API',
+    fetchCalls.some((c) => c.method === 'GET' && c.url.includes('/repos/tester/BACC_TEST_2026')),
+  )
+
+  const puts = fetchCalls.filter((c) => c.method === 'PUT' && c.url.includes('/contents/'))
+  check('snapshot pushed to github repo', puts.length > 0, `${puts.length} PUT`)
+  if (puts.length) {
+    const payload = JSON.parse(puts[puts.length - 1].body)
+    const snap = JSON.parse(Buffer.from(payload.content, 'base64').toString('utf8'))
+    check(
+      'pushed snapshot has profiles/results/sets',
+      Array.isArray(snap.profiles) &&
+        snap.profiles.length === 2 &&
+        (snap.results[pid] || []).length === 2 &&
+        snap.sets.length === 1,
+      `profiles=${snap.profiles?.length} results=${(snap.results?.[pid] || []).length}`,
+    )
+    check('pushed snapshot excludes token', !JSON.stringify(snap).includes('ghp_smoke_token'))
+    check('push uses commit message', String(payload.message || '').startsWith('bacc: sync'))
+    const local = exportSnapshot()
+    check(
+      'pushed snapshot equals local snapshot',
+      snap.profiles.length === local.profiles.length && snap.sets.length === local.sets.length,
+    )
+  }
+  check(
+    'sync status shows saved',
+    !!document.querySelector('.gh__dot.is-ok') ||
+      (document.querySelector('.gh__head-text')?.textContent || '').includes('บันทึกขึ้น GitHub แล้ว'),
+    (document.querySelector('.gh__head-text')?.textContent || '').slice(0, 60),
+  )
+  check(
+    'connected view shows repo target',
+    (document.querySelector('.gh__meta')?.textContent || '').includes('tester/BACC_TEST_2026'),
+  )
 
   const failed = results.filter((r) => !r.ok)
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`)
