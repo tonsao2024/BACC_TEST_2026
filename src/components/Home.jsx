@@ -83,6 +83,7 @@ export default function Home({
   onOpenSets,
   onNewSet,
   onResume,
+  sync = null,
 }) {
   const attempted = new Set(results.map((r) => r.partId))
   const done = PARTS.filter((p) => attempted.has(p.id)).length
@@ -119,6 +120,40 @@ export default function Home({
           {name ? name.trim().charAt(0).toUpperCase() : <Icon name="user" size={18} />}
         </button>
       </header>
+
+      {sync && sync.status !== 'off' && (
+        <button
+          type="button"
+          className={`sync-chip is-${sync.status}`}
+          onClick={onOpenAccount}
+          title="ข้อมูลถูกบันทึกอัตโนมัติไปยัง GitHub"
+        >
+          <Icon
+            name={
+              sync.status === 'error'
+                ? 'info'
+                : sync.status === 'saved' || sync.status === 'idle'
+                  ? 'checkCircle'
+                  : 'refresh'
+            }
+            size={13}
+          />
+          <span>
+            {sync.status === 'error'
+              ? `ซิงก์ GitHub ไม่สำเร็จ${sync.error ? ` · ${sync.error}` : ''}`
+              : sync.status === 'saved'
+                ? 'บันทึกขึ้น GitHub แล้ว'
+                : sync.status === 'idle'
+                  ? 'เชื่อมต่อ GitHub แล้ว'
+                  : 'กำลังซิงก์กับ GitHub…'}
+          </span>
+          {sync.at && (sync.status === 'saved' || sync.status === 'idle') && (
+            <b className="num">
+              {new Date(sync.at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+            </b>
+          )}
+        </button>
+      )}
 
       <section className="hero">
         <span className="hero__eyebrow">

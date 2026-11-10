@@ -379,16 +379,32 @@ async function run() {
   await tap(document.querySelector('.avatar--btn'), 50)
   check('github panel rendered in settings', !!document.querySelector('.gh'))
   check('github panel explains storage', text().includes('คลังข้อมูล GitHub'))
+  check(
+    'panel defaults to the simplest mode',
+    (document.querySelector('.gh__mode.is-on')?.textContent || '').includes('Secret Gist'),
+  )
+  check(
+    'panel lists what will be stored (settings + history)',
+    (document.querySelector('.gh__data')?.textContent || '').includes('ประวัติผลสอบ') &&
+      (document.querySelector('.gh__data')?.textContent || '').includes('การตั้งค่า · เฉลยทันที'),
+  )
 
-  const ghInputs = document.querySelectorAll('.gh__grid input')
-  await act(async () => {
-    type(ghInputs[0], 'tester')
-    type(ghInputs[1], 'BACC_TEST_2026')
-    await sleep(20)
-  })
   const tokenInput = document.querySelector('.gh__form input[type="password"]')
   await act(async () => {
     type(tokenInput, 'ghp_smoke_token')
+    await sleep(20)
+  })
+
+  await tap(byText('.gh__mode', 'Repository'), 60)
+  check('repository mode shows owner/repo fields', document.querySelectorAll('.gh__grid input').length >= 4)
+  await tap(byText('.gh__owner button', 'ดึงชื่อ'), 300)
+  check(
+    'owner autofilled from token',
+    document.querySelectorAll('.gh__grid input')[0]?.value === 'tester',
+    document.querySelectorAll('.gh__grid input')[0]?.value,
+  )
+  await act(async () => {
+    type(document.querySelectorAll('.gh__grid input')[1], 'BACC_TEST_2026')
     await sleep(20)
   })
   await tap(byText('.gh__actions button', 'เชื่อมต่อและบันทึก'), 600)
@@ -435,6 +451,15 @@ async function run() {
     (document.querySelector('.gh__meta')?.textContent || '').includes('tester/BACC_TEST_2026'),
   )
 
+  /* sync chip on home */
+  await tap(document.querySelector('.sheet-backdrop'), 40)
+  await tap(byText('.nav-item', 'หน้าแรก'), 60)
+  check(
+    'home shows github sync status',
+    (document.querySelector('.sync-chip')?.textContent || '').includes('GitHub'),
+    (document.querySelector('.sync-chip')?.textContent || '').slice(0, 40),
+  )
+
   /* pull + merge from a pre-existing remote snapshot */
   const remoteSnap = {
     app: 'bacc-exam-2569',
@@ -462,11 +487,39 @@ async function run() {
     getProfiles().length === 3 && !!getProfiles().find((p) => p.id === 'remote-tester'),
     `${getProfiles().length} profiles`,
   )
+  /* a settings change alone triggers an automatic push */
+  saveGithubConfig({ mode: 'repo', token: 'ghp_smoke_token', owner: 'tester', repo: 'BACC_TEST_2026' })
+  const putsBefore = fetchCalls.filter((c) => c.method === 'PUT' && c.url.includes('/contents/')).length
+  await tap(document.querySelector('.avatar--btn'), 60)
+  const acctSwitches = document.querySelectorAll('.acct__panel .switch')
+  check('settings show instant-reveal switch', acctSwitches.length >= 2)
+  await tap(acctSwitches[1], 40)
+  await act(async () => {
+    await sleep(2300)
+  })
+  const allPuts = fetchCalls.filter((c) => c.method === 'PUT' && c.url.includes('/contents/'))
+  check('settings change auto-pushes to github', allPuts.length > putsBefore, `${allPuts.length} PUT`)
+  if (allPuts.length > putsBefore) {
+    const lastPayload = JSON.parse(allPuts[allPuts.length - 1].body)
+    const lastSnap = JSON.parse(Buffer.from(lastPayload.content, 'base64').toString('utf8'))
+    check(
+      'pushed settings reflect the toggle',
+      lastSnap.settings && lastSnap.settings.instantReveal === false,
+      JSON.stringify(lastSnap.settings),
+    )
+    check(
+      'pushed snapshot keeps full history',
+      (lastSnap.results[pid] || []).length === 2 && lastSnap.profiles.length === 3,
+      `results=${(lastSnap.results?.[pid] || []).length} profiles=${lastSnap.profiles?.length}`,
+    )
+  }
+
   setRemotePayload(null)
   await act(async () => {
     clearGithubConfig()
     resetSyncState()
-    await sleep(20)
+    saveSettings({ instantReveal: true })
+    await sleep(30)
   })
 
   const failed = results.filter((r) => !r.ok)

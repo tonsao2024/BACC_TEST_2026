@@ -25,6 +25,17 @@ export const subscribeSync = (fn) => {
 
 export const getSyncState = () => state
 
+/** ลายนิ้วมือของข้อมูล (ไม่รวม updatedAt) ใช้ตัดสินว่าต้องส่งขึ้นหรือไม่ */
+export const snapshotSignature = (snap) =>
+  JSON.stringify({
+    p: snap?.profiles || [],
+    r: snap?.results || {},
+    a: snap?.attempts || {},
+    s: snap?.sets || [],
+    t: snap?.theme || '',
+    st: snap?.settings || {},
+  })
+
 export function resetSyncState() {
   sha = null
   emit({ status: 'off', at: null, error: null, mode: null })

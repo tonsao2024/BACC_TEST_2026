@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Icon from './Icons.jsx'
-import { getGithubConfig, saveGithubConfig, testConnection } from '../lib/remote.js'
+import { fetchLogin, getGithubConfig, saveGithubConfig, testConnection } from '../lib/remote.js'
+import { exportSnapshot } from '../lib/storage.js'
 
 const STATUS = {
   off: { text: 'ยังไม่เชื่อมต่อ — เก็บข้อมูลในเครื่องนี้', tone: 'off' },
@@ -19,13 +20,25 @@ const timeText = (iso) => {
   return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
 
+const sum = (obj) => Object.values(obj || {}).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0)
+
 export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) {
   const saved = getGithubConfig()
+  const snap = exportSnapshot()
+  const counts = {
+    profiles: (snap.profiles || []).length,
+    results: sum(snap.results),
+    attempts: sum(snap.attempts),
+    sets: (snap.sets || []).length,
+  }
+  const settingText = `เฉลยทันที ${snap.settings?.instantReveal ? 'เปิด' : 'ปิด'} · ธีม ${
+    snap.theme === 'dark' ? 'มืด' : 'สว่าง'
+  }`
   const [editing, setEditing] = useState(!saved)
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState(null)
   const [form, setForm] = useState({
-    mode: saved?.mode || 'repo',
+    mode: saved?.mode || 'gist',
     owner: saved?.owner || '',
     repo: saved?.repo || '',
     branch: saved?.branch || 'main',
@@ -105,6 +118,24 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
         )}
       </div>
 
+      <div className="gh__data" aria-label="ข้อมูลที่จะบันทึก">
+        <span>
+          <Icon name="user" size={12} /> โปรไฟล์ <b>{counts.profiles}</b>
+        </span>
+        <span>
+          <Icon name="chart" size={12} /> ประวัติผลสอบ <b>{counts.results}</b>
+        </span>
+        <span>
+          <Icon name="clock" size={12} /> ทำค้าง <b>{counts.attempts}</b>
+        </span>
+        <span>
+          <Icon name="layers" size={12} /> ชุดข้อสอบ <b>{counts.sets}</b>
+        </span>
+        <span className="is-wide">
+          <Icon name="wand" size={12} /> การตั้งค่า · {settingText}
+        </span>
+      </div>
+
       {saved && !editing && (
         <>
           <div className="gh__meta">
@@ -159,19 +190,19 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
           <div className="gh__modes">
             <button
               type="button"
+              className={`gh__mode ${form.mode === 'gist' ? 'is-on' : ''}`}
+              onClick={() => setForm((f) => ({ ...f, mode: 'gist' }))}
+            >
+              <b>Secret Gist · ง่ายสุด</b>
+              <span>ใช้แค่ token — ระบบสร้าง gist ส่วนตัวให้</span>
+            </button>
+            <button
+              type="button"
               className={`gh__mode ${form.mode === 'repo' ? 'is-on' : ''}`}
               onClick={() => setForm((f) => ({ ...f, mode: 'repo' }))}
             >
               <b>Repository</b>
-              <span>ไฟล์ JSON ใน repo ของคุณ</span>
-            </button>
-            <button
-              type="button"
-              className={`gh__mode ${form.mode === 'gist' ? 'is-on' : ''}`}
-              onClick={() => setForm((f) => ({ ...f, mode: 'gist' }))}
-            >
-              <b>Secret Gist</b>
-              <span>ส่วนตัว ไม่ต้องสร้าง repo</span>
+              <span>เก็บไฟล์ JSON ใน repo ของคุณ</span>
             </button>
           </div>
 
@@ -179,7 +210,29 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
             <div className="gh__grid">
               <label className="field field--tight">
                 <span className="field__label">เจ้าของ (owner)</span>
-                <input className="field__input field__input--sm" value={form.owner} onChange={set('owner')} placeholder="tonsao2024" />
+                <span className="gh__owner">
+                  <input className="field__input field__input--sm" value={form.owner} onChange={set('owner')} placeholder="tonsao2024" />
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--xs"
+                    onClick={async () => {
+                      setBusy('owner')
+                      try {
+                        const login = await fetchLogin({ ...form, token: form.token })
+                        setForm((f) => ({ ...f, owner: login }))
+                        setMessage({ tone: 'ok', text: `ใช้บัญชี ${login}` })
+                      } catch (err) {
+                        setMessage({ tone: 'bad', text: err.message })
+                      } finally {
+                        setBusy('')
+                      }
+                    }}
+                    disabled={!form.token || busy === 'owner'}
+                    title="เติมชื่อเจ้าของจาก token"
+                  >
+                    {busy === 'owner' ? '…' : 'ดึงชื่อ'}
+                  </button>
+                </span>
               </label>
               <label className="field field--tight">
                 <span className="field__label">ชื่อ repository</span>
@@ -215,9 +268,17 @@ export default function GitHubPanel({ sync, onSaved, onDisconnected, onToast }) 
           </label>
 
           <p className="gh__hint">
-            ใช้ fine-grained token ที่มีสิทธิ์ <b>Contents: Read and write</b> เฉพาะ repo นี้
-            (โหมด gist ใช้ classic token สิทธิ์ <b>gist</b>) — token เก็บไว้ในเบราว์เซอร์เครื่องนี้
-            และส่งตรงถึง api.github.com เท่านั้น
+            {form.mode === 'gist' ? (
+              <>
+                สร้าง classic token ที่มีสิทธิ์ <b>gist</b> แล้ววางที่นี่ — กด “เชื่อมต่อและบันทึก”
+                ระบบจะสร้าง gist ส่วนตัวให้อัตโนมัติ ไม่ต้องสร้าง repo เอง
+              </>
+            ) : (
+              <>
+                ใช้ fine-grained token สิทธิ์ <b>Contents: Read and write</b> เฉพาะ repo นี้
+              </>
+            )}{' '}
+            · token เก็บไว้ในเบราว์เซอร์เครื่องนี้และส่งตรงถึง api.github.com เท่านั้น
           </p>
 
           {message && (

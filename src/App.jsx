@@ -10,6 +10,7 @@ import {
   getAttempt,
   getCurrentProfile,
   getProfiles,
+  exportSnapshot,
   getSets,
   getSettings,
   getTheme,
@@ -26,7 +27,15 @@ import {
 } from './lib/storage.js'
 import { generateExam } from './lib/generator.js'
 import { clearGithubConfig, getGithubConfig } from './lib/remote.js'
-import { getSyncState, pullAndMerge, pushNow, resetSyncState, schedulePush, subscribeSync } from './lib/sync.js'
+import {
+  getSyncState,
+  pullAndMerge,
+  pushNow,
+  resetSyncState,
+  schedulePush,
+  snapshotSignature,
+  subscribeSync,
+} from './lib/sync.js'
 import Home from './components/Home.jsx'
 import PartDetail from './components/PartDetail.jsx'
 import Quiz from './components/Quiz.jsx'
@@ -62,7 +71,7 @@ export default function App() {
   const [sync, setSync] = useState(() => getSyncState())
   const [hydrated, setHydrated] = useState(() => !getGithubConfig())
   const hydratedRef = useRef(false)
-  const suppressPushUntil = useRef(0)
+  const lastSyncedSig = useRef('')
 
   const [view, setView] = useState('home')
   const [partId, setPartId] = useState(null)
@@ -147,7 +156,9 @@ export default function App() {
   useEffect(() => {
     if (!hydrated) return
     if (!getGithubConfig()) return
-    if (Date.now() < suppressPushUntil.current) return
+    const sig = snapshotSignature(exportSnapshot())
+    if (sig === lastSyncedSig.current) return
+    lastSyncedSig.current = sig
     schedulePush()
   }, [hydrated, profiles, results, attempts, sets, theme, settings])
 
@@ -461,9 +472,10 @@ export default function App() {
   const connectAndSync = useCallback(async () => {
     const pulled = await pullAndMerge()
     if (!pulled) return false
-    suppressPushUntil.current = Date.now() + 4000
     reloadAll()
-    return pushNow()
+    const ok = await pushNow()
+    lastSyncedSig.current = snapshotSignature(exportSnapshot())
+    return ok
   }, [reloadAll])
 
   const disconnectGithub = useCallback(() => {
@@ -573,6 +585,7 @@ export default function App() {
             onOpenAccount={() => setAccountOpen(true)}
             onOpenSets={() => navigate('sets')}
             onNewSet={() => navigate('sets')}
+            sync={sync}
             onResume={resumeAttempt}
           />
         )}

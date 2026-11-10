@@ -131,6 +131,14 @@ export async function testConnection(cfg) {
   return { ok: true, login: repo?.full_name || '', detail: 'พบ repository' }
 }
 
+/** ดึงชื่อบัญชี GitHub จาก token (ใช้เติม owner อัตโนมัติ) */
+export async function fetchLogin(cfg) {
+  if (!cfg?.token) throw new Error('กรอก token ก่อน')
+  const me = await ghFetch(`${API}/user`, { headers: headers(cfg) })
+  if (!me?.login) throw new Error('อ่านชื่อบัญชีไม่ได้')
+  return me.login
+}
+
 /** ดึงข้อมูลจาก GitHub → { data, sha } หรือ null ถ้ายังไม่มีไฟล์ */
 export async function fetchRemote(cfg) {
   if (!isValidConfig(cfg)) return null
