@@ -1,0 +1,23 @@
+name: bank-fetch
+# ดึงไฟล์ต้นฉบับ .docx จาก Google Drive (ไฟล์ถูกแชร์แบบ anyone-with-link ชั่วคราว)
+# แล้วแตกข้อความ+รูปประกอบเป็น artifact ชื่อ bank-text
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install python-docx
+      - run: python tools/bank_extract.py out_bank
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bank-text
+          path: out_bank/
+          retention-days: 2
