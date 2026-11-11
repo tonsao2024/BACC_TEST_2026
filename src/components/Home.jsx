@@ -1,4 +1,4 @@
-import { GROUPS, MOCK_PART, PARTS, TOTAL_QUESTIONS } from '../data/index.js'
+import { GROUPS, MOCK_PART, PARTS, SPECIAL_GROUP, SPECIAL_PARTS, TOTAL_QUESTIONS } from '../data/index.js'
 import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
 import { PASS_SCORE, certTier } from '../lib/certs.js'
 import Icon from './Icons.jsx'
@@ -430,6 +430,37 @@ export default function Home({
           </span>
         </button>
       </div>
+
+      {SPECIAL_PARTS.length > 0 && (
+        <section className="section" style={{ animationDelay: '0ms' }}>
+          <div className="section__head">
+            <div>
+              <h3 className="section__title">
+                <Icon name="star" size={15} /> {SPECIAL_GROUP.label}
+              </h3>
+              <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+                {SPECIAL_GROUP.desc}
+              </p>
+            </div>
+            <span className="section__link">
+              {SPECIAL_PARTS.reduce((n, p) => n + p.questions.length, 0)} ข้อ · {SPECIAL_PARTS.length} ชุด
+            </span>
+          </div>
+          <div className="part-list">
+            {SPECIAL_PARTS.map((part, i) => (
+              <PartCard
+                key={part.id}
+                part={part}
+                results={results}
+                attempt={attempts.find((a) => a.key === `part:${part.id}`) || null}
+                onOpen={onOpenPart}
+                index={i}
+                variant={i}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {GROUPS.map((group, gi) => (
         <section

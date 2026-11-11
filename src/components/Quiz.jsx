@@ -168,6 +168,7 @@ export default function Quiz({
         l: item.l || null,
         fig: item.fig || null,
         ofigs: item.ofigs || null,
+        pictOpts: item.pictOpts || false,
         part: item.part || null,
         sectionKey: item.sectionKey || 'part',
         sectionLabel: item.sectionLabel || null,
@@ -489,7 +490,12 @@ export default function Quiz({
               </div>
 
               <p className="q-num">ข้อที่ {idx + 1}</p>
-              <p className="q-text">{q.q}</p>
+              {q.q ? <p className="q-text">{q.q}</p> : null}
+              {q.pictOpts && (
+                <p className="sub q-pict-note" style={{ fontSize: 11.5, marginTop: -2 }}>
+                  <Icon name="info" size={12} /> ภาพด้านบนคือโจทย์พร้อมตัวเลือก ก–ง — เลือกข้อที่ตรงกับคำตอบ
+                </p>
+              )}
 
               {q.fig && (
                 <div
