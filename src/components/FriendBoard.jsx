@@ -63,8 +63,8 @@ export default function FriendBoard({
             แสดงชื่อเพื่อนทั้งหมดในระบบ · ท้าแข่งพร้อมกันหลายคนได้ · กดดูสถิติเพื่อนได้ทุกคน
           </p>
         </div>
-        <div className="friend-board__head-actions">
-          {onRefreshFriends && (
+        {onRefreshFriends && (
+          <div className="friend-board__head-actions">
             <button
               type="button"
               className="btn btn--ghost btn--sm"
@@ -74,18 +74,8 @@ export default function FriendBoard({
             >
               <Icon name="refresh" size={13} /> รีเฟรชรายชื่อ
             </button>
-          )}
-          <button type="button" className="btn btn--soft btn--sm" onClick={onOpenArena}>
-            ดูเพิ่มเติม
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            onClick={() => (onCreateMatch ? onCreateMatch() : onOpenArena?.())}
-          >
-            <Icon name="fire" size={13} /> ท้าเพื่อน
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {directoryStatus && (
@@ -94,122 +84,107 @@ export default function FriendBoard({
         </p>
       )}
 
-      <FriendRaceBanner onOpenArena={onOpenArena} onCreateMatch={onCreateMatch} />
-
-      {myActiveMatch && (
-        <button
-          type="button"
-          className="board-live-banner"
-          onClick={() => (onOpenMatch ? onOpenMatch(myActiveMatch) : onOpenArena?.())}
-        >
-          <span className="board-live-banner__pulse" aria-hidden="true">⚔️</span>
-          <span className="board-live-banner__body">
-            <b>
-              {myActiveMatch.status === 'active' ? 'กำลังแข่งขันสด' : 'ห้องรอเพื่อนตอบรับ'} ·{' '}
-              {myActiveMatch.examSpec?.title || myActiveMatch.title}
-            </b>
-            <small>
-              ผู้ร่วมแข่ง {(myActiveMatch.players || []).length} คน · แตะเพื่อเข้าห้องแข่ง/ดูคะแนนสด
-            </small>
-          </span>
-          <span className="board-live-banner__go">
-            เข้าห้อง <Icon name="chevron" size={14} />
-          </span>
-        </button>
-      )}
-
-      <div className="board">
-        {board.length === 0 && (
-          <div className="board__empty">
-            <span className="board__empty-emoji">🏁</span>
-            <b>กำลังโหลดรายชื่อเพื่อนในระบบ</b>
-            <span>ชวนเพื่อนสร้างบัญชีแล้วมาประลองข้อสอบชุดเดียวกันได้เลย</span>
-          </div>
-        )}
-
-        {visible.map((row, i) => (
-          <div
-            key={row.id}
-            className={`board__row ${row.isMe ? 'is-me' : ''} ${i === 0 && row.count ? 'is-leader' : ''}`}
-            style={{ '--i': i }}
-          >
-            <span className={`board__rank r${i}`}>{row.count ? MEDALS[i] || i + 1 : i + 1}</span>
-            <span className="board__avatar">
-              {row.name.trim().charAt(0).toUpperCase()}
-              <i className={`fstats__dot ${row.online ? 'is-on' : ''}`} />
-            </span>
-            <button
-              type="button"
-              className="board__info board__info--btn"
-              onClick={() => (onInspectFriend ? onInspectFriend(row) : onOpenArena?.())}
-              title={`ดูสถิติของ ${row.name}`}
-            >
-              <span className="board__name">
-                {row.name}
-                {row.isMe && <em className="board__me">ฉัน</em>}
-                {row.online && !row.isMe && <em className="board__online">ออนไลน์</em>}
-              </span>
-              <span className="board__meta">
-                {row.count
-                  ? `สอบ ${row.count} ครั้ง · เฉลี่ย ${row.avg}% · สูงสุด ${row.best}%`
-                  : 'ยังไม่เคยสอบ · แตะเพื่อดูสถิติ'}
-              </span>
-              <span className="board__bar">
-                <i style={{ width: `${Math.max(3, row.avg || 0)}%` }} />
-              </span>
-            </button>
-            <div className="board__row-actions">
-              <button
-                type="button"
-                className="board__mini-btn"
-                onClick={() => (onInspectFriend ? onInspectFriend(row) : onOpenArena?.())}
-                aria-label={`ดูสถิติของ ${row.name}`}
-              >
-                สถิติ
-              </button>
-              {!row.isMe && (
-                <button
-                  type="button"
-                  className="board__mini-btn board__mini-btn--primary"
-                  onClick={() =>
-                    onChallengeFriend ? onChallengeFriend(row) : onCreateMatch?.()
-                  }
-                  aria-label={`ท้าแข่งกับ ${row.name}`}
-                >
-                  ท้า
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {board.length > 8 && (
+      {/* กรอบเดียว: ลู่วิ่ง + ปุ่มท้าแข่ง + รายชื่อเพื่อน อยู่ในกรอบเดียวกัน */}
+      <FriendRaceBanner onOpenArena={onOpenArena} onCreateMatch={onCreateMatch}>
+        {myActiveMatch && (
           <button
             type="button"
-            className="btn btn--ghost btn--sm btn--block"
-            onClick={() => setShowAll((v) => !v)}
+            className="board-live-banner"
+            onClick={() => (onOpenMatch ? onOpenMatch(myActiveMatch) : onOpenArena?.())}
           >
-            {showAll ? 'ย่อรายชื่อ' : `แสดงรายชื่อเพื่อนทั้งหมด ${board.length} คน`}
+            <span className="board-live-banner__pulse" aria-hidden="true">⚔️</span>
+            <span className="board-live-banner__body">
+              <b>
+                {myActiveMatch.status === 'active' ? 'กำลังแข่งขันสด' : 'ห้องรอเพื่อนตอบรับ'} ·{' '}
+                {myActiveMatch.examSpec?.title || myActiveMatch.title}
+              </b>
+              <small>
+                ผู้ร่วมแข่ง {(myActiveMatch.players || []).length} คน · แตะเพื่อเข้าห้องแข่ง/ดูคะแนนสด
+              </small>
+            </span>
+            <span className="board-live-banner__go">
+              เข้าห้อง <Icon name="chevron" size={14} />
+            </span>
           </button>
         )}
-      </div>
 
-      <div className="board__cta-row">
-        <button
-          type="button"
-          className="btn btn--primary btn--block board__cta"
-          onClick={() => (onCreateMatch ? onCreateMatch() : onOpenArena?.())}
-        >
-          <Icon name="wand" size={16} /> สร้างห้องท้าแข่งกับเพื่อน (เลือกได้หลายคน)
-        </button>
-        <button
-          type="button"
-          className="btn btn--soft btn--block"
-          onClick={onOpenArena}
-        >
-          <Icon name="chart" size={16} /> ดูเพิ่มเติม · สถิติเพื่อนทุกคนในระบบ & ห้องแข่งขัน
-        </button>
-      </div>
+        <div className="board">
+          {board.length === 0 && (
+            <div className="board__empty">
+              <span className="board__empty-emoji">🏁</span>
+              <b>กำลังโหลดรายชื่อเพื่อนในระบบ</b>
+              <span>ชวนเพื่อนสร้างบัญชีแล้วมาประลองข้อสอบชุดเดียวกันได้เลย</span>
+            </div>
+          )}
+
+          {visible.map((row, i) => (
+            <div
+              key={row.id}
+              className={`board__row ${row.isMe ? 'is-me' : ''} ${i === 0 && row.count ? 'is-leader' : ''}`}
+              style={{ '--i': i }}
+            >
+              <span className={`board__rank r${i}`}>{row.count ? MEDALS[i] || i + 1 : i + 1}</span>
+              <span className="board__avatar">
+                {row.name.trim().charAt(0).toUpperCase()}
+                <i className={`fstats__dot ${row.online ? 'is-on' : ''}`} />
+              </span>
+              <button
+                type="button"
+                className="board__info board__info--btn"
+                onClick={() => (onInspectFriend ? onInspectFriend(row) : onOpenArena?.())}
+                title={`ดูสถิติของ ${row.name}`}
+              >
+                <span className="board__name">
+                  <span className="board__name-text">{row.name}</span>
+                  {row.isMe && <em className="board__me">ฉัน</em>}
+                  {row.online && !row.isMe && <em className="board__online">ออนไลน์</em>}
+                </span>
+                <span className="board__meta">
+                  {row.count
+                    ? `สอบ ${row.count} ครั้ง · เฉลี่ย ${row.avg}% · สูงสุด ${row.best}%`
+                    : 'ยังไม่เคยสอบ · แตะเพื่อดูสถิติ'}
+                </span>
+                <span className="board__bar">
+                  <i style={{ width: `${Math.max(3, row.avg || 0)}%` }} />
+                </span>
+              </button>
+              <div className="board__row-actions">
+                <button
+                  type="button"
+                  className="board__mini-btn"
+                  onClick={() => (onInspectFriend ? onInspectFriend(row) : onOpenArena?.())}
+                  aria-label={`ดูสถิติของ ${row.name}`}
+                >
+                  สถิติ
+                </button>
+                {!row.isMe && (
+                  <button
+                    type="button"
+                    className="board__mini-btn board__mini-btn--primary"
+                    onClick={() =>
+                      onChallengeFriend ? onChallengeFriend(row) : onCreateMatch?.()
+                    }
+                    aria-label={`ท้าแข่งกับ ${row.name}`}
+                  >
+                    ท้า
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {board.length > 8 && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm btn--block"
+              onClick={() => setShowAll((v) => !v)}
+            >
+              {showAll ? 'ย่อรายชื่อ' : `แสดงรายชื่อเพื่อนทั้งหมด ${board.length} คน`}
+            </button>
+          )}
+        </div>
+      </FriendRaceBanner>
+
       <p className="board__hint">
         {meName ? `${meName} · ` : ''}ดูสถิติของเพื่อนได้ตลอดเวลาแม้เพื่อนไม่ได้ตอบรับคำท้า · ไม่จำกัดเวลาทำข้อสอบ (นับเวลาสะสม)
       </p>

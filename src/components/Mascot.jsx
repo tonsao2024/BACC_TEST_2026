@@ -328,13 +328,15 @@ export function RunningRacers({ className = '', height = 136 }) {
           <rect x="8" y="26" width="6" height="6" fill="#0B1F3A" />
 
           {/* ถ้วยรางวัลทองคำรออยู่หน้าเส้นชัย */}
-          <g transform="translate(18, 28) scale(0.9)" className="finish-trophy">
-            <path d="M4 12 Q4 24 14 24 Q24 24 24 12 Z" fill="#F59E0B" stroke="#D97706" strokeWidth="1.5" />
-            <path d="M4 14 Q0 14 0 18 Q0 22 4 22" stroke="#F59E0B" strokeWidth="2" fill="none" />
-            <path d="M24 14 Q28 14 28 18 Q28 22 24 22" stroke="#F59E0B" strokeWidth="2" fill="none" />
-            <rect x="12" y="24" width="4" height="6" fill="#D97706" />
-            <rect x="8" y="30" width="12" height="4" rx="1.5" fill="#B45309" />
-            <circle cx="14" cy="18" r="3" fill="#FEF08A" />
+          <g transform="translate(18, 28) scale(0.9)">
+            <g className="finish-trophy">
+              <path d="M4 12 Q4 24 14 24 Q24 24 24 12 Z" fill="#F59E0B" stroke="#D97706" strokeWidth="1.5" />
+              <path d="M4 14 Q0 14 0 18 Q0 22 4 22" stroke="#F59E0B" strokeWidth="2" fill="none" />
+              <path d="M24 14 Q28 14 28 18 Q28 22 24 22" stroke="#F59E0B" strokeWidth="2" fill="none" />
+              <rect x="12" y="24" width="4" height="6" fill="#D97706" />
+              <rect x="8" y="30" width="12" height="4" rx="1.5" fill="#B45309" />
+              <circle cx="14" cy="18" r="3" fill="#FEF08A" />
+            </g>
           </g>
         </g>
 
@@ -348,11 +350,12 @@ export function RunningRacers({ className = '', height = 136 }) {
       {/* ========================================================
           ตัวละครที่ 4 (สีม่วง) - กำลังวิ่งสปีดไล่กวดมาจากด้านหลัง
           ======================================================== */}
-      <g className="racer racer--4" transform="translate(68, 62)">
-        {/* กลุ่มควันฝุ่นใต้ฝ่าเท้า */}
-        <g className="racer-dust">
-          <circle cx="-16" cy="48" r="4.5" fill="rgba(255,255,255,0.5)" />
-          <circle cx="-24" cy="46" r="3.2" fill="rgba(255,255,255,0.35)" />
+      <g className="racer racer--4">
+        <g transform="translate(68, 62)">
+          {/* กลุ่มควันฝุ่นใต้ฝ่าเท้า */}
+          <g className="racer-dust">
+            <circle cx="-16" cy="48" r="4.5" fill="rgba(255,255,255,0.5)" />
+            <circle cx="-24" cy="46" r="3.2" fill="rgba(255,255,255,0.35)" />
         </g>
         {/* เงา */}
         <ellipse cx="6" cy="50" rx="16" ry="3.5" fill="rgba(11,31,58,0.2)" />
@@ -374,16 +377,18 @@ export function RunningRacers({ className = '', height = 136 }) {
           <path d="M6 10 Q9 12 12 9" stroke="#0B1F3A" strokeWidth="1.4" strokeLinecap="round" fill="none" />
           <circle cx="2" cy="8" r="2" fill="#FFB4A2" opacity="0.7" />
         </g>
+        </g>
       </g>
 
       {/* ========================================================
           ตัวละครที่ 3 (สีเขียว ยอดใบไม้) - วิ่งอย่างร่าเริง สปีดเต็มที่
           ======================================================== */}
-      <g className="racer racer--3" transform="translate(180, 42)">
-        {/* ควันฝุ่น */}
-        <g className="racer-dust">
-          <circle cx="-16" cy="48" r="4.8" fill="rgba(255,255,255,0.55)" />
-          <circle cx="-25" cy="45" r="3.5" fill="rgba(255,255,255,0.38)" />
+      <g className="racer racer--3">
+        <g transform="translate(180, 42)">
+          {/* ควันฝุ่น */}
+          <g className="racer-dust">
+            <circle cx="-16" cy="48" r="4.8" fill="rgba(255,255,255,0.55)" />
+            <circle cx="-25" cy="45" r="3.5" fill="rgba(255,255,255,0.38)" />
         </g>
         <ellipse cx="6" cy="50" rx="17" ry="3.8" fill="rgba(11,31,58,0.22)" />
         {/* ขาหลัง */}
@@ -410,16 +415,18 @@ export function RunningRacers({ className = '', height = 136 }) {
           <ellipse cx="10" cy="3" rx="1.6" ry="1.9" fill="#0B1F3A" />
           <path d="M4 10 Q7 13 11 10" stroke="#0B1F3A" strokeWidth="1.5" strokeLinecap="round" fill="none" />
         </g>
+        </g>
       </g>
 
       {/* ========================================================
           ตัวละครที่ 2 (สีส้ม-คอรัล) - ผู้ท้าชิง ใส่หมวกแก๊ป วิ่งไล่บี้เบอร์ 1
           ======================================================== */}
-      <g className="racer racer--2" transform="translate(295, 70)">
-        {/* ควันฝุ่น */}
-        <g className="racer-dust">
-          <circle cx="-18" cy="48" r="5" fill="rgba(255,255,255,0.6)" />
-          <circle cx="-28" cy="45" r="3.8" fill="rgba(255,255,255,0.4)" />
+      <g className="racer racer--2">
+        <g transform="translate(295, 70)">
+          {/* ควันฝุ่น */}
+          <g className="racer-dust">
+            <circle cx="-18" cy="48" r="5" fill="rgba(255,255,255,0.6)" />
+            <circle cx="-28" cy="45" r="3.8" fill="rgba(255,255,255,0.4)" />
         </g>
         <ellipse cx="8" cy="50" rx="18" ry="4" fill="rgba(11,31,58,0.24)" />
         {/* ขาหลัง */}
@@ -448,16 +455,18 @@ export function RunningRacers({ className = '', height = 136 }) {
           {/* หยดเหงื่อพุ่งไปข้างหลัง */}
           <path d="M-4 -2 Q-10 -4 -8 0 Q-4 0 -4 -2" fill="#38BDF8" className="sweat-drop" />
         </g>
+        </g>
       </g>
 
       {/* ========================================================
           ตัวละครที่ 1 (สีน้ำเงิน ธ.ก.ส. เบอร์ 1) - ผู้นำสปรินต์พุ่งเข้าเส้นชัย
           ======================================================== */}
-      <g className="racer racer--1 is-leader" transform="translate(410, 48)">
-        {/* ควันฝุ่นความเร็วสูง */}
-        <g className="racer-dust">
-          <circle cx="-20" cy="48" r="5.5" fill="rgba(255,255,255,0.65)" />
-          <circle cx="-32" cy="45" r="4.2" fill="rgba(255,255,255,0.45)" />
+      <g className="racer racer--1 is-leader">
+        <g transform="translate(410, 48)">
+          {/* ควันฝุ่นความเร็วสูง */}
+          <g className="racer-dust">
+            <circle cx="-20" cy="48" r="5.5" fill="rgba(255,255,255,0.65)" />
+            <circle cx="-32" cy="45" r="4.2" fill="rgba(255,255,255,0.45)" />
         </g>
         <ellipse cx="10" cy="50" rx="20" ry="4.5" fill="rgba(11,31,58,0.28)" />
         {/* ขาหลังก้าวสุดเหยียด */}
@@ -486,13 +495,15 @@ export function RunningRacers({ className = '', height = 136 }) {
           <path d="M10 8 Q15 13 20 8" stroke="#0B1F3A" strokeWidth="1.8" strokeLinecap="round" fill="none" />
           <circle cx="8" cy="7" r="2.5" fill="#FFB4A2" opacity="0.8" />
         </g>
+        </g>
       </g>
     </svg>
   )
 }
 
-/* Banner สำหรับส่วน "แข่งขันกับเพื่อน" พร้อมตัวละครวิ่งแข่งกันและปุ่มท้าแข่ง */
-export function FriendRaceBanner({ onOpenArena, onCreateMatch }) {
+/* Banner สำหรับส่วน "แข่งขันกับเพื่อน"
+   กรอบเดียวที่รวมลู่วิ่ง + ปุ่มท้าแข่ง + รายชื่อเพื่อนไว้ด้วยกัน (children) */
+export function FriendRaceBanner({ onOpenArena, onCreateMatch, children }) {
   return (
     <div className="friend-race-banner">
       <div className="friend-race-banner__visual" aria-hidden="true">
@@ -500,9 +511,6 @@ export function FriendRaceBanner({ onOpenArena, onCreateMatch }) {
       </div>
       <div className="friend-race-banner__bar">
         <div className="friend-race-banner__info">
-          <span className="friend-race-banner__badge">
-            <span className="race-pulse-dot" /> โหมดประลองสดหลายคน
-          </span>
           <strong className="friend-race-banner__title">
             วิ่งแข่งตอบข้อสอบชุดเดียวกันแบบเรียลไทม์
           </strong>
@@ -527,6 +535,7 @@ export function FriendRaceBanner({ onOpenArena, onCreateMatch }) {
           </button>
         </div>
       </div>
+      {children ? <div className="friend-race-banner__list">{children}</div> : null}
     </div>
   )
 }
