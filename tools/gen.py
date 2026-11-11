@@ -145,9 +145,16 @@ def answer_index(q, letter, atext):
 # value: (0-based option index, explanation paragraph)
 ANSWER_OVERRIDES = {
     # ตลาดหลักทรัพย์ ... ผู้ลงทุนมีฐานะเป็นเจ้าของ -> ตลาดทุน
+    # (ต้นฉบับไม่มีบรรทัดเฉลยข้อนี้ — ตรวจจากโจทย์/ตัวเลือกเอง)
     'position2': {27: (1, 'ตลาดทุน (Capital Market) เป็นตลาดที่ระดมทุนระยะยาว '
                         'ผู้ลงทุนที่ซื้อหุ้นสามัญมีฐานะเป็นเจ้าของกิจการ '
                         'ต่างจากตลาดเงินซึ่งเป็นตลาดของเงินทุนระยะสั้น')},
+}
+
+# ต้นฉบับหน้าฉลยพิมพ์ตัวเลือกผิดแถว (เฉลยข้อ 27 ของชุดที่ 1 หลุดมาอยู่บรรทัดข้อ 28)
+# — ข้อ 28 ถามนโยบายสินเชื่อ ธ.ก.ส. ตัวเลือก "ถูกทุกข้อ" จึงเป็นคำตอบที่ถูก
+ANSWER_TEXT_FIX = {
+    'position2': {28: 'ถูกทุกข้อ'},
 }
 
 
@@ -212,18 +219,32 @@ def build_exam(cfg):
         ans = A.detail(apages)
     out = []
     for q in qs:
-        a = ans.get(q['num'], {})
+        a = dict(ans.get(q['num'], {}))
+        fix = ANSWER_TEXT_FIX.get(cfg['key'], {}).get(q['num'])
+        if fix:
+            a['text'] = fix
         idx, how = answer_index(q, a.get('letter', ''), a.get('text', ''))
         # the answer text can contradict the printed key letter (source typo);
         # the text is the printed answer itself, so it wins — restate the letter
+        corrected = False
         if how == 'text' and a.get('letter'):
             li = assemble.LETTER_IDX.get(a['letter'])
             if li is not None and li != idx:
                 CONFUSED.append((cfg['key'], q['num'], a['letter'], idx))
                 a['letter'] = 'กขคง'[idx]
-                if a.get('explain', '').startswith('เฉลยข้อ'):
-                    a['explain'] = re.sub(r'เฉลยข้อ\s*[กขคงA-Da-d]', 'เฉลยข้อ ' + 'กขคง'[idx],
-                                          a['explain'], count=1)
+                corrected = True
+        # the key line and the chosen option are the same answer: keep the
+        # explanation's opening line in sync when the letter was corrected
+        if corrected and a.get('explain', '').startswith('เฉลยข้อ'):
+            _, _, body = a['explain'].partition('\n')
+            a['explain'] = ('เฉลยข้อ %s. %s' % ('กขคง'[idx], q['opts'][idx].strip())
+                            + (('\n' + body) if body else '')).strip()
+        elif a.get('explain', '').startswith('เฉลยข้อ'):
+            first, _, rest = a['explain'].partition('\n')
+            want = 'เฉลยข้อ %s.' % 'กขคง'[idx]
+            if not first.startswith(want):
+                a['explain'] = (want + ' ' + q['opts'][idx].strip()
+                                + (('\n' + rest) if rest else '')).strip()
         ov = ANSWER_OVERRIDES.get(cfg['key'], {}).get(q['num'])
         if ov is not None:
             idx, how = ov[0], 'manual'

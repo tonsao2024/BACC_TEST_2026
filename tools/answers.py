@@ -71,6 +71,13 @@ def detail(pages):
     for v in out.values():
         lines = [x for x in v['explain'] if x.strip()]
         v['explain'] = '\n'.join(lines).strip()
+        # The printed key line itself carries the option text, so the block must
+        # always open with it: that is what makes an answer readable on its own.
+        letter = v.get('letter') or ''
+        text = (v.get('text') or '').strip()
+        head = ('เฉลยข้อ %s. %s' % (letter, text)).strip() if text else ''
+        if head and not v['explain'].startswith(head):
+            v['explain'] = (head + ('\n' + v['explain'] if v['explain'] else '')).strip()
     return out
 
 
