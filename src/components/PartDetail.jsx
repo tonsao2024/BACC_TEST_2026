@@ -24,7 +24,20 @@ export default function PartDetail({
   onOpenSources,
   partFileName,
 }) {
-  const totalCount = part.questions.length
+  const isSpecial = part.group === 'special' && Array.isArray(part.sections) && part.sections.length > 0
+  const [pickedSections, setPickedSections] = useState(() =>
+    isSpecial ? part.sections.map((s) => s.key) : [],
+  )
+  const activeSections = isSpecial
+    ? part.sections.filter((s) => pickedSections.includes(s.key))
+    : []
+  const scopedQuestions = isSpecial
+    ? pickedSections.length < part.sections.length
+      ? part.questions.filter((q) => pickedSections.includes(q.sectionKey))
+      : part.questions
+    : part.questions
+
+  const totalCount = scopedQuestions.length
   const [selectedCount, setSelectedCount] = useState('all')
   const [batchIndex, setBatchIndex] = useState(0)
 
@@ -52,20 +65,27 @@ export default function PartDetail({
     }
   }
 
+  const sectionSuffix = isSpecial
+    ? activeSections.length === part.sections.length
+      ? ''
+      : `:sec:${part.sections.filter((s) => pickedSections.includes(s.key)).map((s) => s.key).join('+')}`
+    : ''
+  const baseKey = `part:${part.id}${sectionSuffix}`
+
   const currentKey =
     selectedCount === 'all'
-      ? `part:${part.id}`
+      ? baseKey
       : batchIndex === 'random'
-        ? `part:${part.id}:random:${selectedCount}`
-        : `part:${part.id}:b${selectedCount}:${batchIndex}`
+        ? `${baseKey}:random:${selectedCount}`
+        : `${baseKey}:b${selectedCount}:${batchIndex}`
 
   const activeAttempt =
     (attempts || []).find((a) => {
-      if (selectedCount === 'all') return a.key === `part:${part.id}`
-      if (batchIndex === 'random') return a.key && a.key.startsWith(`part:${part.id}:random:${selectedCount}`)
-      return a.key === `part:${part.id}:b${selectedCount}:${batchIndex}`
+      if (selectedCount === 'all') return a.key === baseKey
+      if (batchIndex === 'random') return a.key && a.key.startsWith(`${baseKey}:random:${selectedCount}`)
+      return a.key === `${baseKey}:b${selectedCount}:${batchIndex}`
     }) ||
-    (attempt && (attempt.key === currentKey || (selectedCount === 'all' && attempt.key === `part:${part.id}`))
+    (attempt && (attempt.key === currentKey || (selectedCount === 'all' && attempt.key === baseKey))
       ? attempt
       : null)
 
@@ -85,12 +105,19 @@ export default function PartDetail({
         ? `สุ่ม ${selectedCount} ข้อ`
         : `${batches[batchIndex]?.label || 'ชุดย่อย'} (ข้อ ${batches[batchIndex]?.start || 1}–${batches[batchIndex]?.end || selectedCount})`
 
+  const sectionParam = isSpecial
+    ? activeSections.length === part.sections.length
+      ? []
+      : activeSections.map((s) => s.key)
+    : []
+
   const currentOpts = {
     count: selectedCount,
     batchIndex,
     isRandom: batchIndex === 'random',
     seed: activeAttempt?.subsetSeed || null,
     examKey: activeAttempt?.key || null,
+    sectionKeys: sectionParam,
   }
 
   const best = bestFor(part.id, results)
@@ -167,6 +194,61 @@ export default function PartDetail({
               {Math.round(best.score)} คะแนน
             </span>
           </div>
+        )}
+
+        {isSpecial && (
+          <section className="section part-batch-section">
+            <div className="section__head">
+              <div>
+                <h3 className="section__title">
+                  <Icon name="list" size={15} /> เลือกวิชาย่อย (Section)
+                </h3>
+                <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+                  ทำได้ทีละวิชา หรือเลือกหลายวิชาพร้อมกัน · เลือกแล้ว {totalCount} ข้อ
+                </p>
+              </div>
+              <button
+                type="button"
+                className="section__link"
+                onClick={() => setPickedSections(part.sections.map((s) => s.key))}
+              >
+                ทั้งหมด
+              </button>
+            </div>
+            <div className="special-sections">
+              {part.sections.map((s) => {
+                const on = pickedSections.includes(s.key)
+                const secAttempts = (attempts || []).filter((a) => a.key && a.key.startsWith(`part:${part.id}`))
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    className={`special-section ${on ? 'is-on' : ''}`}
+                    style={{ '--sec': s.color, '--sec-soft': `${s.color}38` }}
+                    aria-pressed={on}
+                    onClick={() =>
+                      setPickedSections((prev) => {
+                        if (!prev.includes(s.key)) return [...prev, s.key]
+                        if (prev.length === 1) return prev
+                        return prev.filter((k) => k !== s.key)
+                      })
+                    }
+                  >
+                    <span className="special-section__dot" />
+                    <span className="special-section__body">
+                      <b>{s.label}</b>
+                      <small>
+                        ข้อ {s.from}–{s.to} · {s.count} ข้อ
+                      </small>
+                    </span>
+                    <span className={`special-section__check ${on ? 'is-on' : ''}`}>
+                      {on ? <Icon name="check" size={12} stroke={2.6} /> : null}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
         )}
 
         <section className="section part-batch-section">

@@ -5,3 +5,5 @@ dist
 test/.smoke.mjs
 e2e/
 out_bank/
+.special-build/
+tools/__pycache__/

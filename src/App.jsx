@@ -30,6 +30,7 @@ import {
   uidPublic,
 } from './lib/storage.js'
 import { generateExam, newSeed } from './lib/generator.js'
+import { normalizeSectionKeys } from './lib/special.js'
 import Home from './components/Home.jsx'
 import PartDetail from './components/PartDetail.jsx'
 import Quiz from './components/Quiz.jsx'
@@ -54,6 +55,7 @@ import Icon from './components/Icons.jsx'
 import { Toast, Sheet } from './components/ui.jsx'
 
 const fileNameFor = (part) => {
+  if (part?.sourceFile) return part.sourceFile
   const file = SOURCE_FILES.find((f) => f.id === part.file)
   return file ? `${file.name}.pdf` : null
 }
@@ -161,6 +163,75 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
   const buildPartExam = useCallback((id, opts = {}) => {
     const part = getPart(id)
     if (!part) return null
+
+    /* ---------- ข้อสอบพิเศษ: เลือกทำเฉพาะรายวิชาย่อย (section) ได้ ---------- */
+    if (part.group === 'special') {
+      const sectionKeys = normalizeSectionKeys(part, opts.sectionKeys)
+      const only = sectionKeys.length
+        ? part.questions.filter((q) => sectionKeys.includes(q.sectionKey))
+        : part.questions
+      const totalCount = only.length
+      const count =
+        opts.count && opts.count !== 'all' ? Math.min(Number(opts.count), totalCount) : 'all'
+      const isRandom = Boolean(opts.isRandom || opts.batchIndex === 'random')
+      const batchIndex = typeof opts.batchIndex === 'number' ? opts.batchIndex : 0
+      const secSuffix = sectionKeys.length ? `:sec:${sectionKeys.join('+')}` : ''
+      let questions = only
+      let key = `part:${id}${secSuffix}`
+      let batchLabel = `ทั้งหมด (${totalCount} ข้อ)`
+
+      if (count !== 'all') {
+        if (isRandom) {
+          const seed = opts.seed || Math.random().toString(36).slice(2, 8)
+          const indexed = only.map((q, idx) => ({ q, idx }))
+          indexed.sort((a, b) => {
+            const ha = (a.idx * 16807 + seed.charCodeAt(0) * 31) % 2147483647
+            const hb = (b.idx * 16807 + seed.charCodeAt(0) * 31) % 2147483647
+            return ha - hb
+          })
+          questions = indexed.slice(0, count).map((item) => item.q)
+          key = `part:${id}${secSuffix}:random:${count}:${seed}`
+          batchLabel = `สุ่ม ${count} ข้อ`
+        } else {
+          const start = batchIndex * count
+          const end = Math.min(totalCount, start + count)
+          questions = only.slice(start, end)
+          key = `part:${id}${secSuffix}:b${count}:${batchIndex}`
+          batchLabel = `ชุดที่ ${batchIndex + 1} (ข้อ ${start + 1}–${end})`
+        }
+      }
+
+      const secKey = sectionKeys.length === 1 ? sectionKeys[0] : null
+      const activeSections = (part.sections || [])
+        .filter((s) => !secKey || s.key === secKey)
+        .filter((s) => questions.some((q) => q.sectionKey === s.key))
+        .map((s) => ({
+          key: s.key,
+          label: s.label,
+          color: s.color,
+          count: questions.filter((q) => q.sectionKey === s.key).length,
+          points: s.points || part.officialPoints || questions.length,
+        }))
+
+      return {
+        key: opts.examKey || key,
+        kind: 'part',
+        title: count === 'all' ? part.title : `${part.title} · ${batchLabel}`,
+        label: `พาร์ท ${part.label}${count === 'all' ? '' : ` · ${batchLabel}`}`,
+        partId: id,
+        partLabel: part.label,
+        partTitle: part.title,
+        color: part.color,
+        minutes: Math.max(5, Math.round((part.minutes * questions.length) / (part.questions.length || 1))),
+        questions,
+        sections: activeSections.length > 1 ? activeSections : null,
+        pointsPerQuestion: (part.officialPoints || questions.length) / (part.questions.length || 1),
+        subsetCount: count,
+        batchIndex: isRandom ? 'random' : batchIndex,
+        batchLabel,
+        subsetSeed: isRandom ? (opts.seed || key.split(':').pop()) : null,
+      }
+    }
 
     const totalCount = part.questions.length
     const count = opts.count && opts.count !== 'all' ? Math.min(Number(opts.count), totalCount) : 'all'
@@ -515,7 +586,12 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
   /* ---------------- misc ---------------- */
   const part = useMemo(() => (partId ? getPart(partId) : null), [partId])
   const attemptForPart = useMemo(
-    () => (partId ? attempts.find((a) => a.key === `part:${partId}`) : null),
+    () =>
+      partId
+        ? attempts.find((a) => a.key === `part:${partId}`) ||
+          attempts.find((a) => a.key && a.key.startsWith(`part:${partId}`)) ||
+          null
+        : null,
     [attempts, partId],
   )
 

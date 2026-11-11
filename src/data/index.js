@@ -1,6 +1,7 @@
 import { part11, part12, part13, part14, part15 } from './set1.js'
 import { part2 } from './set2.js'
 import { part31, part32, part33, part34, part35 } from './set3.js'
+import { SPECIAL_SET_META } from './special.js'
 import { importedQuestions } from '../lib/storage.js'
 
 /* ไฟล์ต้นฉบับทั้งหมดบน Google Drive (โฟลเดอร์กลางของชุดเอกสารเตรียมสอบ ธ.ก.ส. 2569) */
@@ -237,6 +238,69 @@ export const GROUPS = [
   },
 ]
 
+/* ---------- ข้อสอบพิเศษ (ชุดข้อสอบจากไฟล์ต้นฉบับ "Baac69 พนักงานการเงินระดับ 4")
+   แต่ละชุดถูกจัดเป็น "รายวิชาย่อย" (section) เพื่อทำแยกบทได้
+   ข้อมูลมาจาก src/data/special.js (สร้างจาก PDF ต้นฉบับด้วย tools/special_build.py) ---------- */
+
+const SPECIAL_ICON = {
+  'special-general': 'brain',
+  'special-precision-1': 'target',
+  'special-precision-2': 'target',
+  'special-position-1': 'ledger',
+  'special-position-2': 'ledger',
+  'special-real-2568': 'trophy',
+}
+
+const SPECIAL_FILE = {
+  'special-general': 'Baac69 พนักงานการเงินระดับ4 By พี่กุ๊กไก่ติวสอบบัญชี',
+  'special-precision-1': 'Baac69 พนักงานการเงินระดับ4 By พี่กุ๊กไก่ติวสอบบัญชี',
+  'special-precision-2': 'Baac69 พนักงานการเงินระดับ4 By พี่กุ๊กไก่ติวสอบบัญชี',
+  'special-position-1': 'Baac69 พนักงานการเงินระดับ4 By พี่กุ๊กไก่ติวสอบบัญชี',
+  'special-position-2': 'Baac69 พนักงานการเงินระดับ4 By พี่กุ๊กไก่ติวสอบบัญชี',
+  'special-real-2568': 'Baac69 พนักงานการเงินระดับ4 By พี่กุ๊กไก่ติวสอบบัญชี',
+}
+
+const tagSpecial = (meta, q) => ({
+  ...q,
+  sectionKey: q.src || meta.sections[0]?.key || 'all',
+  sectionLabel: q.t,
+})
+
+export const SPECIAL_PARTS = SPECIAL_SET_META.map((meta, i) => ({
+  id: meta.id,
+  label: `พ.${i + 1}`,
+  group: 'special',
+  title: meta.title,
+  desc: meta.desc,
+  icon: SPECIAL_ICON[meta.id] || 'trophy',
+  color: meta.color,
+  color2: meta.color2,
+  minutes: meta.minutes,
+  officialCount: meta.count,
+  officialMinutes: meta.minutes,
+  officialPoints: meta.points,
+  file: null,
+  sourceFile: SPECIAL_FILE[meta.id],
+  short: meta.short,
+  sections: meta.sections.map((s) => ({
+    key: s.key,
+    label: s.label,
+    color: s.color,
+    count: s.count,
+    from: s.from,
+    to: s.to,
+    points: meta.points,
+  })),
+  topics: meta.sections.map((s) => `${s.label} ${s.count}`),
+  questions: meta.questions.map((q) => tagSpecial(meta, q)),
+}))
+
+export const SPECIAL_GROUP = {
+  key: 'special',
+  label: 'ข้อสอบพิเศษ',
+  desc: 'ชุดข้อสอบจากไฟล์ต้นฉบับ พี่กุ๊กไก่ติวสอบบัญชี · แยกเป็นรายวิชาย่อยให้เลือกทำทีละบท',
+}
+
 /* ---------- Mock Exam 30 ข้อ (สุ่มแบบกำหนดได้จากทุกพาร์ท) ---------- */
 const pick = (arr, n) => arr.slice(0, n)
 
@@ -289,8 +353,18 @@ try {
   /* localStorage อาจถูกปิด — ใช้คลังมาตรฐาน */
 }
 
-export const ALL_PARTS = [...PARTS, MOCK_PART]
+export const ALL_PARTS = [...PARTS, MOCK_PART, ...SPECIAL_PARTS]
 
 export const getPart = (id) => ALL_PARTS.find((p) => p.id === id)
 
+export const isSpecialPart = (id) => SPECIAL_PARTS.some((p) => p.id === id)
+
+export const getSpecialPart = (id) => SPECIAL_PARTS.find((p) => p.id === id)
+
+/* วิชาย่อยทั้งหมดของข้อสอบพิเศษ (ใช้ในหน้าสร้างชุด/หน้าสถิติ) */
+export const SPECIAL_SECTIONS = SPECIAL_PARTS.flatMap((part) =>
+  part.sections.map((s) => ({ ...s, partId: part.id, partTitle: part.title, color2: part.color2 })),
+)
+
 export const TOTAL_QUESTIONS = PARTS.reduce((s, p) => s + p.questions.length, 0)
+export const TOTAL_SPECIAL_QUESTIONS = SPECIAL_PARTS.reduce((s, p) => s + p.questions.length, 0)
