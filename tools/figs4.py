@@ -7,6 +7,7 @@ import reader
 
 RE_Q = re.compile(r'^\s*(\d{1,3})\s*[\.\)]')
 PAGE_W = 595.32
+PAGE_H = 841.92
 GENERATED_KEYS = set()  # pages whose A-D letters are generated keys, not options
 
 
@@ -204,10 +205,12 @@ def plan(pages):
     """
     tasks = []
     bands = {}
+    lrows = {}
     carry_num = None
     for pno in pages:
         qs, labs, imgs = page_geom(pno)
         rows = label_rows(labs)
+        lrows[pno] = rows
         if qs:
             lead = [(y, p) for y, p in rows if y < qs[0][0] - 4]
             body = [(y, p) for y, p in rows if y >= qs[0][0] - 4]
@@ -238,8 +241,17 @@ def plan(pages):
                 continue
             first_row_y = band_rows[0][0]
             has_stem_img = False
+            # a picture printed to the left of the first option column, on the
+            # same line as the number, is the question's own figure
+            all_pcs = [pc for _y, p in band_rows for pc in p]
+            label_x = min(pc[0] for pc in all_pcs) if all_pcs else 1e9
             for b in band_imgs:
                 if (b[1] + b[3]) / 2 < first_row_y - 12:
+                    tasks.append({'num': num, 'page': pno, 'kind': 'stem', 'label': None,
+                                  'rect': b})
+                    has_stem_img = True
+                elif (b[0] < label_x - 10 and b[2] <= label_x + 25
+                      and b[1] > qy - 10):
                     tasks.append({'num': num, 'page': pno, 'kind': 'stem', 'label': None,
                                   'rect': b})
                     has_stem_img = True
@@ -267,15 +279,29 @@ def plan(pages):
                 y_end = max([t['rect'][3] for t in ts] + [qy + 60]) + 6
             else:
                 y_end = max(y_end, max([t['rect'][3] for t in ts] + [qy + 60]) + 4)
-            y_end = min(y_end, content_bottom(page) + 8)
+            # the band's own artwork decides how far the strip reaches; a
+            # text-only content bottom would cut printed pictures off
+            limit = band_hi if band_hi < 1e8 else 1e9
+            art_bottom = max([b[3] for b in layout.page_images(page)
+                              if b[1] > qy - 2 and b[1] < limit]
+                             + [b[3] for b in page_drawings(page)
+                                if b[1] > qy - 2 and b[1] < limit] + [qy + 40])
+            # final extent: the artwork of the band, never the answer key
+            y_end = max(min(y_end, art_bottom + 6), qy + 40)
+            y_end = min(y_end, PAGE_H - 52)
             ans = answer_start(page)
             if ans is not None:
                 y_end = min(y_end, ans - 8)
-            art_bottom = max([b[3] for b in layout.page_images(page)
-                              if b[1] > qy - 2 and b[1] < y_end]
-                             + [b[3] for b in page_drawings(page)
-                                if b[1] > qy - 2 and b[1] < y_end] + [qy + 40])
-            y_end = max(min(y_end, art_bottom + 3), qy + 40)
+            y_end = max(y_end, qy + 40)
+            # the artwork sometimes sits just above the printed number line;
+            # widen the strip upward instead of cropping a hairline
+            if y_end - qy < 26:
+                near = [b[1] for b in layout.page_images(page)
+                        if abs(b[1] - qy) < 60]
+                near += [b[1] for b in page_drawings(page)
+                         if abs(b[1] - qy) < 60]
+                if near:
+                    qy = max(min(qy, min(near) - 2), qy - 60)
             # start just above the first artwork of the band, not at the
             # question number, so a neighbouring instruction line stays out
             # the previous question's artwork may bleed below the number line
@@ -284,7 +310,26 @@ def plan(pages):
             above += [b[3] for b in page_drawings(page)
                       if b[1] < qy and b[3] > qy - 40]
             y_start = max(qy + 1, (max(above) + 3) if above else qy + 1)
-            y_start = min(y_start, qy + 40)
+            # never start below the band's own artwork: the strip must contain it
+            arts = [b[1] for b in layout.page_images(page)
+                    if b[1] > qy - 2 and b[1] < y_end]
+            arts += [b[1] for b in page_drawings(page)
+                     if b[1] > qy - 2 and b[1] < y_end]
+            cap = min([art - 2 for art in arts] + [qy + 8])
+            y_start = min(y_start, cap)
+            # keep the ก./ข./ค./ง. labels printed under the alternatives
+            labs = [y for y, _p in lrows.get(page, [])
+                    if qy < y < min(y_end + 30, band_hi)]
+            if labs:
+                y_end = max(y_end, max(labs) + 14)
+            y_end = max(y_end, y_start + 24)
+            # the strip stops at the next question's number, never past it
+            if band_hi < 1e8:
+                y_end = min(y_end, band_hi - 2)
+            # the label extension above must not pull in the answer key
+            if ans is not None:
+                y_end = min(y_end, ans - 6)
+            y_end = min(y_end, PAGE_H - 52)
             out.append({'num': num, 'page': page, 'kind': 'stem', 'label': None,
                         'rect': (62, y_start, PAGE_W - 30, y_end),
                         'box': True, 'pict': True, 'qy': qy})

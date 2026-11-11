@@ -218,7 +218,15 @@ def build_exam(cfg):
     else:
         ans = A.detail(apages)
     out = []
+    directive = ''   # last printed block instruction, e.g. "จงตอบคำถามข้อ 31-33 …"
     for q in qs:
+        pre = [p.strip() for p in (q.get('preamble') or []) if p and p.strip()]
+        if pre and len(pre[-1]) < 160:
+            directive = pre[-1]
+        # a shared instruction line belongs to every question of its block, so
+        # a picture-only question still shows what it is asked to do
+        if not q['stem'].strip() and not q['stemFig'] and directive:
+            q['stem'] = directive
         a = dict(ans.get(q['num'], {}))
         fix = ANSWER_TEXT_FIX.get(cfg['key'], {}).get(q['num'])
         if fix:
