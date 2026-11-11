@@ -4,6 +4,7 @@ import figs4
 import reader
 import answers as A
 import assemble
+import extra as X
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 IMG_OUT = os.path.join(REPO, 'public', 'special')
@@ -116,6 +117,15 @@ def norm(s):
     return s.lower()
 
 
+def opts_clean(opts):
+    return [o.strip() for o in opts]
+
+
+def extra_text(key, num, stem, opts, idx):
+    """คำอธิบายเพิ่มเติม (AI) สำหรับข้อที่ต้นฉบับไม่มีคำอธิบาย"""
+    return X.build(key, num, stem, opts, idx)
+
+
 def answer_index(q, letter, atext):
     idx = assemble.LETTER_IDX.get(letter)
     at = norm(atext)
@@ -136,6 +146,13 @@ def answer_index(q, letter, atext):
         if scored:
             scored.sort(reverse=True)
             if scored[0][0] >= 300:
+                # several options can start with the same printed phrase
+                # ("เปิดบัญชีขั้นต่ำ 50บาท …"); a tie means the text cannot
+                # tell them apart, so the printed key letter decides
+                top = scored[0][0]
+                tied = [i for sc, i in scored if sc == top]
+                if len(tied) > 1 and idx in tied:
+                    return idx, 'letter'
                 return scored[0][1], 'text'
     return idx, ('letter' if idx is not None else 'none')
 
@@ -257,6 +274,16 @@ def build_exam(cfg):
         if ov is not None:
             idx, how = ov[0], 'manual'
             a = dict(a, letter='กขคง'[idx], text=q['opts'][idx].strip(), explain=ov[1])
+        # ทุกข้อต้องเปิดด้วยบรรทัดเฉลย "เฉลยข้อ X. <ตัวเลือก>" เพื่อให้อ่านได้จบในข้อ
+        if idx is not None and not a.get('explain', '').startswith('เฉลยข้อ'):
+            head = 'เฉลยข้อ %s. %s' % ('กขคง'[idx], q['opts'][idx].strip())
+            body = a.get('explain', '').strip()
+            a['explain'] = (head + ('\n' + body if body else '')).strip()
+        # ต้นฉบับมีเพียงบรรทัดเฉลยสำหรับบางข้อ: เติมเหตุผลที่แต่งขึ้นเอง
+        # โดยไม่แตะบรรทัดเฉลยเดิม และปิดท้ายด้วยหมายเหตุว่าเป็นข้อความจาก AI
+        extra = extra_text(cfg['key'], q['num'], q['stem'], opts_clean(q['opts']), idx)
+        if extra:
+            a['explain'] = (a.get('explain', '') + '\n\n' + extra).strip()
         key, label, color = section_for(cfg, q['num'])
         opts = [o.strip() for o in q['opts']]
         empty_opts = all(not o for o in opts)
