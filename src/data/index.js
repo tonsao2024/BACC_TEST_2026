@@ -2,6 +2,7 @@ import { part11, part12, part13, part14, part15 } from './set1.js'
 import { part2 } from './set2.js'
 import { part31, part32, part33, part34, part35 } from './set3.js'
 import { SPECIAL_SET_META } from './special.js'
+import { EXTRA_EXAM_SETS } from './extra.js'
 import { importedQuestions } from '../lib/storage.js'
 
 /* ไฟล์ต้นฉบับทั้งหมดบน Google Drive (โฟลเดอร์กลางของชุดเอกสารเตรียมสอบ ธ.ก.ส. 2569) */
@@ -301,6 +302,68 @@ export const SPECIAL_GROUP = {
   desc: 'ชุดข้อสอบจากไฟล์ต้นฉบับ พี่กุ๊กไก่ติวสอบบัญชี · แยกเป็นรายวิชาย่อยให้เลือกทำทีละบท',
 }
 
+/* ---------- คลังข้อสอบฝึกฝนเพิ่มเติมแยกตามหมวดวิชา ---------- */
+const EXTRA_ICON = {
+  'extra-aptitude': 'brain',
+  'extra-accounting': 'ledger',
+  'extra-credit': 'loan',
+  'extra-economics': 'chart',
+  'extra-management': 'layers',
+  'extra-baac-society': 'bank',
+}
+
+const EXTRA_COLOR2 = {
+  'extra-aptitude': '#60A5FA',
+  'extra-accounting': '#5EEAD4',
+  'extra-credit': '#38BDF8',
+  'extra-economics': '#A78BFA',
+  'extra-management': '#FBBF24',
+  'extra-baac-society': '#4ADE80',
+}
+
+export const EXTRA_PARTS = EXTRA_EXAM_SETS.map((meta) => {
+  let cursor = 1
+  const sections = (meta.sections || []).map((s) => {
+    const from = cursor
+    const to = cursor + s.count - 1
+    cursor = to + 1
+    return {
+      key: s.key,
+      label: s.label,
+      color: s.color,
+      count: s.count,
+      from,
+      to,
+      points: s.count,
+    }
+  })
+  return {
+    id: meta.id,
+    label: meta.label,
+    group: 'extra',
+    title: meta.title,
+    desc: meta.subtitle,
+    icon: EXTRA_ICON[meta.id] || 'layers',
+    color: meta.color,
+    color2: EXTRA_COLOR2[meta.id] || meta.color,
+    minutes: meta.minutes,
+    officialCount: meta.questions.length,
+    officialMinutes: meta.minutes,
+    officialPoints: meta.questions.length,
+    file: null,
+    sourceFile: null,
+    sections,
+    topics: sections.map((s) => `${s.label} (${s.count} ข้อ)`),
+    questions: meta.questions,
+  }
+})
+
+export const EXTRA_GROUP = {
+  key: 'extra',
+  label: 'คลังข้อสอบฝึกฝนเพิ่มเติม',
+  desc: 'ชุดข้อสอบฝึกทบทวนแยกตามหมวดวิชาสำคัญ · เลือกทำทีละหมวดหรือแบ่งทำชุดย่อย 10 / 20 / 50 ข้อ',
+}
+
 /* ---------- Mock Exam 30 ข้อ (สุ่มแบบกำหนดได้จากทุกพาร์ท) ---------- */
 const pick = (arr, n) => arr.slice(0, n)
 
@@ -353,7 +416,7 @@ try {
   /* localStorage อาจถูกปิด — ใช้คลังมาตรฐาน */
 }
 
-export const ALL_PARTS = [...PARTS, MOCK_PART, ...SPECIAL_PARTS]
+export const ALL_PARTS = [...PARTS, MOCK_PART, ...SPECIAL_PARTS, ...EXTRA_PARTS]
 
 export const getPart = (id) => ALL_PARTS.find((p) => p.id === id)
 
@@ -366,5 +429,9 @@ export const SPECIAL_SECTIONS = SPECIAL_PARTS.flatMap((part) =>
   part.sections.map((s) => ({ ...s, partId: part.id, partTitle: part.title, color2: part.color2 })),
 )
 
-export const TOTAL_QUESTIONS = PARTS.reduce((s, p) => s + p.questions.length, 0)
 export const TOTAL_SPECIAL_QUESTIONS = SPECIAL_PARTS.reduce((s, p) => s + p.questions.length, 0)
+export const TOTAL_EXTRA_QUESTIONS = EXTRA_PARTS.reduce((s, p) => s + p.questions.length, 0)
+export const TOTAL_QUESTIONS =
+  PARTS.reduce((s, p) => s + p.questions.length, 0) +
+  TOTAL_SPECIAL_QUESTIONS +
+  TOTAL_EXTRA_QUESTIONS

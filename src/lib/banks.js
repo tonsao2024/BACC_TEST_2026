@@ -3,6 +3,8 @@
    ทุกข้อสร้างจากเทมเพลตที่ตรวจคำตอบได้ หรือข้อความที่เขียนไว้คงที่
    ============================================================ */
 
+import { EXTRA_EXAM_SETS } from '../data/extra.js'
+
 let _rng = Math.random
 const useRng = (r) => {
   if (typeof r === 'function') _rng = r
@@ -572,8 +574,25 @@ export const EXTRA_POOLS = {
   '3-5': marketingItems,
 }
 
+const EXTRA_SET_BY_ID = Object.fromEntries(EXTRA_EXAM_SETS.map((s) => [s.id, s.questions || []]))
+
+const EXTRA_CURATED_BY_PART = {
+  '1-1': () => (EXTRA_SET_BY_ID['extra-aptitude'] || []).filter((q) => q.sectionKey === 'math_word' || q.sectionKey === 'math_series'),
+  '1-2': () => (EXTRA_SET_BY_ID['extra-aptitude'] || []).filter((q) => q.sectionKey === 'logic_reason' || q.sectionKey === 'analogy'),
+  '1-3': () => (EXTRA_SET_BY_ID['extra-aptitude'] || []).filter((q) => q.sectionKey === 'thai_comp'),
+  '3-1': () => EXTRA_SET_BY_ID['extra-accounting'] || [],
+  '3-2': () => EXTRA_SET_BY_ID['extra-baac-society'] || [],
+  '3-3': () => EXTRA_SET_BY_ID['extra-economics'] || [],
+  '3-4': () => EXTRA_SET_BY_ID['extra-credit'] || [],
+  '3-5': () => EXTRA_SET_BY_ID['extra-management'] || [],
+}
+
 export const extraPoolFor = (partId, rng) => {
   const make = EXTRA_POOLS[partId]
-  if (!make) return []
-  return make(rng).map((q) => ({ ...q, partTitle: q.partTitle }))
+  const base = make ? make(rng).map((q) => ({ ...q, partTitle: q.partTitle })) : []
+  const getCurated = EXTRA_CURATED_BY_PART[partId]
+  const curated = getCurated
+    ? shuffleWith(getCurated(), rng).map((q) => scramble(rng, q))
+    : []
+  return [...curated, ...base]
 }

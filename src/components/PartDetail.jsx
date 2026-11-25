@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { driveDownload, driveView } from '../data/index.js'
-import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
-import { certTier } from '../lib/certs.js'
+import { driveDownload } from '../data/index.js'
+import { formatThaiDateTime, humanTime } from '../lib/storage.js'
+import { PASS_SCORE, certTier } from '../lib/certs.js'
+import { computePartCompletion, getBatchProgress } from '../lib/completion.js'
 import Icon from './Icons.jsx'
 import { MiniRing } from './ui.jsx'
 
 const RULES = [
   'แต่ละข้อมี 4 ตัวเลือก เลือกได้เพียงคำตอบเดียว ไม่มีคะแนนติดลบ',
+  'การเลือกทำทีละ 10 / 20 / 50 ข้อ เป็นการแบ่งย่อยให้ฝึกทำอย่างมีกำลังใจ โดยจะนับว่าจบพาร์ทใหญ่ 100% เมื่อทำครบทุกชุดย่อย หรือทำแบบเต็มพาร์ท',
   'ไม่จำกัดเวลาทำข้อสอบ ระบบจะนับเวลาสะสมไปเรื่อยๆ จนกว่าจะทำครบและกดส่งคำตอบ',
-  'สามารถหยุดพักหรือย้อนกลับไปแก้ไขข้อก่อนหน้าได้ก่อนกดส่งคำตอบ',
   'หลังส่งคำตอบจะเห็นเฉลยและคำอธิบายทุกข้อ พร้อมดาวน์โหลดรายงานผล',
 ]
 
@@ -24,14 +25,14 @@ export default function PartDetail({
   onOpenSources,
   partFileName,
 }) {
-  const isSpecial = part.group === 'special' && Array.isArray(part.sections) && part.sections.length > 0
+  const hasSections = Array.isArray(part.sections) && part.sections.length > 0
   const [pickedSections, setPickedSections] = useState(() =>
-    isSpecial ? part.sections.map((s) => s.key) : [],
+    hasSections ? part.sections.map((s) => s.key) : [],
   )
-  const activeSections = isSpecial
+  const activeSections = hasSections
     ? part.sections.filter((s) => pickedSections.includes(s.key))
     : []
-  const scopedQuestions = isSpecial
+  const scopedQuestions = hasSections
     ? pickedSections.length < part.sections.length
       ? part.questions.filter((q) => pickedSections.includes(q.sectionKey))
       : part.questions
@@ -41,6 +42,12 @@ export default function PartDetail({
   const [selectedCount, setSelectedCount] = useState('all')
   const [batchIndex, setBatchIndex] = useState(0)
 
+  const sectionParam = hasSections
+    ? activeSections.length === part.sections.length
+      ? []
+      : activeSections.map((s) => s.key)
+    : []
+
   const countOptions = [
     { count: 10, label: '10 ข้อ', desc: 'มินิทดสอบด่วน' },
     { count: 20, label: '20 ข้อ', desc: 'ฝึกซ้อมกำลังดี' },
@@ -48,24 +55,13 @@ export default function PartDetail({
     { count: 'all', label: `ทั้งหมด (${totalCount} ข้อ)`, desc: 'เต็มพาร์ทรอบเดียว' },
   ].filter((opt) => opt.count === 'all' || opt.count < totalCount)
 
-  const numBatches = selectedCount !== 'all' ? Math.ceil(totalCount / selectedCount) : 1
-  const batches = []
-  if (selectedCount !== 'all') {
-    for (let i = 0; i < numBatches; i += 1) {
-      const start = i * selectedCount + 1
-      const end = Math.min(totalCount, (i + 1) * selectedCount)
-      batches.push({
-        index: i,
-        label: `ชุดที่ ${i + 1}`,
-        range: `ข้อ ${start}–${end}`,
-        count: end - start + 1,
-        start,
-        end,
-      })
-    }
-  }
+  const batchProgress =
+    selectedCount !== 'all'
+      ? getBatchProgress(part, results, selectedCount, sectionParam)
+      : { batches: [], doneBatches: 0, totalBatches: 1, nextBatchIndex: 0, scopeCompletionPct: 0 }
+  const batches = batchProgress.batches
 
-  const sectionSuffix = isSpecial
+  const sectionSuffix = hasSections
     ? activeSections.length === part.sections.length
       ? ''
       : `:sec:${part.sections.filter((s) => pickedSections.includes(s.key)).map((s) => s.key).join('+')}`
@@ -105,12 +101,6 @@ export default function PartDetail({
         ? `สุ่ม ${selectedCount} ข้อ`
         : `${batches[batchIndex]?.label || 'ชุดย่อย'} (ข้อ ${batches[batchIndex]?.start || 1}–${batches[batchIndex]?.end || selectedCount})`
 
-  const sectionParam = isSpecial
-    ? activeSections.length === part.sections.length
-      ? []
-      : activeSections.map((s) => s.key)
-    : []
-
   const currentOpts = {
     count: selectedCount,
     batchIndex,
@@ -120,7 +110,8 @@ export default function PartDetail({
     sectionKeys: sectionParam,
   }
 
-  const best = bestFor(part.id, results)
+  const completion = computePartCompletion(part, results, PASS_SCORE)
+  const best = completion.isComplete ? completion.bestResult : null
   const rows = results.filter((r) => r.partId === part.id)
 
   return (
@@ -166,11 +157,13 @@ export default function PartDetail({
           </div>
         </div>
 
-        {best && (
+        {best ? (
           <div className="info-card best-card">
             <MiniRing value={best.score} size={56} />
             <div className="best-card__body">
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>ผลดีที่สุดของคุณ</p>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                ผลรวมพาร์ทใหญ่ (ทำครบ 100%)
+              </p>
               <p className="sub" style={{ fontSize: 11.5, marginTop: 3 }}>
                 {best.correct}/{best.total} ข้อ · {formatThaiDateTime(best.date)}
               </p>
@@ -179,24 +172,53 @@ export default function PartDetail({
                 style={{
                   fontSize: 11,
                   marginTop: 5,
-                  color: best.score >= 60 ? '#067a55' : '#b45309',
+                  color: best.score >= PASS_SCORE ? '#067a55' : '#b45309',
                   fontWeight: 600,
                 }}
               >
-                {best.score >= 60
-                  ? `${certTier(best.score).medal} ผ่านเกณฑ์แล้ว · เกียรติบัตรอยู่ในหน้าประวัติผลสอบ`
-                  : `เหลืออีก ${60 - Math.round(best.score)} คะแนน ถึงเกณฑ์ผ่าน 60%`}
+                {best.score >= PASS_SCORE
+                  ? `${certTier(best.score).medal} ครบทั้งพาร์ท 100% · ผ่านเกณฑ์แล้ว`
+                  : `ครบทั้งพาร์ทแล้ว · เหลืออีก ${Math.max(1, PASS_SCORE - Math.round(best.score))} คะแนน ถึงเกณฑ์ผ่าน 60%`}
               </p>
             </div>
             <span
-              className={`result-badge best-card__badge ${best.score >= 60 ? 'result-badge--pass' : 'result-badge--fail'}`}
+              className={`result-badge best-card__badge ${best.score >= PASS_SCORE ? 'result-badge--pass' : 'result-badge--fail'}`}
             >
               {Math.round(best.score)} คะแนน
             </span>
           </div>
-        )}
+        ) : completion.coveredCount > 0 ? (
+          <div className="info-card best-card best-card--progress">
+            <MiniRing value={completion.completionPct} size={56} />
+            <div className="best-card__body">
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                ความคืบหน้าพาร์ทใหญ่สะสม · {completion.completionPct}%
+              </p>
+              <p className="sub" style={{ fontSize: 11.5, marginTop: 3 }}>
+                ทยอยทำแล้ว {completion.coveredCount}/{completion.totalQuestions} ข้อ
+                {completion.partialAvgScore !== null
+                  ? ` · คะแนนเฉลี่ยชุดที่ทำ ${Math.round(completion.partialAvgScore)}%`
+                  : ''}
+              </p>
+              <p
+                className="sub"
+                style={{
+                  fontSize: 11,
+                  marginTop: 5,
+                  color: 'var(--viol-600)',
+                  fontWeight: 600,
+                }}
+              >
+                ทำชุดย่อยให้ครบอีก {completion.remainingCount} ข้อ เพื่อพิชิตพาร์ทใหญ่นี้ครบ 100%!
+              </p>
+            </div>
+            <span className="result-badge best-card__badge">
+              {completion.completionPct}% ของพาร์ท
+            </span>
+          </div>
+        ) : null}
 
-        {isSpecial && (
+        {hasSections && (
           <section className="section part-batch-section">
             <div className="section__head">
               <div>
@@ -218,7 +240,6 @@ export default function PartDetail({
             <div className="special-sections">
               {part.sections.map((s) => {
                 const on = pickedSections.includes(s.key)
-                const secAttempts = (attempts || []).filter((a) => a.key && a.key.startsWith(`part:${part.id}`))
                 return (
                   <button
                     key={s.key}
@@ -258,7 +279,7 @@ export default function PartDetail({
                 <Icon name="layers" size={15} /> เลือกจำนวนข้อสอบที่จะทำ
               </h3>
               <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
-                ทยอยทำทีละ 10, 20, 50 ข้อเพื่อไม่ให้ท้อ หรือเลือกทำครบทั้งหมด {totalCount} ข้อรอบเดียวได้
+                แบ่งทำเป็นมินิชุดย่อยเพื่อให้มีกำลังใจ · ครบพาร์ทใหญ่ 100% เมื่อทำครบทุกชุดย่อย หรือทำทั้งหมด {totalCount} ข้อ
               </p>
             </div>
             {selectedCount !== 'all' && (
@@ -278,7 +299,10 @@ export default function PartDetail({
                   className={`batch-size-card ${isActive ? 'is-active' : ''}`}
                   onClick={() => {
                     setSelectedCount(opt.count)
-                    if (opt.count !== 'all') setBatchIndex(0)
+                    if (opt.count !== 'all') {
+                      const bp = getBatchProgress(part, results, opt.count, sectionParam)
+                      setBatchIndex(bp.nextBatchIndex)
+                    }
                   }}
                 >
                   <span className="batch-size-card__count num">
@@ -295,7 +319,8 @@ export default function PartDetail({
             <div className="batch-picker">
               <div className="batch-picker__head">
                 <span className="batch-picker__title">
-                  <Icon name="checkCircle" size={13} /> เลือกชุดข้อสอบย่อย ({batches.length} ชุด):
+                  <Icon name="checkCircle" size={13} /> เลือกชุดข้อสอบย่อย (ทำครบแล้ว{' '}
+                  {batchProgress.doneBatches}/{batches.length} ชุด · {batchProgress.scopeCompletionPct}%):
                 </span>
                 <span className="batch-picker__hint">
                   {batchIndex === 'random'
@@ -316,10 +341,13 @@ export default function PartDetail({
                   <button
                     type="button"
                     key={b.index}
-                    className={`batch-chip ${batchIndex === b.index ? 'is-active' : ''}`}
+                    className={`batch-chip ${batchIndex === b.index ? 'is-active' : ''} ${b.done ? 'is-done' : ''}`}
                     onClick={() => setBatchIndex(b.index)}
                   >
-                    <b>{b.label}</b>
+                    <b>
+                      {b.label}
+                      {b.done ? ` · ✓ ${Math.round(b.bestScore ?? 0)}%` : ''}
+                    </b>
                     <small>{b.range}</small>
                   </button>
                 ))}
@@ -328,7 +356,7 @@ export default function PartDetail({
           )}
         </section>
 
-        <div className="detail-grid">
+        <div className={part.file ? 'detail-grid' : undefined}>
           <section className="section" style={{ marginTop: 18 }}>
             <div className="section__head">
               <h3 className="section__title">คำชี้แจงก่อนเริ่มทำข้อสอบ</h3>
@@ -355,54 +383,56 @@ export default function PartDetail({
             </div>
           </section>
 
-          <section className="section">
-            <div className="section__head">
-              <h3 className="section__title">เอกสารต้นฉบับ</h3>
-            </div>
-            <div className="download-card">
-              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ไฟล์ข้อสอบฉบับเต็ม</p>
-              <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
-                {partFileName || `${part.label}_ข้อสอบ_${part.officialCount}ข้อ.pdf`}
-                {part.id === '2' ? ' · พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? ' · เฉลย Mock Exam อยู่ในไฟล์แยกที่หน้าเอกสาร' : ' · เฉลยพร้อมคำอธิบาย'}
-              </p>
-              <button
-                type="button"
-                className="download-row"
-                onClick={() =>
-                  onReadDoc?.({
-                    id: part.file,
-                    name: partFileName || `พาร์ท ${part.label}`,
-                    type: 'PDF',
-                  })
-                }
-              >
-                <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
-                  <Icon name="book" size={18} />
-                </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span className="download-row__title">อ่านเอกสารในเว็บไซต์</span>
-                  <span className="download-row__desc">เปิดอ่านได้ทันที ไม่ต้องออกไปที่ Google Drive</span>
-                </span>
-                <Icon name="chevron" size={16} className="part-chev" />
-              </button>
-              <a
-                className="download-row"
-                href={driveDownload(part.file)}
-                target="_blank"
-                rel="noreferrer"
-                style={{ textDecoration: 'none' }}
-              >
-                <span className="download-row__ico" style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}>
-                  <Icon name="download" size={18} />
-                </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span className="download-row__title">ดาวน์โหลดไฟล์ PDF ต้นฉบับ</span>
-                  <span className="download-row__desc">เปิดจาก Google Drive · ต้นฉบับไม่มีการแก้ไข</span>
-                </span>
-                <Icon name="external" size={16} className="part-chev" />
-              </a>
-            </div>
-          </section>
+          {part.file && (
+            <section className="section">
+              <div className="section__head">
+                <h3 className="section__title">เอกสารต้นฉบับ</h3>
+              </div>
+              <div className="download-card">
+                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>ไฟล์ข้อสอบฉบับเต็ม</p>
+                <p className="sub" style={{ fontSize: 11.5, marginTop: 4 }}>
+                  {partFileName || `${part.label}_ข้อสอบ_${part.officialCount}ข้อ.pdf`}
+                  {part.id === '2' ? ' · พาร์ท 2 อยู่ในวิชาที่ 2 ของคลังข้อสอบ 300 ข้อ' : part.id === 'mock' ? ' · เฉลย Mock Exam อยู่ในไฟล์แยกที่หน้าเอกสาร' : ' · เฉลยพร้อมคำอธิบาย'}
+                </p>
+                <button
+                  type="button"
+                  className="download-row"
+                  onClick={() =>
+                    onReadDoc?.({
+                      id: part.file,
+                      name: partFileName || `พาร์ท ${part.label}`,
+                      type: 'PDF',
+                    })
+                  }
+                >
+                  <span className="download-row__ico" style={{ background: 'var(--viol-50)', color: 'var(--viol-600)' }}>
+                    <Icon name="book" size={18} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="download-row__title">อ่านเอกสารในเว็บไซต์</span>
+                    <span className="download-row__desc">เปิดอ่านได้ทันที ไม่ต้องออกไปที่ Google Drive</span>
+                  </span>
+                  <Icon name="chevron" size={16} className="part-chev" />
+                </button>
+                <a
+                  className="download-row"
+                  href={driveDownload(part.file)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <span className="download-row__ico" style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}>
+                    <Icon name="download" size={18} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="download-row__title">ดาวน์โหลดไฟล์ PDF ต้นฉบับ</span>
+                    <span className="download-row__desc">เปิดจาก Google Drive · ต้นฉบับไม่มีการแก้ไข</span>
+                  </span>
+                  <Icon name="external" size={16} className="part-chev" />
+                </a>
+              </div>
+            </section>
+          )}
         </div>
 
         <section className="section">
@@ -436,6 +466,7 @@ export default function PartDetail({
                 </span>
                 <div>
                   <div className="source-item__title">
+                    {r.batchLabel ? `${r.batchLabel} · ` : ''}
                     {r.correct}/{r.total} ข้อ · ใช้เวลา {r.timeUsedText || humanTime(r.timeUsedSec)}
                   </div>
                   <div className="source-item__meta">{formatThaiDateTime(r.date)}</div>

@@ -8664,6 +8664,12 @@ select {
   background: var(--viol-50);
 }
 
+.batch-chip.is-done {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.08);
+  color: #047857;
+}
+
 .batch-chip.is-active {
   border-color: var(--viol-600);
   background: var(--viol-600);
@@ -8743,6 +8749,12 @@ select {
 [data-theme='dark'] .batch-chip:hover {
   background: rgba(37, 99, 235, 0.2);
   border-color: rgba(96, 165, 250, 0.4);
+}
+
+[data-theme='dark'] .batch-chip.is-done {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #6ee7b7;
 }
 
 [data-theme='dark'] .batch-chip.is-active {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MOCK_PART, PARTS } from '../data/index.js'
+import { EXTRA_PARTS, MOCK_PART, PARTS } from '../data/index.js'
 import { EXAM_SIZES, newSeed } from '../lib/generator.js'
 import { formatThaiDateTime, humanTime, mmss } from '../lib/storage.js'
 import {
@@ -496,6 +496,11 @@ export function CreateMatchSheet({
               {PARTS.map((p) => (
                 <option key={p.id} value={p.id}>
                   พาร์ท {p.label} · {p.title} ({p.questions.length} ข้อ)
+                </option>
+              ))}
+              {EXTRA_PARTS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  ชุด{p.label} · {p.title} ({p.questions.length} ข้อ)
                 </option>
               ))}
             </select>

@@ -6,6 +6,7 @@
 import { PARTS } from '../data/index.js'
 import { supabase, normalizeName } from './supabase.js'
 import { getProfiles, legacyProfiles, loadResults, mmss } from './storage.js'
+import { computePartCompletion } from './completion.js'
 
 export const MAX_CHALLENGE_DECLINES = 3
 export const CHALLENGE_SNOOZE_MS = 8000
@@ -56,9 +57,18 @@ export function computePublicStats(results = []) {
   Object.values(partStats).forEach((ps) => {
     ps.avgScore = ps.attempts ? Math.round(ps.totalScore / ps.attempts) : 0
     delete ps.totalScore
+    const comp = computePartCompletion(ps.partId, safe, 60)
+    ps.completionPct = comp.completionPct
+    ps.isComplete = comp.isComplete
+    if (comp.isComplete && comp.bestScore !== null) {
+      ps.bestScore = Math.round(comp.bestScore)
+    }
   })
 
-  const passedParts = PARTS.filter((p) => (partStats[p.id]?.bestScore || 0) >= 60).length
+  const passedParts = PARTS.filter((p) => {
+    const comp = computePartCompletion(p, safe, 60)
+    return comp.isComplete && (comp.bestScore || 0) >= 60
+  }).length
 
   const recentResults = safe.slice(0, 10).map((r) => ({
     id: r.id,

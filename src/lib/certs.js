@@ -1,9 +1,12 @@
 /* ============================================================
    Certificates — เกียรติบัตรประจำพาร์ท
-   ผ่านเกณฑ์เมื่อคะแนน >= 60% (รอบจริง ระดับเหรียญตามคะแนน)
+   ผ่านเกณฑ์เมื่อทำครบพาร์ทใหญ่ 100% (เต็มพาร์ท หรือครบทุกชุดมินิ)
+   และได้คะแนนรวม >= 60% (ระดับเหรียญตามคะแนน)
    เกียรติบัตรคำนวณมาจากประวัติผลสอบ (results) เสมอ
    ไม่เก็บข้อมูลเพิ่ม → ซิงก์ GitHub/ย้ายเครื่องแล้วตามไปด้วยอัตโนมัติ
    ============================================================ */
+
+import { computePartCompletion } from './completion.js'
 
 export const PASS_SCORE = 60
 
@@ -15,42 +18,42 @@ export function certTier(score) {
 
 /**
  * คืนอาร์เรย์เกียรติบัตรที่ได้รับ 1 ใบต่อวิชาย่อย (พาร์ท)
- * เลือกจากผลที่ดีที่สุดที่ผ่านเกณฑ์ เรียงตามวันที่ผ่านครั้งแรก
+ * จะได้รับเมื่อทำพาร์ทใหญ่ครบ 100% และคะแนนดีที่สุด/คะแนนรวม >= 60%
  */
 export function certificatesFromResults(results = []) {
-  const firstPass = new Map()
-  const best = new Map()
-  results.forEach((r) => {
-    if (!r || r.kind === 'set' || !r.partId || !(r.score >= PASS_SCORE)) return
-    const prevFirst = firstPass.get(r.partId)
-    if (!prevFirst || new Date(r.date) < new Date(prevFirst.date)) firstPass.set(r.partId, r)
-    const prevBest = best.get(r.partId)
-    if (!prevBest || r.score > prevBest.score) best.set(r.partId, r)
+  const safe = Array.isArray(results) ? results : []
+  const partIds = new Set()
+  safe.forEach((r) => {
+    if (r && r.kind !== 'set' && r.partId) partIds.add(r.partId)
   })
-  return [...best.values()]
-    .map((r) => {
-      const tier = certTier(r.score)
-      const first = firstPass.get(r.partId)
-      return {
-        key: `cert:${r.partId}`,
-        partId: r.partId,
-        partLabel: r.partLabel,
-        partTitle: r.partTitle,
-        partColor: r.partColor || '#2563EB',
-        score: r.score,
-        correct: r.correct,
-        total: r.total,
-        name: r.name || '',
-        date: r.date,
-        earnedDate: first?.date || r.date,
-        resultId: r.id,
-        ...tier,
-      }
+
+  const certs = []
+  for (const partId of partIds) {
+    const comp = computePartCompletion(partId, safe, PASS_SCORE)
+    if (!comp.isComplete || !(comp.bestScore >= PASS_SCORE) || !comp.bestResult) continue
+    const r = comp.bestResult
+    const tier = certTier(comp.bestScore)
+    certs.push({
+      key: `cert:${partId}`,
+      partId,
+      partLabel: r.partLabel,
+      partTitle: r.partTitle,
+      partColor: r.partColor || '#2563EB',
+      score: comp.bestScore,
+      correct: comp.bestCorrect ?? r.correct,
+      total: comp.totalQuestions || r.total,
+      name: r.name || '',
+      date: r.date,
+      earnedDate: comp.firstPassDate || r.date,
+      resultId: r.id,
+      ...tier,
     })
-    .sort((a, b) => new Date(a.earnedDate) - new Date(b.earnedDate))
+  }
+
+  return certs.sort((a, b) => new Date(a.earnedDate) - new Date(b.earnedDate))
 }
 
-/** เกียรติบัตรของพาร์ทเดียว (ถ้าเคยผ่าน) */
+/** เกียรติบัตรของพาร์ทเดียว (ถ้าทำครบ 100% และผ่านเกณฑ์แล้ว) */
 export function certificateForPart(partId, results = []) {
   return certificatesFromResults(results).find((c) => c.partId === partId) || null
 }

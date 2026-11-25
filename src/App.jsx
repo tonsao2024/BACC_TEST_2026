@@ -165,42 +165,45 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
     const part = getPart(id)
     if (!part) return null
 
-    /* ---------- ข้อสอบพิเศษ: เลือกทำเฉพาะรายวิชาย่อย (section) ได้ ---------- */
-    if (part.group === 'special') {
+    /* ---------- ข้อสอบแบบแยกวิชาย่อย (section): เลือกทำเฉพาะหมวดย่อยและชุดย่อยได้ ---------- */
+    if (Array.isArray(part.sections) && part.sections.length > 0) {
       const sectionKeys = normalizeSectionKeys(part, opts.sectionKeys)
-      const only = sectionKeys.length
-        ? part.questions.filter((q) => sectionKeys.includes(q.sectionKey))
-        : part.questions
-      const totalCount = only.length
+      const onlyEntries = part.questions
+        .map((q, origIdx) => ({ q, origIdx }))
+        .filter((entry) => !sectionKeys.length || sectionKeys.includes(entry.q.sectionKey))
+      const totalCount = onlyEntries.length
       const count =
         opts.count && opts.count !== 'all' ? Math.min(Number(opts.count), totalCount) : 'all'
       const isRandom = Boolean(opts.isRandom || opts.batchIndex === 'random')
       const batchIndex = typeof opts.batchIndex === 'number' ? opts.batchIndex : 0
       const secSuffix = sectionKeys.length ? `:sec:${sectionKeys.join('+')}` : ''
-      let questions = only
+      let pickedEntries = onlyEntries
       let key = `part:${id}${secSuffix}`
       let batchLabel = `ทั้งหมด (${totalCount} ข้อ)`
 
       if (count !== 'all') {
         if (isRandom) {
           const seed = opts.seed || Math.random().toString(36).slice(2, 8)
-          const indexed = only.map((q, idx) => ({ q, idx }))
+          const indexed = onlyEntries.map((entry, idx) => ({ ...entry, idx }))
           indexed.sort((a, b) => {
             const ha = (a.idx * 16807 + seed.charCodeAt(0) * 31) % 2147483647
             const hb = (b.idx * 16807 + seed.charCodeAt(0) * 31) % 2147483647
             return ha - hb
           })
-          questions = indexed.slice(0, count).map((item) => item.q)
+          pickedEntries = indexed.slice(0, count)
           key = `part:${id}${secSuffix}:random:${count}:${seed}`
           batchLabel = `สุ่ม ${count} ข้อ`
         } else {
           const start = batchIndex * count
           const end = Math.min(totalCount, start + count)
-          questions = only.slice(start, end)
+          pickedEntries = onlyEntries.slice(start, end)
           key = `part:${id}${secSuffix}:b${count}:${batchIndex}`
           batchLabel = `ชุดที่ ${batchIndex + 1} (ข้อ ${start + 1}–${end})`
         }
       }
+
+      const questions = pickedEntries.map((entry) => entry.q)
+      const partQuestionIndices = pickedEntries.map((entry) => entry.origIdx)
 
       const secKey = sectionKeys.length === 1 ? sectionKeys[0] : null
       const activeSections = (part.sections || [])
@@ -231,6 +234,8 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
         batchIndex: isRandom ? 'random' : batchIndex,
         batchLabel,
         subsetSeed: isRandom ? (opts.seed || key.split(':').pop()) : null,
+        sectionKeys: sectionKeys.length ? sectionKeys : null,
+        partQuestionIndices,
       }
     }
 
@@ -240,6 +245,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
     const batchIndex = typeof opts.batchIndex === 'number' ? opts.batchIndex : 0
 
     let questions = part.questions
+    let partQuestionIndices = Array.from({ length: totalCount }, (_, i) => i)
     let key = `part:${id}`
     let batchLabel = `ทั้งหมด (${totalCount} ข้อ)`
 
@@ -252,13 +258,16 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
           const hb = (b.idx * 16807 + seed.charCodeAt(0) * 31) % 2147483647
           return ha - hb
         })
-        questions = indexed.slice(0, count).map((item) => item.q)
+        const picked = indexed.slice(0, count)
+        questions = picked.map((item) => item.q)
+        partQuestionIndices = picked.map((item) => item.idx)
         key = `part:${id}:random:${count}:${seed}`
         batchLabel = `สุ่ม ${count} ข้อ`
       } else {
         const start = batchIndex * count
         const end = Math.min(totalCount, start + count)
         questions = part.questions.slice(start, end)
+        partQuestionIndices = Array.from({ length: Math.max(0, end - start) }, (_, i) => start + i)
         key = `part:${id}:b${count}:${batchIndex}`
         batchLabel = `ชุดที่ ${batchIndex + 1} (ข้อ ${start + 1}–${end})`
       }
@@ -280,6 +289,8 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
       batchIndex: isRandom ? 'random' : batchIndex,
       batchLabel,
       subsetSeed: isRandom ? (opts.seed || key.split(':').pop()) : null,
+      sectionKeys: null,
+      partQuestionIndices,
     }
   }, [])
 
@@ -380,6 +391,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
           count: attempt.subsetCount,
           batchIndex: attempt.batchIndex,
           seed: attempt.subsetSeed,
+          sectionKeys: attempt.sectionKeys,
           examKey: attempt.key,
         })
       }
@@ -561,6 +573,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
           count: result.subsetCount,
           batchIndex: result.batchIndex,
           seed: result.subsetSeed,
+          sectionKeys: result.sectionKeys,
         })
       }
     },
@@ -568,12 +581,16 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
   )
 
   const handleNextBatch = useCallback(
-    (result) => {
+    (result, explicitNextBatchIndex = null) => {
       if (!result.partId) return
-      const nextBatchIndex = (typeof result.batchIndex === 'number' ? result.batchIndex : 0) + 1
+      const nextBatchIndex =
+        typeof explicitNextBatchIndex === 'number'
+          ? explicitNextBatchIndex
+          : (typeof result.batchIndex === 'number' ? result.batchIndex : 0) + 1
       startPart(result.partId, true, {
         count: result.subsetCount,
         batchIndex: nextBatchIndex,
+        sectionKeys: result.sectionKeys,
       })
     },
     [startPart],
@@ -959,6 +976,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
         {view === 'result' && activeResult && (
           <Result
             result={activeResult}
+            results={results}
             part={activeResult.partId ? getPart(activeResult.partId) : null}
             profileName={profile.name}
             match={
