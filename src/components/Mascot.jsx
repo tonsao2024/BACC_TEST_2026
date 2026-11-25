@@ -1,9 +1,12 @@
+import { useId } from 'react'
+import { buildRealUserRacers, USER_CHARACTER_THEMES } from '../lib/friends.js'
+
 /* ตัวละคร BACC SVG — ขยับได้ด้วย CSS
  * รองรับโหมด:
  * 1) idle (ตัวละครยืนปกติ variant 0..3)
  * 2) reading (ตัวละครอ่านหนังสือ เปิดหน้าไปมา และมีฟองความคิด)
  * 3) running (ตัวละครวิ่งเดี่ยว)
- * 4) RunningRacers (ตัวละครต่างกันหลายตัวกำลังวิ่งแข่งกันบนลู่)
+ * 4) RunningRacers (ตัวละครของผู้ใช้จริงที่เชื่อมโยงกับรายชื่อเรียลไทม์ด้านล่าง เรียงตามจำนวนครั้งที่สอบมากสุดอยู่หน้าสุด และใช้สีเดียวกับภาพผู้ใช้)
  */
 
 export function ReadingMascot({
@@ -256,66 +259,106 @@ export function ReadingMascot({
   )
 }
 
-/* ตัวละครที่แตกต่างกันกำลังวิ่งแข่งกันบนลู่ (สำหรับส่วน "แข่งขันกับเพื่อน") */
-export function RunningRacers({ className = '', height = 136 }) {
+const shortRacerName = (name = '', maxLen = 11) => {
+  const clean = String(name || '').trim()
+  if (clean.length <= maxLen) return clean
+  return `${clean.slice(0, Math.max(1, maxLen - 1))}…`
+}
+
+/* ตัวละครของผู้ใช้จริงกำลังวิ่งแข่งกันบนลู่ — เชื่อมโยงกับผู้ใช้ใต้แบนเนอร์แบบเรียลไทม์
+   ผู้ที่ทำข้อสอบมากสุด (count สูงสุด) วิ่งอยู่หน้าสุดเสมอ และสีตัวละครตรงกับสีภาพผู้ใช้ */
+export function RunningRacers({
+  users = [],
+  activeMatch = null,
+  meId = null,
+  highlightedUserId = null,
+  onHoverUser = null,
+  onSelectUser = null,
+  className = '',
+  height = 156,
+}) {
+  const rawUid = useId()
+  const svgUid = String(rawUid || 'r').replace(/[^a-zA-Z0-9_-]/g, '')
+  const realRacers = buildRealUserRacers(users, { meId, activeMatch, maxRacers: 6 })
+  const hasRealUsers = realRacers.length > 0
+
+  const racers = hasRealUsers
+    ? realRacers
+    : [0, 1, 2, 3].map((idx) => {
+        const t = USER_CHARACTER_THEMES[idx]
+        const xs = [414, 300, 186, 72]
+        const ys = [52, 76, 46, 70]
+        return {
+          id: `preview-${idx}`,
+          name: `นักวิ่ง ${idx + 1}`,
+          initial: String(idx + 1),
+          isMe: false,
+          online: true,
+          activity: 'online',
+          inLiveRace: false,
+          count: 0,
+          rank: idx + 1,
+          isLeader: idx === 0,
+          color: t.color,
+          color2: t.color2,
+          colorDark: t.dark,
+          variant: idx % 4,
+          x: xs[idx],
+          y: ys[idx],
+          statusText: '',
+          isPreview: true,
+          user: null,
+        }
+      })
+
+  // วาดจากด้านหลังมาด้านหน้า เพื่อให้ผู้นำหน้าสุดอยู่ชั้นบนสุดเสมอไม่โดนบัง
+  const paintOrder = [...racers].reverse()
+  const extraUsersCount = hasRealUsers ? Math.max(0, users.length - realRacers.length) : 0
+
   return (
     <svg
-      className={`mascot-racers ${className}`}
+      className={`mascot-racers ${hasRealUsers ? 'mascot-racers--real' : ''} ${className}`}
       width="100%"
       height={height}
-      viewBox="0 0 520 140"
+      viewBox="0 0 530 158"
       preserveAspectRatio="xMidYMid meet"
-      role="presentation"
-      aria-hidden="true"
+      role={hasRealUsers ? 'group' : 'presentation'}
+      aria-label={hasRealUsers ? 'ลู่วิ่งตัวละครของผู้ใช้จริง เรียงตามจำนวนครั้งที่ทำข้อสอบมากสุด' : undefined}
+      aria-hidden={hasRealUsers ? undefined : 'true'}
     >
       <defs>
-        {/* Gradients สำหรับตัวละครทั้ง 4 ตัวที่แตกต่างกัน */}
-        {/* Racer 1: น้ำเงิน ธ.ก.ส. (ผู้นำสปรินต์) */}
-        <linearGradient id="racer1Grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#1D4ED8" />
-          <stop offset="100%" stopColor="#60A5FA" />
-        </linearGradient>
-
-        {/* Racer 2: สีส้ม-คอรัล สดใส (ผู้ท้าชิงไฟแรง) */}
-        <linearGradient id="racer2Grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#EA580C" />
-          <stop offset="100%" stopColor="#FB923C" />
-        </linearGradient>
-
-        {/* Racer 3: สีเขียวมรกต ยอดใบไม้ (สายลุยพลังบวก) */}
-        <linearGradient id="racer3Grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#15803D" />
-          <stop offset="100%" stopColor="#4ADE80" />
-        </linearGradient>
-
-        {/* Racer 4: สีม่วงเทอร์โบ (จอมแซงทางโค้ง) */}
-        <linearGradient id="racer4Grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7E22CE" />
-          <stop offset="100%" stopColor="#C084FC" />
-        </linearGradient>
+        {racers.map((r) => (
+          <linearGradient
+            key={r.id}
+            id={`racerGrad-${svgUid}-${r.rank}`}
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="1"
+          >
+            <stop offset="0%" stopColor={r.color} />
+            <stop offset="100%" stopColor={r.color2 || r.color} />
+          </linearGradient>
+        ))}
 
         {/* ลู่สนามแข่ง */}
-        <linearGradient id="trackGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#0B1F3A" stopOpacity="0.1" />
-          <stop offset="30%" stopColor="#1E3A8A" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="#2563EB" stopOpacity="0.32" />
+        <linearGradient id={`trackGrad-${svgUid}`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#0B1F3A" stopOpacity="0.14" />
+          <stop offset="35%" stopColor="#1E3A8A" stopOpacity="0.24" />
+          <stop offset="100%" stopColor="#2563EB" stopOpacity="0.36" />
         </linearGradient>
       </defs>
 
       {/* ลู่วิ่งแข่งขัน + เส้นประลู่ */}
       <g className="racers__track">
-        <rect x="0" y="24" width="520" height="110" rx="16" fill="url(#trackGrad)" />
-        {/* เส้นเลนวิ่งที่ 1 */}
-        <line x1="0" y1="52" x2="480" y2="52" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeDasharray="14 10" className="track-dash" />
-        {/* เส้นเลนวิ่งที่ 2 */}
-        <line x1="0" y1="84" x2="480" y2="84" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeDasharray="14 10" className="track-dash track-dash--mid" />
-        {/* เส้นเลนวิ่งที่ 3 */}
-        <line x1="0" y1="116" x2="480" y2="116" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeDasharray="14 10" className="track-dash" />
+        <rect x="0" y="34" width="530" height="114" rx="16" fill={`url(#trackGrad-${svgUid})`} />
+        <line x1="0" y1="62" x2="486" y2="62" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeDasharray="14 10" className="track-dash" />
+        <line x1="0" y1="94" x2="486" y2="94" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeDasharray="14 10" className="track-dash track-dash--mid" />
+        <line x1="0" y1="126" x2="486" y2="126" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeDasharray="14 10" className="track-dash" />
 
         {/* เส้นชัยลายตารางหมากรุก (Finish Line) */}
-        <g className="finish-line" transform="translate(470, 26)">
-          <line x1="0" y1="0" x2="0" y2="106" stroke="#FFFFFF" strokeWidth="3" />
-          {/* ธงชัยชนะ / แถบตาราง */}
+        <g className="finish-line" transform="translate(478, 36)">
+          <line x1="0" y1="0" x2="0" y2="110" stroke="#FFFFFF" strokeWidth="3" />
           <rect x="2" y="2" width="6" height="6" fill="#FFFFFF" />
           <rect x="8" y="2" width="6" height="6" fill="#0B1F3A" />
           <rect x="2" y="8" width="6" height="6" fill="#0B1F3A" />
@@ -327,8 +370,8 @@ export function RunningRacers({ className = '', height = 136 }) {
           <rect x="2" y="26" width="6" height="6" fill="#FFFFFF" />
           <rect x="8" y="26" width="6" height="6" fill="#0B1F3A" />
 
-          {/* ถ้วยรางวัลทองคำรออยู่หน้าเส้นชัย */}
-          <g transform="translate(18, 28) scale(0.9)">
+          {/* ถ้วยรางวัลทองคำหน้าเส้นชัย */}
+          <g transform="translate(18, 32) scale(0.9)">
             <g className="finish-trophy">
               <path d="M4 12 Q4 24 14 24 Q24 24 24 12 Z" fill="#F59E0B" stroke="#D97706" strokeWidth="1.5" />
               <path d="M4 14 Q0 14 0 18 Q0 22 4 22" stroke="#F59E0B" strokeWidth="2" fill="none" />
@@ -341,173 +384,255 @@ export function RunningRacers({ className = '', height = 136 }) {
         </g>
 
         {/* เส้นความเร็วลมพัดผ่าน (Speed Lines) */}
-        <line x1="80" y1="36" x2="140" y2="36" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" className="speed-line sl-1" />
-        <line x1="210" y1="44" x2="280" y2="44" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" className="speed-line sl-2" />
-        <line x1="330" y1="38" x2="410" y2="38" stroke="rgba(255,255,255,0.45)" strokeWidth="2.2" strokeLinecap="round" className="speed-line sl-3" />
-        <line x1="160" y1="124" x2="230" y2="124" stroke="rgba(255,255,255,0.3)" strokeWidth="1.8" strokeLinecap="round" className="speed-line sl-4" />
+        <line x1="80" y1="46" x2="140" y2="46" stroke="rgba(255,255,255,0.38)" strokeWidth="2" strokeLinecap="round" className="speed-line sl-1" />
+        <line x1="210" y1="54" x2="280" y2="54" stroke="rgba(255,255,255,0.33)" strokeWidth="2" strokeLinecap="round" className="speed-line sl-2" />
+        <line x1="330" y1="48" x2="410" y2="48" stroke="rgba(255,255,255,0.42)" strokeWidth="2.2" strokeLinecap="round" className="speed-line sl-3" />
+        <line x1="160" y1="134" x2="230" y2="134" stroke="rgba(255,255,255,0.28)" strokeWidth="1.8" strokeLinecap="round" className="speed-line sl-4" />
+
+        {extraUsersCount > 0 && (
+          <g transform="translate(8, 12)">
+            <rect x="0" y="0" width="92" height="19" rx="9.5" fill="rgba(11,31,58,0.68)" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+            <text x="46" y="13" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#E2E8F0">
+              +{extraUsersCount} คนในลู่ด้านล่าง
+            </text>
+          </g>
+        )}
       </g>
 
-      {/* ========================================================
-          ตัวละครที่ 4 (สีม่วง) - กำลังวิ่งสปีดไล่กวดมาจากด้านหลัง
-          ======================================================== */}
-      <g className="racer racer--4">
-        <g transform="translate(68, 62)">
-          {/* กลุ่มควันฝุ่นใต้ฝ่าเท้า */}
-          <g className="racer-dust">
-            <circle cx="-16" cy="48" r="4.5" fill="rgba(255,255,255,0.5)" />
-            <circle cx="-24" cy="46" r="3.2" fill="rgba(255,255,255,0.35)" />
-        </g>
-        {/* เงา */}
-        <ellipse cx="6" cy="50" rx="16" ry="3.5" fill="rgba(11,31,58,0.2)" />
-        {/* ขาหลัง */}
-        <path d="M4 32 Q-8 42 -14 38" stroke="#581C87" strokeWidth="6" strokeLinecap="round" className="leg-back" />
-        {/* ลำตัว */}
-        <path d="M0 16 c-8 0 -13 6 -13 14 v4 h26 v-4 c0 -8 -5 -14 -13 -14 Z" fill="url(#racer4Grad)" className="racer-body" />
-        {/* แขนหลัง */}
-        <path d="M-6 20 Q-16 26 -14 34" stroke="#7E22CE" strokeWidth="5" strokeLinecap="round" className="arm-back" />
-        {/* ขาหน้า */}
-        <path d="M8 32 Q18 42 14 50" stroke="#7E22CE" strokeWidth="6" strokeLinecap="round" className="leg-front" />
-        {/* แขนหน้า */}
-        <path d="M10 20 Q20 18 18 26" stroke="#7E22CE" strokeWidth="5" strokeLinecap="round" className="arm-front" />
-        {/* ศีรษะและผ้าคาดหัวสีม่วง-เหลือง */}
-        <g className="racer-head">
-          <circle cx="4" cy="4" r="14" fill="#FFE9D6" />
-          <rect x="-8" y="-4" width="24" height="4.5" rx="2" fill="#A855F7" />
-          <ellipse cx="8" cy="4" rx="2" ry="2.4" fill="#0B1F3A" />
-          <path d="M6 10 Q9 12 12 9" stroke="#0B1F3A" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-          <circle cx="2" cy="8" r="2" fill="#FFB4A2" opacity="0.7" />
-        </g>
-        </g>
-      </g>
+      {/* วาดตัวละครของผู้ใช้จริงแต่ละคน เชื่อมสีและข้อมูลกับรายชื่อผู้ใช้ด้านล่าง */}
+      {paintOrder.map((r) => {
+        const slotClass = `racer--${((r.rank - 1) % 4) + 1}`
+        const isHighlighted = Boolean(highlightedUserId && r.id === highlightedUserId)
+        const interactive = Boolean(!r.isPreview && (onSelectUser || onHoverUser))
+        const labelTitle = `#${r.rank} ${shortRacerName(r.name, r.isMe ? 8 : 11)}${r.isMe ? ' · ฉัน' : ''}`
 
-      {/* ========================================================
-          ตัวละครที่ 3 (สีเขียว ยอดใบไม้) - วิ่งอย่างร่าเริง สปีดเต็มที่
-          ======================================================== */}
-      <g className="racer racer--3">
-        <g transform="translate(180, 42)">
-          {/* ควันฝุ่น */}
-          <g className="racer-dust">
-            <circle cx="-16" cy="48" r="4.8" fill="rgba(255,255,255,0.55)" />
-            <circle cx="-25" cy="45" r="3.5" fill="rgba(255,255,255,0.38)" />
-        </g>
-        <ellipse cx="6" cy="50" rx="17" ry="3.8" fill="rgba(11,31,58,0.22)" />
-        {/* ขาหลัง */}
-        <path d="M2 32 Q-12 42 -18 36" stroke="#14532D" strokeWidth="6.5" strokeLinecap="round" className="leg-back" />
-        {/* ตัว */}
-        <path d="M0 16 c-8 0 -14 7 -14 15 v4 h28 v-4 c0 -8 -6 -15 -14 -15 Z" fill="url(#racer3Grad)" className="racer-body" />
-        {/* แขนหลัง */}
-        <path d="M-6 20 Q-18 24 -16 32" stroke="#15803D" strokeWidth="5.5" strokeLinecap="round" className="arm-back" />
-        {/* ขาหน้า */}
-        <path d="M8 32 Q20 40 18 50" stroke="#15803D" strokeWidth="6.5" strokeLinecap="round" className="leg-front" />
-        {/* แขนหน้า */}
-        <path d="M10 20 Q22 16 20 25" stroke="#15803D" strokeWidth="5.5" strokeLinecap="round" className="arm-front" />
-        {/* หัว + ใบไม้งอกบนศีรษะ + แว่นตาสปอร์ต */}
-        <g className="racer-head">
-          <circle cx="4" cy="3" r="14.5" fill="#FFE9D6" />
-          {/* ใบไม้นำโชค */}
-          <path d="M4 -12 C10 -12 12 -7 12 -3 C12 1 8 3 4 3 C0 3 -4 1 -4 -3 C-4 -7 -2 -12 4 -12 Z" fill="#22C55E" />
-          <path d="M4 -8 v10" stroke="#15803D" strokeWidth="1.6" strokeLinecap="round" />
-          {/* แว่นตา */}
-          <circle cx="2" cy="3" r="3.5" fill="none" stroke="#047857" strokeWidth="1.3" />
-          <circle cx="10" cy="3" r="3.5" fill="none" stroke="#047857" strokeWidth="1.3" />
-          <line x1="5.5" y1="3" x2="6.5" y2="3" stroke="#047857" strokeWidth="1.3" />
-          <ellipse cx="2" cy="3" rx="1.6" ry="1.9" fill="#0B1F3A" />
-          <ellipse cx="10" cy="3" rx="1.6" ry="1.9" fill="#0B1F3A" />
-          <path d="M4 10 Q7 13 11 10" stroke="#0B1F3A" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-        </g>
-        </g>
-      </g>
+        return (
+          <g
+            key={r.id}
+            className={`racer ${slotClass} ${r.isLeader ? 'is-leader' : ''} ${r.isMe ? 'is-me' : ''} ${
+              isHighlighted ? 'is-highlighted' : ''
+            } ${interactive ? 'is-interactive' : ''}`}
+            data-user-id={r.isPreview ? undefined : r.id}
+            data-user-color={r.color}
+            data-rank={r.rank}
+            onMouseEnter={onHoverUser && !r.isPreview ? () => onHoverUser(r.id) : undefined}
+            onMouseLeave={onHoverUser && !r.isPreview ? () => onHoverUser(null) : undefined}
+            onClick={onSelectUser && r.user ? () => onSelectUser(r.user) : undefined}
+          >
+            <g transform={`translate(${r.x}, ${r.y + 12})`}>
+              {/* วงแสงเชื่อมโยงเมื่อชี้เมาส์หรือเป็นผู้ใช้งานเอง */}
+              {(isHighlighted || r.isLeader) && (
+                <ellipse
+                  cx="8"
+                  cy="50"
+                  rx={isHighlighted ? 26 : 22}
+                  ry={isHighlighted ? 7.5 : 5.5}
+                  fill={r.color}
+                  opacity={isHighlighted ? 0.45 : 0.26}
+                />
+              )}
 
-      {/* ========================================================
-          ตัวละครที่ 2 (สีส้ม-คอรัล) - ผู้ท้าชิง ใส่หมวกแก๊ป วิ่งไล่บี้เบอร์ 1
-          ======================================================== */}
-      <g className="racer racer--2">
-        <g transform="translate(295, 70)">
-          {/* ควันฝุ่น */}
-          <g className="racer-dust">
-            <circle cx="-18" cy="48" r="5" fill="rgba(255,255,255,0.6)" />
-            <circle cx="-28" cy="45" r="3.8" fill="rgba(255,255,255,0.4)" />
-        </g>
-        <ellipse cx="8" cy="50" rx="18" ry="4" fill="rgba(11,31,58,0.24)" />
-        {/* ขาหลัง */}
-        <path d="M4 32 Q-10 44 -16 38" stroke="#9A3412" strokeWidth="7" strokeLinecap="round" className="leg-back" />
-        {/* ตัว */}
-        <path d="M0 16 c-9 0 -15 7 -15 16 v4 h30 v-4 c0 -9 -6 -16 -15 -16 Z" fill="url(#racer2Grad)" className="racer-body" />
-        {/* ลายสายฟ้าบนเสื้อ */}
-        <polygon points="-2,22 3,22 0,27 4,27 -1,33 0,29 -3,29" fill="#FEF08A" />
-        {/* แขนหลัง */}
-        <path d="M-8 20 Q-20 24 -18 34" stroke="#EA580C" strokeWidth="6" strokeLinecap="round" className="arm-back" />
-        {/* ขาหน้า */}
-        <path d="M10 32 Q22 42 18 52" stroke="#EA580C" strokeWidth="7" strokeLinecap="round" className="leg-front" />
-        {/* แขนหน้า */}
-        <path d="M12 20 Q24 16 22 26" stroke="#EA580C" strokeWidth="6" strokeLinecap="round" className="arm-front" />
-        {/* หัว + หมวกแก๊ปสปอร์ตหันหลัง + หยดเหงื่อมุ่งมั่น */}
-        <g className="racer-head">
-          <circle cx="6" cy="3" r="15" fill="#FFE9D6" />
-          {/* หมวกแก๊ปสีส้มเข้ม */}
-          <path d="M-8 0 Q6 -14 20 0 Z" fill="#C2410C" />
-          <path d="M-8 0 Q-16 -2 -14 4 Z" fill="#EA580C" />
-          {/* ตาและรอยยิ้มฟันสู้ */}
-          <ellipse cx="12" cy="4" rx="2.2" ry="2.6" fill="#0B1F3A" />
-          <circle cx="13" cy="2.8" r="0.8" fill="#FFFFFF" />
-          <path d="M8 10 Q12 13 16 9" stroke="#0B1F3A" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-          <circle cx="6" cy="8" r="2.2" fill="#FFB4A2" opacity="0.8" />
-          {/* หยดเหงื่อพุ่งไปข้างหลัง */}
-          <path d="M-4 -2 Q-10 -4 -8 0 Q-4 0 -4 -2" fill="#38BDF8" className="sweat-drop" />
-        </g>
-        </g>
-      </g>
+              {/* ควันฝุ่นความเร็ว */}
+              <g className="racer-dust">
+                <circle cx="-18" cy="48" r={r.isLeader ? 5.4 : 4.6} fill="rgba(255,255,255,0.6)" />
+                <circle cx="-29" cy="45" r={r.isLeader ? 4 : 3.4} fill="rgba(255,255,255,0.4)" />
+              </g>
 
-      {/* ========================================================
-          ตัวละครที่ 1 (สีน้ำเงิน ธ.ก.ส. เบอร์ 1) - ผู้นำสปรินต์พุ่งเข้าเส้นชัย
-          ======================================================== */}
-      <g className="racer racer--1 is-leader">
-        <g transform="translate(410, 48)">
-          {/* ควันฝุ่นความเร็วสูง */}
-          <g className="racer-dust">
-            <circle cx="-20" cy="48" r="5.5" fill="rgba(255,255,255,0.65)" />
-            <circle cx="-32" cy="45" r="4.2" fill="rgba(255,255,255,0.45)" />
-        </g>
-        <ellipse cx="10" cy="50" rx="20" ry="4.5" fill="rgba(11,31,58,0.28)" />
-        {/* ขาหลังก้าวสุดเหยียด */}
-        <path d="M4 32 Q-14 44 -22 36" stroke="#1E3A8A" strokeWidth="7.5" strokeLinecap="round" className="leg-back" />
-        {/* ตัวเสื้อน้ำเงิน ธ.ก.ส. */}
-        <path d="M0 16 c-10 0 -16 8 -16 18 v4 h32 v-4 c0 -10 -6 -18 -16 -18 Z" fill="url(#racer1Grad)" className="racer-body" />
-        {/* ป้ายเบอร์ 1 สีทองบนเสื้อ */}
-        <circle cx="0" cy="28" r="5" fill="#FEF08A" />
-        <text x="0" y="31.5" fontSize="8" fontWeight="bold" textAnchor="middle" fill="#1E3A8A">1</text>
-        {/* แขนหลัง */}
-        <path d="M-10 20 Q-24 24 -22 36" stroke="#1D4ED8" strokeWidth="6.5" strokeLinecap="round" className="arm-back" />
-        {/* ขาหน้ายกสูงนำโด่ง */}
-        <path d="M12 32 Q26 40 22 52" stroke="#1D4ED8" strokeWidth="7.5" strokeLinecap="round" className="leg-front" />
-        {/* แขนหน้ายกสูงสะใจ */}
-        <path d="M14 20 Q26 14 24 24" stroke="#1D4ED8" strokeWidth="6.5" strokeLinecap="round" className="arm-front" />
-        {/* หัว + มงกุฎ/หมวกเหรียญทอง + รอยยิ้มผู้นำ */}
-        <g className="racer-head">
-          <circle cx="8" cy="2" r="16" fill="#FFE9D6" />
-          {/* สายคาดศีรษะดาวทอง */}
-          <rect x="-8" y="-6" width="30" height="5.5" rx="2.5" fill="#F59E0B" />
-          <polygon points="7,-11 9,-6 14,-6 10,-3 11,2 7,-1 3,2 4,-3 0,-6 5,-6" fill="#FEF08A" />
-          {/* ตาโตเป็นประกาย */}
-          <ellipse cx="15" cy="3" rx="2.5" ry="3" fill="#0B1F3A" />
-          <circle cx="16.2" cy="1.8" r="1" fill="#FFFFFF" />
-          {/* รอยยิ้มกว้างเข้าเส้นชัย */}
-          <path d="M10 8 Q15 13 20 8" stroke="#0B1F3A" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-          <circle cx="8" cy="7" r="2.5" fill="#FFB4A2" opacity="0.8" />
-        </g>
-        </g>
-      </g>
+              {/* เงาใต้เท้า */}
+              <ellipse cx="8" cy="50" rx={r.isLeader ? 19 : 16.5} ry="4" fill="rgba(11,31,58,0.26)" />
+
+              {/* ขาหลัง */}
+              <path
+                d="M4 32 Q-12 44 -19 36"
+                stroke={r.colorDark || r.color}
+                strokeWidth={r.isLeader ? 7.2 : 6.4}
+                strokeLinecap="round"
+                className="leg-back"
+              />
+
+              {/* ลำตัวเสื้อสีประจำตัวผู้ใช้ (ตรงกับสีอวาตาร์) */}
+              <path
+                d={
+                  r.isLeader
+                    ? 'M0 16 c-10 0 -16 8 -16 18 v4 h32 v-4 c0 -10 -6 -18 -16 -18 Z'
+                    : 'M0 16 c-9 0 -14.5 7 -14.5 16 v4 h29 v-4 c0 -9 -5.5 -16 -14.5 -16 Z'
+                }
+                fill={`url(#racerGrad-${svgUid}-${r.rank})`}
+                stroke="#FFFFFF"
+                strokeWidth={isHighlighted ? 1.6 : 0.8}
+                strokeOpacity={isHighlighted ? 0.95 : 0.45}
+                className="racer-body"
+              />
+
+              {/* ป้ายเลขอันดับบนเสื้อ */}
+              <circle cx="0" cy="27.5" r={r.isLeader ? 5.4 : 4.6} fill={r.isLeader ? '#FEF08A' : 'rgba(255,255,255,0.92)'} />
+              <text
+                x="0"
+                y="30.8"
+                fontSize={r.isLeader ? '8' : '7.2'}
+                fontWeight="800"
+                textAnchor="middle"
+                fill={r.colorDark || '#0B1F3A'}
+              >
+                {r.rank}
+              </text>
+
+              {/* แขนหลัง */}
+              <path
+                d="M-8 20 Q-21 24 -19 35"
+                stroke={r.color}
+                strokeWidth={r.isLeader ? 6.2 : 5.5}
+                strokeLinecap="round"
+                className="arm-back"
+              />
+
+              {/* ขาหน้า */}
+              <path
+                d="M11 32 Q24 40 20 51"
+                stroke={r.color}
+                strokeWidth={r.isLeader ? 7.2 : 6.4}
+                strokeLinecap="round"
+                className="leg-front"
+              />
+
+              {/* แขนหน้า */}
+              <path
+                d={r.isLeader ? 'M13 20 Q25 14 23 24' : 'M11 20 Q23 16 21 25'}
+                stroke={r.color}
+                strokeWidth={r.isLeader ? 6.2 : 5.5}
+                strokeLinecap="round"
+                className="arm-front"
+              />
+
+              {/* ศีรษะ + เอกลักษณ์ประจำตัว */}
+              <g className="racer-head">
+                <circle cx="7" cy="2.5" r={r.isLeader ? 15.5 : 14.2} fill="#FFE9D6" />
+
+                {r.isLeader ? (
+                  <>
+                    {/* ผู้นำสอบมากสุด: สายคาดหัวดาวทอง */}
+                    <rect x="-8" y="-5.5" width="29" height="5.2" rx="2.5" fill="#F59E0B" />
+                    <polygon points="7,-10.5 9,-5.8 14,-5.8 10,-3 11,1.8 7,-1 3,1.8 4,-3 0,-5.8 5,-5.8" fill="#FEF08A" />
+                  </>
+                ) : r.variant === 1 ? (
+                  <>
+                    {/* หมวกแก๊ปสปอร์ตสีประจำตัว */}
+                    <path d="M-7 0 Q7 -13 20 0 Z" fill={r.colorDark || r.color} />
+                    <path d="M-7 0 Q-15 -2 -13 4 Z" fill={r.color} />
+                  </>
+                ) : r.variant === 2 ? (
+                  <>
+                    {/* ยอดใบไม้นำโชค + แถบสีประจำตัว */}
+                    <rect x="-6.5" y="-4.5" width="26" height="4.2" rx="2" fill={r.color} />
+                    <path d="M7 -13 C12 -13 14 -8 14 -4 C14 -1 10 1 7 1 C4 1 0 -1 0 -4 C0 -8 2 -13 7 -13 Z" fill="#22C55E" />
+                  </>
+                ) : (
+                  /* ผ้าคาดศีรษะสีประจำตัว */
+                  <rect x="-7" y="-4.5" width="27" height="4.6" rx="2.3" fill={r.color} />
+                )}
+
+                {/* ดวงตาและรอยยิ้มมุ่งมั่น */}
+                <ellipse cx="13.5" cy="3.5" rx="2.2" ry="2.7" fill="#0B1F3A" />
+                <circle cx="14.5" cy="2.4" r="0.85" fill="#FFFFFF" />
+                <path d="M9 9 Q13.5 13 18 8.8" stroke="#0B1F3A" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+                <circle cx="7.5" cy="7.5" r="2.2" fill="#FFB4A2" opacity="0.8" />
+                {r.activity === 'in-quiz' || r.inLiveRace ? (
+                  <path d="M-4 -1 Q-9 -3 -7 1 Q-4 1 -4 -1" fill="#38BDF8" className="sweat-drop" />
+                ) : null}
+              </g>
+
+              {/* ป้ายชื่อผู้ใช้จริง + สีเดียวกับอวาตาร์ + จำนวนครั้งที่ทำข้อสอบ */}
+              {!r.isPreview && (
+                <g className="racer-user-tag" transform="translate(6, -37)">
+                  <rect
+                    x="-54"
+                    y="-12"
+                    width="108"
+                    height="26"
+                    rx="13"
+                    fill="rgba(11, 24, 49, 0.88)"
+                    stroke={r.color}
+                    strokeWidth={r.isLeader || isHighlighted ? '2' : '1.4'}
+                  />
+                  {/* จุดอวาตาร์สีเดียวกับภาพผู้ใช้ */}
+                  <circle cx="-40" cy="1" r="8.5" fill={r.color} />
+                  <text
+                    x="-40"
+                    y="4.2"
+                    textAnchor="middle"
+                    fontSize="9"
+                    fontWeight="800"
+                    fill="#FFFFFF"
+                  >
+                    {r.initial}
+                  </text>
+                  {r.online && (
+                    <circle
+                      cx="-33.5"
+                      cy="7.5"
+                      r="3"
+                      fill="#10B981"
+                      stroke="#0B1831"
+                      strokeWidth="1.1"
+                    />
+                  )}
+                  {/* ชื่อผู้ใช้จริง */}
+                  <text
+                    x="-27"
+                    y="-0.5"
+                    textAnchor="start"
+                    fontSize="8.8"
+                    fontWeight="700"
+                    fill="#FFFFFF"
+                  >
+                    {labelTitle}
+                  </text>
+                  {/* จำนวนครั้งที่สอบ / สถานะเรียลไทม์ */}
+                  <text
+                    x="-27"
+                    y="9.2"
+                    textAnchor="start"
+                    fontSize="7.8"
+                    fontWeight="600"
+                    fill={r.inLiveRace ? '#FDE047' : '#BFDBFE'}
+                  >
+                    {r.statusText}
+                  </text>
+                </g>
+              )}
+            </g>
+          </g>
+        )
+      })}
     </svg>
   )
 }
 
 /* Banner สำหรับส่วน "แข่งขันกับเพื่อน"
-   กรอบเดียวที่รวมลู่วิ่ง + ปุ่มท้าแข่ง + รายชื่อเพื่อนไว้ด้วยกัน (children) */
-export function FriendRaceBanner({ onOpenArena, onCreateMatch, children }) {
+   กรอบเดียวที่รวมลู่วิ่งตัวละครผู้ใช้จริง + ปุ่มท้าแข่ง + รายชื่อเพื่อนด้านล่างไว้ด้วยกัน */
+export function FriendRaceBanner({
+  users = [],
+  activeMatch = null,
+  meId = null,
+  highlightedUserId = null,
+  onHoverUser = null,
+  onInspectFriend = null,
+  onOpenArena,
+  onCreateMatch,
+  children,
+}) {
+  const leader = users && users.length > 0 ? users[0] : null
   return (
     <div className="friend-race-banner">
-      <div className="friend-race-banner__visual" aria-hidden="true">
-        <RunningRacers />
+      <div className="friend-race-banner__visual">
+        <RunningRacers
+          users={users}
+          activeMatch={activeMatch}
+          meId={meId}
+          highlightedUserId={highlightedUserId}
+          onHoverUser={onHoverUser}
+          onSelectUser={onInspectFriend}
+        />
       </div>
       <div className="friend-race-banner__bar">
         <div className="friend-race-banner__info">
@@ -515,7 +640,9 @@ export function FriendRaceBanner({ onOpenArena, onCreateMatch, children }) {
             วิ่งแข่งตอบข้อสอบชุดเดียวกันแบบเรียลไทม์
           </strong>
           <span className="friend-race-banner__desc">
-            ท้าเพื่อนดวลข้อสอบ ใครแม่นยำและตอบเร็วกว่า เข้าเส้นชัยชิงอันดับ 1!
+            {leader && leader.count > 0
+              ? `ผู้นำสนามตอนนี้: ${leader.name} (สอบแล้ว ${leader.count} ครั้ง) · สีตัวละครตรงกับสีภาพผู้ใช้ด้านล่าง`
+              : 'ตัวละครเชื่อมโยงกับผู้ใช้จริงด้านล่าง · ใครทำข้อสอบมากสุดวิ่งนำหน้าสุด และใช้สีเดียวกับภาพผู้ใช้'}
           </span>
         </div>
         <div className="friend-race-banner__actions">

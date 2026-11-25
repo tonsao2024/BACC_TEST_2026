@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Icon from './Icons.jsx'
 import { FriendRaceBanner } from './Mascot.jsx'
+import RaceTrack from './RaceTrack.jsx'
+import { buildRaceLanes, sortFriendsByAttempts } from '../lib/friends.js'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -18,10 +20,29 @@ export default function FriendBoard({
   onRefreshFriends,
 }) {
   const [showAll, setShowAll] = useState(false)
-  const visible = showAll ? board : board.slice(0, 8)
+  const [highlightedUserId, setHighlightedUserId] = useState(null)
+
+  const sortedBoard = useMemo(() => sortFriendsByAttempts(board), [board])
+  const visible = showAll ? sortedBoard : sortedBoard.slice(0, 8)
+  const maxAttempts = useMemo(
+    () => Math.max(1, ...sortedBoard.map((r) => Number(r.count) || 0)),
+    [sortedBoard],
+  )
+
   const activeMatches = matches.filter((m) => m.status === 'waiting' || m.status === 'active')
   const myActiveMatch =
     activeMatches.find((m) => (m.players || []).some((p) => p.userId === meId)) || activeMatches[0] || null
+  const activeMatchLanes = useMemo(
+    () =>
+      myActiveMatch
+        ? buildRaceLanes(myActiveMatch.players || [], {
+            meId,
+            totalQuestions: myActiveMatch.examSpec?.totalQuestions || 0,
+            friends: sortedBoard,
+          })
+        : [],
+    [myActiveMatch, meId, sortedBoard],
+  )
 
   const directoryStatus = (() => {
     if (!directory) return null
@@ -38,7 +59,7 @@ export default function FriendBoard({
         : ''
       return {
         icon: '☁️',
-        text: `ซิงก์รายชื่อจากคลาวด์แล้ว · พบ ${directory.cloudCount ?? board.length} บัญชีในระบบ${when ? ` · ${when} น.` : ''}`,
+        text: `ซิงก์รายชื่อจากคลาวด์แล้ว · พบ ${directory.cloudCount ?? sortedBoard.length} บัญชีในระบบ${when ? ` · ${when} น.` : ''}`,
         tone: 'ok',
       }
     }
@@ -57,10 +78,10 @@ export default function FriendBoard({
       <div className="section__head">
         <div>
           <h3 className="section__title">
-            <Icon name="trophy" size={15} /> แข่งขันกับเพื่อน ({board.length} คนในระบบ)
+            <Icon name="trophy" size={15} /> แข่งขันกับเพื่อน ({sortedBoard.length} คนในระบบ)
           </h3>
           <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
-            แสดงชื่อเพื่อนทั้งหมดในระบบ · ท้าแข่งพร้อมกันหลายคนได้ · กดดูสถิติเพื่อนได้ทุกคน
+            ตัวละครเชื่อมกับผู้ใช้จริงแบบเรียลไทม์ · จัดอันดับตามจำนวนครั้งที่ทำข้อสอบมากสุด · สีตัวละครตรงกับสีภาพผู้ใช้
           </p>
         </div>
         {onRefreshFriends && (
@@ -84,32 +105,46 @@ export default function FriendBoard({
         </p>
       )}
 
-      {/* กรอบเดียว: ลู่วิ่ง + ปุ่มท้าแข่ง + รายชื่อเพื่อน อยู่ในกรอบเดียวกัน */}
-      <FriendRaceBanner onOpenArena={onOpenArena} onCreateMatch={onCreateMatch}>
+      {/* กรอบเดียว: ลู่วิ่งตัวละครผู้ใช้จริง + ปุ่มท้าแข่ง + รายชื่อเพื่อนเรียลไทม์ด้านล่าง */}
+      <FriendRaceBanner
+        users={sortedBoard}
+        activeMatch={myActiveMatch}
+        meId={meId}
+        highlightedUserId={highlightedUserId}
+        onHoverUser={setHighlightedUserId}
+        onInspectFriend={onInspectFriend}
+        onOpenArena={onOpenArena}
+        onCreateMatch={onCreateMatch}
+      >
         {myActiveMatch && (
-          <button
-            type="button"
-            className="board-live-banner"
-            onClick={() => (onOpenMatch ? onOpenMatch(myActiveMatch) : onOpenArena?.())}
-          >
-            <span className="board-live-banner__pulse" aria-hidden="true">⚔️</span>
-            <span className="board-live-banner__body">
-              <b>
-                {myActiveMatch.status === 'active' ? 'กำลังแข่งขันสด' : 'ห้องรอเพื่อนตอบรับ'} ·{' '}
-                {myActiveMatch.examSpec?.title || myActiveMatch.title}
-              </b>
-              <small>
-                ผู้ร่วมแข่ง {(myActiveMatch.players || []).length} คน · แตะเพื่อเข้าห้องแข่ง/ดูคะแนนสด
-              </small>
-            </span>
-            <span className="board-live-banner__go">
-              เข้าห้อง <Icon name="chevron" size={14} />
-            </span>
-          </button>
+          <div className="board-live-wrap">
+            <button
+              type="button"
+              className="board-live-banner"
+              onClick={() => (onOpenMatch ? onOpenMatch(myActiveMatch) : onOpenArena?.())}
+            >
+              <span className="board-live-banner__pulse" aria-hidden="true">⚔️</span>
+              <span className="board-live-banner__body">
+                <b>
+                  {myActiveMatch.status === 'active' ? 'กำลังแข่งขันสด' : 'ห้องรอเพื่อนตอบรับ'} ·{' '}
+                  {myActiveMatch.examSpec?.title || myActiveMatch.title}
+                </b>
+                <small>
+                  ผู้ร่วมแข่ง {(myActiveMatch.players || []).length} คน · ข้อสอบชุดเดียวกันแบบเรียลไทม์ · แตะเพื่อเข้าห้องแข่ง
+                </small>
+              </span>
+              <span className="board-live-banner__go">
+                เข้าห้อง <Icon name="chevron" size={14} />
+              </span>
+            </button>
+            {myActiveMatch.status === 'active' && activeMatchLanes.length > 0 && (
+              <RaceTrack lanes={activeMatchLanes} meId={meId} variant="compact" />
+            )}
+          </div>
         )}
 
         <div className="board">
-          {board.length === 0 && (
+          {sortedBoard.length === 0 && (
             <div className="board__empty">
               <span className="board__empty-emoji">🏁</span>
               <b>กำลังโหลดรายชื่อเพื่อนในระบบ</b>
@@ -117,69 +152,96 @@ export default function FriendBoard({
             </div>
           )}
 
-          {visible.map((row, i) => (
-            <div
-              key={row.id}
-              className={`board__row ${row.isMe ? 'is-me' : ''} ${i === 0 && row.count ? 'is-leader' : ''}`}
-              style={{ '--i': i }}
-            >
-              <span className={`board__rank r${i}`}>{row.count ? MEDALS[i] || i + 1 : i + 1}</span>
-              <span className="board__avatar">
-                {row.name.trim().charAt(0).toUpperCase()}
-                <i className={`fstats__dot ${row.online ? 'is-on' : ''}`} />
-              </span>
-              <button
-                type="button"
-                className="board__info board__info--btn"
-                onClick={() => (onInspectFriend ? onInspectFriend(row) : onOpenArena?.())}
-                title={`ดูสถิติของ ${row.name}`}
+          {visible.map((row, i) => {
+            const isLinked = Boolean(highlightedUserId && highlightedUserId === row.id)
+            const barPct = row.count
+              ? Math.max(8, Math.round((row.count / maxAttempts) * 100))
+              : 4
+            return (
+              <div
+                key={row.id}
+                data-user-id={row.id}
+                data-user-color={row.color}
+                className={`board__row ${row.isMe ? 'is-me' : ''} ${i === 0 && row.count ? 'is-leader' : ''} ${
+                  isLinked ? 'is-linked' : ''
+                }`}
+                style={{
+                  '--i': i,
+                  '--user-color': row.color,
+                  '--user-color-2': row.color2 || row.color,
+                }}
+                onMouseEnter={() => setHighlightedUserId(row.id)}
+                onMouseLeave={() => setHighlightedUserId(null)}
               >
-                <span className="board__name">
-                  <span className="board__name-text">{row.name}</span>
-                  {row.isMe && <em className="board__me">ฉัน</em>}
-                  {row.online && !row.isMe && <em className="board__online">ออนไลน์</em>}
+                <span className={`board__rank r${i}`}>{row.count ? MEDALS[i] || i + 1 : i + 1}</span>
+                <span
+                  className="board__avatar board__avatar--colored"
+                  data-user-color={row.color}
+                  style={{
+                    '--user-color': row.color,
+                    '--user-color-2': row.color2 || row.color,
+                  }}
+                >
+                  {row.name.trim().charAt(0).toUpperCase()}
+                  <i className={`fstats__dot ${row.online ? 'is-on' : ''}`} />
                 </span>
-                <span className="board__meta">
-                  {row.count
-                    ? `สอบ ${row.count} ครั้ง · เฉลี่ย ${row.avg}% · สูงสุด ${row.best}%`
-                    : 'ยังไม่เคยสอบ · แตะเพื่อดูสถิติ'}
-                </span>
-                <span className="board__bar">
-                  <i style={{ width: `${Math.max(3, row.avg || 0)}%` }} />
-                </span>
-              </button>
-              <div className="board__row-actions">
                 <button
                   type="button"
-                  className="board__mini-btn"
+                  className="board__info board__info--btn"
                   onClick={() => (onInspectFriend ? onInspectFriend(row) : onOpenArena?.())}
-                  aria-label={`ดูสถิติของ ${row.name}`}
+                  title={`ดูสถิติของ ${row.name}`}
                 >
-                  สถิติ
+                  <span className="board__name">
+                    <span className="board__name-text">{row.name}</span>
+                    {row.isMe && <em className="board__me">ฉัน</em>}
+                    {row.online && !row.isMe && (
+                      <em className="board__online">
+                        {row.activity === 'in-quiz' ? 'กำลังสอบ' : 'ออนไลน์'}
+                      </em>
+                    )}
+                  </span>
+                  <span className="board__meta">
+                    {row.count
+                      ? `สอบ ${row.count} ครั้ง · เฉลี่ย ${row.avg}% · สูงสุด ${row.best}%`
+                      : 'ยังไม่เคยสอบ · แตะเพื่อดูสถิติ'}
+                  </span>
+                  <span className="board__bar">
+                    <i style={{ width: `${barPct}%` }} />
+                  </span>
                 </button>
-                {!row.isMe && (
+                <div className="board__row-actions">
                   <button
                     type="button"
-                    className="board__mini-btn board__mini-btn--primary"
-                    onClick={() =>
-                      onChallengeFriend ? onChallengeFriend(row) : onCreateMatch?.()
-                    }
-                    aria-label={`ท้าแข่งกับ ${row.name}`}
+                    className="board__mini-btn"
+                    onClick={() => (onInspectFriend ? onInspectFriend(row) : onOpenArena?.())}
+                    aria-label={`ดูสถิติของ ${row.name}`}
                   >
-                    ท้า
+                    สถิติ
                   </button>
-                )}
+                  {!row.isMe && (
+                    <button
+                      type="button"
+                      className="board__mini-btn board__mini-btn--primary"
+                      onClick={() =>
+                        onChallengeFriend ? onChallengeFriend(row) : onCreateMatch?.()
+                      }
+                      aria-label={`ท้าแข่งกับ ${row.name}`}
+                    >
+                      ท้า
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
-          {board.length > 8 && (
+          {sortedBoard.length > 8 && (
             <button
               type="button"
               className="btn btn--ghost btn--sm btn--block"
               onClick={() => setShowAll((v) => !v)}
             >
-              {showAll ? 'ย่อรายชื่อ' : `แสดงรายชื่อเพื่อนทั้งหมด ${board.length} คน`}
+              {showAll ? 'ย่อรายชื่อ' : `แสดงรายชื่อเพื่อนทั้งหมด ${sortedBoard.length} คน`}
             </button>
           )}
         </div>

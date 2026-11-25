@@ -147,6 +147,7 @@ export default function Home({
     .filter((a) => (a.answers || []).some((x) => x !== null))
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
     .slice(0, 3)
+  const meFriend = board.find((f) => f.isMe || (meId && f.id === meId)) || null
 
   return (
     <>
@@ -167,7 +168,19 @@ export default function Home({
         >
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
         </button>
-        <button className="avatar avatar--btn" onClick={onOpenAccount} aria-label="บัญชีและผู้เข้าทดสอบ">
+        <button
+          className={`avatar avatar--btn ${meFriend?.color ? 'avatar--colored' : ''}`}
+          style={
+            meFriend?.color
+              ? {
+                  '--user-color': meFriend.color,
+                  '--user-color-2': meFriend.color2 || meFriend.color,
+                }
+              : undefined
+          }
+          onClick={onOpenAccount}
+          aria-label="บัญชีและผู้เข้าทดสอบ"
+        >
           {name ? name.trim().charAt(0).toUpperCase() : <Icon name="user" size={18} />}
         </button>
       </header>
@@ -253,8 +266,8 @@ export default function Home({
           <Mascot
             activity="reading"
             size={240}
-            color="#1D4ED8"
-            color2="#60A5FA"
+            color={meFriend?.color || '#1D4ED8'}
+            color2={meFriend?.color2 || '#60A5FA'}
             className="hero__mascot hero__mascot--reading"
           />
         </div>

@@ -438,4 +438,54 @@ describe('live race track (ความก้าวหน้าอยู่บ�
     // ป้ายความก้าวหน้าเดิมที่ซ้ำซ้อนกันถูกถอดออกไปแล้ว
     assert.equal(container.querySelector('.quiz-match-pill'), null)
   })
+
+  it('links real user characters to real-time users sorted by highest exam attempts and shares exact colors with avatars', () => {
+    let inspected = null
+    const rawBoard = [
+      { id: 'u-low', name: 'สมชาย', isMe: true, online: true, count: 2, avg: 88, best: 90 },
+      { id: 'u-top', name: 'พิมพ์ชนก', isMe: false, online: false, count: 11, avg: 79, best: 92 },
+      { id: 'u-mid', name: 'ก้องภพ', isMe: false, online: true, activity: 'in-quiz', count: 6, avg: 84, best: 89 },
+    ]
+
+    const { container } = render(
+      <FriendBoard
+        board={rawBoard}
+        matches={[]}
+        meId="u-low"
+        meName="สมชาย"
+        onOpenArena={() => {}}
+        onInspectFriend={(f) => { inspected = f }}
+      />,
+    )
+
+    // รายชื่อผู้ใช้ใต้แบนเนอร์เรียลไทม์เรียงตามจำนวนครั้งที่ทำข้อสอบมากสุด (11 -> 6 -> 2)
+    const rows = [...container.querySelectorAll('.board__row')]
+    assert.deepEqual(rows.map((r) => r.getAttribute('data-user-id')), ['u-top', 'u-mid', 'u-low'])
+
+    // ตัวละครบนลู่วิ่งเป็นของผู้ใช้จริงทั้งหมด และคนทำข้อสอบมากสุด (u-top) อยู่หน้าสุด (rank 1, is-leader)
+    const racers = [...container.querySelectorAll('.mascot-racers .racer[data-user-id]')]
+    assert.equal(racers.length, 3)
+    const leaderRacer = container.querySelector('.mascot-racers .racer[data-rank="1"]')
+    assert.ok(leaderRacer)
+    assert.equal(leaderRacer.getAttribute('data-user-id'), 'u-top')
+    assert.ok(leaderRacer.classList.contains('is-leader'))
+    assert.match(leaderRacer.textContent, /พิมพ์ชนก/)
+    assert.match(leaderRacer.textContent, /สอบ 11 ครั้ง/)
+
+    // สีตัวละครตรงกับสีภาพผู้ใช้ (.board__avatar) ของคนเดียวกันทุกแถว
+    rows.forEach((row) => {
+      const uid = row.getAttribute('data-user-id')
+      const avatar = row.querySelector('.board__avatar')
+      const racer = container.querySelector(`.mascot-racers .racer[data-user-id="${uid}"]`)
+      assert.ok(avatar && racer)
+      assert.ok(avatar.getAttribute('data-user-color'))
+      assert.equal(racer.getAttribute('data-user-color'), avatar.getAttribute('data-user-color'))
+    })
+
+    // ชี้หรือคลิกตัวละครเชื่อมโยงไปยังแถวและสถิติของผู้ใช้จริงด้านล่าง
+    fireEvent.mouseEnter(leaderRacer)
+    assert.ok(rows[0].classList.contains('is-linked'))
+    fireEvent.click(leaderRacer)
+    assert.equal(inspected?.id, 'u-top')
+  })
 })

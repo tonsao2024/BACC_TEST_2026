@@ -21,6 +21,7 @@ export default function Quiz({
   cloudSync,
   match = null,
   meId = null,
+  allFriends = [],
   onMatchProgress,
 }) {
   const questions = exam.questions
@@ -58,10 +59,15 @@ export default function Quiz({
     [answers, questions],
   )
 
-  /* ---------- live race lanes (ความก้าวหน้าอยู่บนตัววิ่งของแต่ละคน) ---------- */
+  /* ---------- live race lanes (ความก้าวหน้าอยู่บนตัววิ่งของแต่ละคน + สีตรงกับภาพผู้ใช้) ---------- */
   const matchLanes = useMemo(
-    () => buildRaceLanes(match?.players || [], { meId, totalQuestions: total }),
-    [match, meId, total],
+    () =>
+      buildRaceLanes(match?.players || [], {
+        meId,
+        totalQuestions: total,
+        friends: allFriends,
+      }),
+    [match, meId, total, allFriends],
   )
 
   /* ---------- autosave snapshot ---------- */

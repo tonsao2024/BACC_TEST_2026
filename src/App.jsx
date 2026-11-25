@@ -49,6 +49,7 @@ import {
   createArenaController,
   getChallengePref,
   shouldShowChallengePopup,
+  sortFriendsByAttempts,
 } from './lib/friends.js'
 import { ProfileGate } from './components/Profile.jsx'
 import Icon from './components/Icons.jsx'
@@ -664,8 +665,13 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
         ...st,
       }
     })
-    return list.sort((a, b) => b.avg - a.avg || b.best - a.best || b.count - a.count)
+    return sortFriendsByAttempts(list)
   }, [arena.friends, profiles, results, profile])
+
+  const meBoardEntry = useMemo(
+    () => board.find((f) => f.isMe || (meId && f.id === meId)) || null,
+    [board, meId],
+  )
 
   const buildMatchExam = useCallback(
     (match) => {
@@ -673,10 +679,15 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
       const spec = match.examSpec
       const base =
         spec.kind === 'part'
-          ? buildPartExam(spec.partId || 'mock')
+          ? buildPartExam(spec.partId || 'mock', {
+              count: spec.count,
+              batchIndex: spec.batchIndex,
+              isRandom: spec.isRandom,
+              seed: spec.seed || match.id,
+            })
           : buildSetExam({
               id: spec.setId || match.id,
-              seed: spec.seed || newSeed(),
+              seed: spec.seed || match.id,
               sizeKey: spec.sizeKey || 'mini',
               name: spec.setName || spec.title || match.title,
             })
@@ -940,6 +951,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
                 : null
             }
             meId={meId}
+            allFriends={board}
             onMatchProgress={handleMatchProgress}
           />
         )}
@@ -1028,6 +1040,7 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
         <ChallengePopup
           match={pendingChallengeMatch}
           declineCount={arena.pref?.declineCount || 0}
+          allFriends={board}
           onAccept={handleAcceptChallenge}
           onDecline={handleDeclineChallenge}
           onInspectHost={(uid) => setHomeInspectId(uid)}
@@ -1060,7 +1073,19 @@ export default function App({ authUser = null, cloudSync, onCloudSignOut, onClou
         <Sheet onClose={() => setAccountOpen(false)} title="บัญชีของฉัน">
           <div className="acct__panel acct__panel--stack">
             <div className="acct__head">
-              <span className="avatar avatar--lg">{profile.name ? profile.name.trim().charAt(0).toUpperCase() : 'ผ'}</span>
+              <span
+                className={`avatar avatar--lg ${meBoardEntry?.color ? 'avatar--colored' : ''}`}
+                style={
+                  meBoardEntry?.color
+                    ? {
+                        '--user-color': meBoardEntry.color,
+                        '--user-color-2': meBoardEntry.color2 || meBoardEntry.color,
+                      }
+                    : undefined
+                }
+              >
+                {profile.name ? profile.name.trim().charAt(0).toUpperCase() : 'ผ'}
+              </span>
               <div className="acct__id">
                 <b className="acct__name">{profile.name}</b>
                 <span className="acct__meta">ข้อมูลและประวัติการสอบบันทึกแยกตามบัญชีนี้</span>

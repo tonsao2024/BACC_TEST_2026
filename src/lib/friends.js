@@ -338,7 +338,7 @@ export function normalizeFriendDirectory(friendsMap, onlineIds = new Set(), meId
     })
   })
 
-  return Array.from(byId.values())
+  const mapped = Array.from(byId.values())
     .map((f) => {
       const stats = f.stats || computePublicStats([])
       const isMe = Boolean(meId && f.id === meId)
@@ -359,13 +359,237 @@ export function normalizeFriendDirectory(friendsMap, onlineIds = new Set(), meId
         recentResults: stats.recentResults || [],
       }
     })
-    .sort((a, b) => {
-      if (a.online !== b.online) return a.online ? -1 : 1
-      return b.avg - a.avg || b.best - a.best || b.count - a.count || a.name.localeCompare(b.name, 'th')
-    })
+    .sort(compareFriendsByAttempts)
+
+  return ensureFriendColors(mapped)
 }
 
-export function rankMatchPlayers(players = []) {
+/* ============================================================
+   User Character Palette & Attempt-Count Ordering
+   - เรียงตามจำนวนครั้งที่ทำข้อสอบมากสุด (count) ให้คนนั้นอยู่หน้าสุด
+   - ผูกสีเดียวกันทั้งตัวละครบนลู่วิ่งและภาพโปรไฟล์/อวาตาร์ของผู้ใช้
+   ============================================================ */
+
+export const USER_CHARACTER_THEMES = [
+  { color: '#2563EB', color2: '#60A5FA', dark: '#1E3A8A' }, // น้ำเงินรอยัล
+  { color: '#EA580C', color2: '#FB923C', dark: '#9A3412' }, // ส้มคอรัล
+  { color: '#16A34A', color2: '#4ADE80', dark: '#14532D' }, // เขียวมรกต
+  { color: '#9333EA', color2: '#C084FC', dark: '#581C87' }, // ม่วงเทอร์โบ
+  { color: '#DB2777', color2: '#F472B6', dark: '#831843' }, // ชมพูบานเย็น
+  { color: '#0891B2', color2: '#22D3EE', dark: '#164E63' }, // ฟ้าน้ำทะเล
+  { color: '#D97706', color2: '#FBBF24', dark: '#78350F' }, // ทองอำพัน
+  { color: '#DC2626', color2: '#F87171', dark: '#7F1D1D' }, // แดงสปรินต์
+  { color: '#0D9488', color2: '#2DD4BF', dark: '#134E4A' }, // เขียวอมฟ้า
+  { color: '#4F46E5', color2: '#818CF8', dark: '#312E81' }, // ครามอินดิโก
+]
+
+export const RACE_LANE_COLORS = USER_CHARACTER_THEMES.map((t) => t.color)
+
+const RACE_MEDALS = ['🥇', '🥈', '🥉']
+
+export function compareFriendsByAttempts(a, b) {
+  const countDiff = (Number(b?.count) || 0) - (Number(a?.count) || 0)
+  if (countDiff !== 0) return countDiff
+  const avgDiff = (Number(b?.avg) || 0) - (Number(a?.avg) || 0)
+  if (avgDiff !== 0) return avgDiff
+  const bestDiff = (Number(b?.best) || 0) - (Number(a?.best) || 0)
+  if (bestDiff !== 0) return bestDiff
+  if (Boolean(a?.online) !== Boolean(b?.online)) return a?.online ? -1 : 1
+  const nameCmp = String(a?.name || '').localeCompare(String(b?.name || ''), 'th')
+  if (nameCmp !== 0) return nameCmp
+  return String(a?.id || a?.userId || '').localeCompare(String(b?.id || b?.userId || ''))
+}
+
+function themeFromHex(hex, fallbackIdx = 0) {
+  const found = USER_CHARACTER_THEMES.find(
+    (t) => t.color.toLowerCase() === String(hex || '').toLowerCase(),
+  )
+  if (found) return found
+  if (hex) return { color: hex, color2: hex, dark: hex }
+  return USER_CHARACTER_THEMES[Math.abs(fallbackIdx) % USER_CHARACTER_THEMES.length]
+}
+
+/**
+ * ผูกสีประจำตัวผู้ใช้แต่ละคนให้ตรงกันทั้งตัวละครวิ่งแข่งและภาพผู้ใช้ (avatar)
+ * โดยรักษาลำดับของอาร์เรย์ที่ส่งเข้ามา แต่กำหนดสีตามลำดับจำนวนครั้งที่สอบมากสุด
+ */
+export function ensureFriendColors(friends = []) {
+  const safe = Array.isArray(friends) ? friends.filter(Boolean) : []
+  if (!safe.length) return []
+
+  const ranked = [...safe].sort(compareFriendsByAttempts)
+  const themeByKey = new Map()
+  const usedColors = new Set()
+
+  ranked.forEach((f) => {
+    const key = f.id ?? f.userId ?? f.name
+    if (key && f.color && !themeByKey.has(key)) {
+      const t = {
+        color: f.color,
+        color2: f.color2 || themeFromHex(f.color).color2,
+        dark: f.colorDark || themeFromHex(f.color).dark,
+      }
+      themeByKey.set(key, t)
+      usedColors.add(t.color.toLowerCase())
+    }
+  })
+
+  let paletteCursor = 0
+  ranked.forEach((f) => {
+    const key = f.id ?? f.userId ?? f.name
+    if (!key || themeByKey.has(key)) return
+    let picked = null
+    for (let step = 0; step < USER_CHARACTER_THEMES.length; step += 1) {
+      const candidate =
+        USER_CHARACTER_THEMES[(paletteCursor + step) % USER_CHARACTER_THEMES.length]
+      if (!usedColors.has(candidate.color.toLowerCase())) {
+        picked = candidate
+        paletteCursor = paletteCursor + step + 1
+        usedColors.add(candidate.color.toLowerCase())
+        break
+      }
+    }
+    if (!picked) {
+      picked = USER_CHARACTER_THEMES[paletteCursor % USER_CHARACTER_THEMES.length]
+      paletteCursor += 1
+    }
+    themeByKey.set(key, picked)
+  })
+
+  return safe.map((f, idx) => {
+    const key = f.id ?? f.userId ?? f.name
+    const t = themeByKey.get(key) || USER_CHARACTER_THEMES[idx % USER_CHARACTER_THEMES.length]
+    return {
+      ...f,
+      color: t.color,
+      color2: t.color2,
+      colorDark: t.dark,
+    }
+  })
+}
+
+export function sortFriendsByAttempts(friends = []) {
+  const colored = ensureFriendColors(friends)
+  return [...colored].sort(compareFriendsByAttempts)
+}
+
+export function resolveUserTheme(target, friends = [], fallbackIndex = 0) {
+  const colored = ensureFriendColors(friends)
+  const targetId = typeof target === 'object' && target !== null ? target.id ?? target.userId : target
+  if (typeof target === 'object' && target?.color) {
+    return {
+      color: target.color,
+      color2: target.color2 || themeFromHex(target.color, fallbackIndex).color2,
+      dark: target.colorDark || themeFromHex(target.color, fallbackIndex).dark,
+    }
+  }
+  if (targetId !== null && targetId !== undefined) {
+    const matched = colored.find((f) => (f.id ?? f.userId) === targetId)
+    if (matched?.color) {
+      return {
+        color: matched.color,
+        color2: matched.color2 || themeFromHex(matched.color, fallbackIndex).color2,
+        dark: matched.colorDark || themeFromHex(matched.color, fallbackIndex).dark,
+      }
+    }
+  }
+  const t = USER_CHARACTER_THEMES[Math.abs(fallbackIndex) % USER_CHARACTER_THEMES.length]
+  return { color: t.color, color2: t.color2, dark: t.dark }
+}
+
+/**
+ * สร้างตัวละครวิ่งแข่งของผู้ใช้จริงบนแบนเนอร์เรียลไทม์
+ * - เชื่อมโยงกับผู้ใช้จริงใต้ลู่วิ่งแบบ 1:1 (ชื่อ, จำนวนครั้งที่สอบ, สถานะออนไลน์/กำลังสอบ, สีเดียวกัน)
+ * - จัดเรียงตามจำนวนครั้งที่ทำข้อสอบมากสุด (count) โดยให้คนมากสุดอยู่หน้าสุดเสมอ
+ */
+export function buildRealUserRacers(
+  users = [],
+  { meId = null, activeMatch = null, maxRacers = 6 } = {},
+) {
+  const valid = (Array.isArray(users) ? users : []).filter((u) => u && (u.id || u.userId) && u.name)
+  if (!valid.length) return []
+
+  const sorted = sortFriendsByAttempts(valid)
+  const visible = sorted.slice(0, Math.max(1, maxRacers))
+  const matchPlayers = Array.isArray(activeMatch?.players) ? activeMatch.players : []
+  const laneOffsetsY = [48, 74, 40, 68, 52, 76, 44, 72]
+
+  const frontX = 416
+  const backX = 68
+  const n = visible.length
+
+  return visible.map((u, idx) => {
+    const id = u.id ?? u.userId
+    const name = String(u.name || 'ผู้เข้าสอบ').trim() || 'ผู้เข้าสอบ'
+    const initial = name.charAt(0).toUpperCase() || 'ผ'
+    const isMe = Boolean(u.isMe || (meId && id === meId))
+    const online = Boolean(u.online || isMe)
+    const count = Math.max(0, Number(u.count) || 0)
+    const mp = matchPlayers.find((p) => p?.userId === id) || null
+    const inLiveRace = Boolean(
+      mp && (mp.status === 'playing' || mp.status === 'finished' || mp.status === 'accepted'),
+    )
+    const activity = inLiveRace
+      ? 'racing'
+      : u.activity || (online ? 'online' : 'offline')
+
+    let x = frontX
+    if (n === 2) {
+      x = idx === 0 ? frontX : 236
+    } else if (n > 2) {
+      const span = frontX - backX
+      x = Math.round(frontX - (idx * span) / (n - 1))
+    }
+
+    const liveTotal = Math.max(0, Number(mp?.totalQuestions || activeMatch?.examSpec?.totalQuestions) || 0)
+    const liveAns = Math.max(0, Number(mp?.answeredCount) || 0)
+    const statusText =
+      mp?.status === 'finished'
+        ? `เข้าเส้นชัย ${Math.round(Number(mp.score) || 0)}%`
+        : mp?.status === 'playing' && liveTotal > 0
+          ? `แข่งสด ${Math.min(liveAns, liveTotal)}/${liveTotal}`
+          : count > 0
+            ? `สอบ ${count} ครั้ง`
+            : 'พร้อมลงสนาม'
+
+    return {
+      id,
+      name,
+      initial,
+      isMe,
+      online,
+      activity,
+      inLiveRace,
+      count,
+      avg: Math.round(Number(u.avg) || 0),
+      best: Math.round(Number(u.best) || 0),
+      rank: idx + 1,
+      isLeader: idx === 0,
+      medal: RACE_MEDALS[idx] || `#${idx + 1}`,
+      color: u.color,
+      color2: u.color2,
+      colorDark: u.colorDark,
+      variant: idx % 4,
+      x,
+      y: laneOffsetsY[idx % laneOffsetsY.length],
+      statusText,
+      user: u,
+    }
+  })
+}
+
+export function rankMatchPlayers(players = [], friends = []) {
+  const friendCounts = new Map()
+  ;(Array.isArray(friends) ? friends : []).forEach((f) => {
+    const id = f?.id ?? f?.userId
+    if (id) friendCounts.set(id, Math.max(0, Number(f.count) || 0))
+  })
+  const attemptsOf = (p) =>
+    Math.max(
+      0,
+      Number(p?.examCount ?? p?.count ?? friendCounts.get(p?.userId) ?? 0) || 0,
+    )
+
   return [...players].sort((a, b) => {
     const aDone = a.status === 'finished' ? 1 : 0
     const bDone = b.status === 'finished' ? 1 : 0
@@ -373,47 +597,81 @@ export function rankMatchPlayers(players = []) {
     if (aDone && bDone) {
       const sDiff = (Number(b.score) || 0) - (Number(a.score) || 0)
       if (Math.abs(sDiff) > 0.01) return sDiff
-      return (Number(a.timeUsedSec) || 0) - (Number(b.timeUsedSec) || 0)
+      const tDiff = (Number(a.timeUsedSec) || 0) - (Number(b.timeUsedSec) || 0)
+      if (tDiff !== 0) return tDiff
+      return attemptsOf(b) - attemptsOf(a)
     }
     const aActive = a.status === 'playing' || a.status === 'accepted' ? 1 : 0
     const bActive = b.status === 'playing' || b.status === 'accepted' ? 1 : 0
     if (aActive !== bActive) return bActive - aActive
-    return (Number(b.answeredCount) || 0) - (Number(a.answeredCount) || 0)
+    const ansDiff = (Number(b.answeredCount) || 0) - (Number(a.answeredCount) || 0)
+    if (ansDiff !== 0) return ansDiff
+    return attemptsOf(b) - attemptsOf(a)
   })
 }
 
 /* ============================================================
    Live Race Lanes — ความก้าวหน้าของเพื่อนแต่ละคนถูกคำนวณเป็น "เลน"
    เพื่อนแต่ละคนได้เลนของตัวเอง (ไม่บังกันจนมองไม่เห็น)
-   และค่าความก้าวหน้าจะถูกแสดงผ่านป้ายกำกับที่ตัววิ่งแต่ละคน
+   สีตัววิ่งตรงกับสีภาพผู้ใช้ (avatar) ของคนนั้นเสมอ
    ============================================================ */
-
-export const RACE_LANE_COLORS = [
-  '#2563EB',
-  '#EA580C',
-  '#16A34A',
-  '#9333EA',
-  '#DB2777',
-  '#0891B2',
-  '#D97706',
-  '#7C3AED',
-]
-
-const RACE_MEDALS = ['🥇', '🥈', '🥉']
 
 /**
  * สร้างข้อมูลเลนแข่งขันสด (หนึ่งเลนต่อหนึ่งคนที่กำลังวิ่งแข่ง)
- * - เรียงตามอันดับจริง (ผู้จบก่อน/ทำไปเยอะสุดอยู่บน)
+ * - เรียงตามอันดับจริง (ผู้จบก่อน/ทำไปเยอะสุดอยู่บน และหากเท่ากันให้ผู้ที่ทำข้อสอบมากสุดนำหน้า)
  * - pct = ความก้าวหน้า 0-100 (ผู้ส่งคำตอบแล้ว = 100 เสมอ)
- * - progressText = ข้อความสั้น ๆ ที่จะแสดงบนป้ายกำกับตัววิ่ง
+ * - color = สีเดียวกับภาพผู้ใช้ในระบบ เพื่อดูง่ายขึ้นว่าตัวละครไหนคือใคร
  */
-export function buildRaceLanes(players = [], { meId = null, totalQuestions = 0 } = {}) {
+export function buildRaceLanes(
+  players = [],
+  { meId = null, totalQuestions = 0, friends = [] } = {},
+) {
   const safe = Array.isArray(players) ? players.filter(Boolean) : []
-  const racers = rankMatchPlayers(safe).filter(
+  const coloredFriends = ensureFriendColors(friends)
+  const friendMap = new Map()
+  coloredFriends.forEach((f) => {
+    const id = f?.id ?? f?.userId
+    if (id) friendMap.set(id, f)
+  })
+
+  const racers = rankMatchPlayers(safe, coloredFriends).filter(
     (p) => p.status === 'playing' || p.status === 'finished' || p.status === 'accepted',
   )
 
+  const usedColors = new Set()
+  let fallbackCursor = 0
+  const pickLaneTheme = (p) => {
+    const matchedFriend = friendMap.get(p.userId)
+    if (p.color || matchedFriend?.color) {
+      const hex = p.color || matchedFriend.color
+      const base = themeFromHex(hex)
+      const theme = {
+        color: hex,
+        color2: p.color2 || matchedFriend?.color2 || base.color2,
+        dark: p.colorDark || matchedFriend?.colorDark || base.dark,
+      }
+      if (!usedColors.has(theme.color.toLowerCase())) {
+        usedColors.add(theme.color.toLowerCase())
+        return theme
+      }
+    }
+    for (let step = 0; step < USER_CHARACTER_THEMES.length; step += 1) {
+      const candidate =
+        USER_CHARACTER_THEMES[(fallbackCursor + step) % USER_CHARACTER_THEMES.length]
+      if (!usedColors.has(candidate.color.toLowerCase())) {
+        fallbackCursor = fallbackCursor + step + 1
+        usedColors.add(candidate.color.toLowerCase())
+        return candidate
+      }
+    }
+    const fallback = USER_CHARACTER_THEMES[fallbackCursor % USER_CHARACTER_THEMES.length]
+    fallbackCursor += 1
+    return fallback
+  }
+
   return racers.map((p, idx) => {
+    const matchedFriend = friendMap.get(p.userId)
+    const theme = pickLaneTheme(p)
     const total = Math.max(0, Number(p.totalQuestions) || Math.max(0, Number(totalQuestions) || 0))
     const answeredRaw = Math.max(0, Number(p.answeredCount) || 0)
     const answered = total > 0 ? Math.min(answeredRaw, total) : answeredRaw
@@ -421,7 +679,9 @@ export function buildRaceLanes(players = [], { meId = null, totalQuestions = 0 }
     const pct = finished ? 100 : total > 0 ? Math.min(100, Math.round((answered / total) * 100)) : 0
     const score = Math.round(Number(p.score) || 0)
     const timeUsedSec = Math.max(0, Number(p.timeUsedSec) || 0)
-    const name = p.name || 'ผู้แข่ง'
+    const name = matchedFriend?.name || p.name || 'ผู้แข่ง'
+    const initial = String(name).trim().charAt(0).toUpperCase() || 'ผ'
+    const examCount = Math.max(0, Number(matchedFriend?.count ?? p.examCount ?? p.count) || 0)
 
     const progressText = finished
       ? `${score}% · ${mmss(timeUsedSec)}`
@@ -438,12 +698,16 @@ export function buildRaceLanes(players = [], { meId = null, totalQuestions = 0 }
     return {
       userId: p.userId,
       name,
+      initial,
+      examCount,
       isMe: Boolean(meId && p.userId === meId),
       status: p.status,
       role: p.role || 'guest',
       rank: idx + 1,
       medal: finished ? RACE_MEDALS[idx] || `${idx + 1}` : '',
-      color: RACE_LANE_COLORS[idx % RACE_LANE_COLORS.length],
+      color: theme.color,
+      color2: theme.color2,
+      colorDark: theme.dark,
       answeredCount: answered,
       totalQuestions: total,
       pct,
@@ -843,14 +1107,27 @@ export function createArenaController({
   }
 
   /* ---------- match actions ---------- */
+  const knownExamCount = (uid, fallback = 0) => {
+    const entry = uid ? state.friends[uid] : null
+    const fromState = Number(entry?.stats?.count ?? entry?.count)
+    if (Number.isFinite(fromState) && fromState > 0) return fromState
+    return Math.max(0, Number(fallback) || 0)
+  }
+
   const createMatch = async ({ title, message = '', examSpec, invitedFriends = [] }) => {
     const nowIso = new Date().toISOString()
     const id = newMatchId()
+    const myResults = typeof getResults === 'function' ? getResults() : []
+    const myCount = Math.max(
+      knownExamCount(userId),
+      Array.isArray(myResults) ? myResults.filter(Boolean).length : 0,
+    )
     const hostPlayer = {
       userId,
       name: currentName,
       role: 'host',
       status: 'accepted',
+      examCount: myCount,
       declineCount: 0,
       answeredCount: 0,
       totalQuestions: examSpec?.totalQuestions || 0,
@@ -868,6 +1145,7 @@ export function createArenaController({
         name: f.name,
         role: 'guest',
         status: 'invited',
+        examCount: knownExamCount(f.id, f.count),
         declineCount: 0,
         answeredCount: 0,
         totalQuestions: examSpec?.totalQuestions || 0,
