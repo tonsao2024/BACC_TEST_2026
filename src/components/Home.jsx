@@ -1,19 +1,30 @@
-import { GROUPS, MOCK_PART, PARTS, SPECIAL_GROUP, SPECIAL_PARTS, TOTAL_QUESTIONS } from '../data/index.js'
+import {
+  EXTRA_GROUP,
+  EXTRA_PARTS,
+  GROUPS,
+  MOCK_PART,
+  PARTS,
+  SPECIAL_GROUP,
+  SPECIAL_PARTS,
+  TOTAL_QUESTIONS,
+} from '../data/index.js'
 import { bestFor, formatThaiDateTime, humanTime } from '../lib/storage.js'
 import { PASS_SCORE, certTier } from '../lib/certs.js'
+import { computeOverallPartsProgress, computePartCompletion } from '../lib/completion.js'
 import Icon from './Icons.jsx'
 import Mascot from './Mascot.jsx'
 import FriendBoard from './FriendBoard.jsx'
 import { MiniRing, Ring } from './ui.jsx'
 
 function PartCard({ part, results, attempt, onOpen, index, variant = 0 }) {
-  const best = bestFor(part.id, results)
-  const count = results.filter((r) => r.partId === part.id).length
+  const comp = computePartCompletion(part, results, PASS_SCORE)
+  const count = comp.attemptsCount
   const total = part.questions.length
+  const attemptTotal = attempt?.total || total
   const answered = attempt ? (attempt.answers || []).filter((a) => a !== null).length : 0
-  const bestPct = best ? Math.round(best.score) : null
-  const inPct = total ? Math.round((answered / total) * 100) : 0
-  const passed = bestPct !== null && bestPct >= PASS_SCORE
+  const bestPct = comp.isComplete && comp.bestScore !== null ? Math.round(comp.bestScore) : null
+  const inPct = attemptTotal ? Math.round((answered / attemptTotal) * 100) : 0
+  const passed = comp.isComplete && comp.bestScore !== null && comp.bestScore >= PASS_SCORE
 
   const status = passed
     ? {
@@ -22,11 +33,28 @@ function PartCard({ part, results, attempt, onOpen, index, variant = 0 }) {
         text: `${certTier(bestPct).medal} ผ่านเกณฑ์แล้ว · ดีที่สุด ${bestPct}%`,
         bar: bestPct,
       }
-    : best
-      ? { cls: 'try', icon: 'target', text: `ดีที่สุด ${bestPct}% · อีก ${PASS_SCORE - bestPct}% ถึงเกณฑ์ผ่าน`, bar: bestPct }
-      : answered > 0
-        ? { cls: 'doing', icon: 'clock', text: `ทำค้างไว้ ${answered}/${total} ข้อ (${inPct}%)`, bar: inPct }
-        : { cls: 'new', icon: 'play', text: 'ยังไม่เริ่มทำ · ลองเลย!', bar: 0 }
+    : comp.isComplete && bestPct !== null
+      ? {
+          cls: 'try',
+          icon: 'target',
+          text: `ดีที่สุด ${bestPct}% · อีก ${Math.max(1, PASS_SCORE - bestPct)}% ถึงเกณฑ์ผ่าน`,
+          bar: bestPct,
+        }
+      : comp.coveredCount > 0
+        ? {
+            cls: 'doing',
+            icon: 'layers',
+            text: `สะสมชุดย่อย ${comp.coveredCount}/${total} ข้อ (${comp.completionPct}%) · ทำต่อให้ครบ 100%`,
+            bar: comp.completionPct,
+          }
+        : answered > 0
+          ? {
+              cls: 'doing',
+              icon: 'clock',
+              text: `ทำค้างไว้ ${answered}/${attemptTotal} ข้อ (${inPct}%)`,
+              bar: inPct,
+            }
+          : { cls: 'new', icon: 'play', text: 'ยังไม่เริ่มทำ · ลองเลย!', bar: 0 }
 
   return (
     <button
@@ -63,11 +91,19 @@ function PartCard({ part, results, attempt, onOpen, index, variant = 0 }) {
         </span>
         <span className="part-progress" aria-hidden="true">
           <i style={{ width: `${status.bar}%` }} />
-          <b className="part-progress__goal" style={{ left: `${PASS_SCORE}%` }} title="เกณฑ์ผ่าน 60%" />
+          {comp.isComplete && (
+            <b className="part-progress__goal" style={{ left: `${PASS_SCORE}%` }} title="เกณฑ์ผ่าน 60%" />
+          )}
         </span>
       </span>
       <span className="part-right">
-        {best ? <MiniRing value={best.score} /> : <Icon name="chevron" size={18} className="part-chev" />}
+        {comp.isComplete && comp.bestScore !== null ? (
+          <MiniRing value={comp.bestScore} />
+        ) : comp.coveredCount > 0 ? (
+          <MiniRing value={comp.completionPct} />
+        ) : (
+          <Icon name="chevron" size={18} className="part-chev" />
+        )}
         <span className="part-mascot" aria-hidden="true">
           <Mascot
             variant={variant}
@@ -136,17 +172,18 @@ export default function Home({
   directory = null,
   onRefreshFriends,
 }) {
-  const attempted = new Set(results.map((r) => r.partId))
-  const done = PARTS.filter((p) => attempted.has(p.id)).length
+  const overallParts = computeOverallPartsProgress(PARTS, results)
+  const done = overallParts.completedPartsCount
   const avg = results.length
     ? Math.round(results.reduce((s, r) => s + r.score, 0) / results.length)
     : 0
-  const progress = Math.round((done / PARTS.length) * 100)
+  const progress = overallParts.overallProgressPct
   const latest = results.slice(0, 3)
   const openAttempts = attempts
     .filter((a) => (a.answers || []).some((x) => x !== null))
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
     .slice(0, 3)
+  const meFriend = board.find((f) => f.isMe || (meId && f.id === meId)) || null
 
   return (
     <>
@@ -167,7 +204,19 @@ export default function Home({
         >
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
         </button>
-        <button className="avatar avatar--btn" onClick={onOpenAccount} aria-label="บัญชีและผู้เข้าทดสอบ">
+        <button
+          className={`avatar avatar--btn ${meFriend?.color ? 'avatar--colored' : ''}`}
+          style={
+            meFriend?.color
+              ? {
+                  '--user-color': meFriend.color,
+                  '--user-color-2': meFriend.color2 || meFriend.color,
+                }
+              : undefined
+          }
+          onClick={onOpenAccount}
+          aria-label="บัญชีและผู้เข้าทดสอบ"
+        >
           {name ? name.trim().charAt(0).toUpperCase() : <Icon name="user" size={18} />}
         </button>
       </header>
@@ -253,8 +302,8 @@ export default function Home({
           <Mascot
             activity="reading"
             size={240}
-            color="#1D4ED8"
-            color2="#60A5FA"
+            color={meFriend?.color || '#1D4ED8'}
+            color2={meFriend?.color2 || '#60A5FA'}
             className="hero__mascot hero__mascot--reading"
           />
         </div>
@@ -452,10 +501,47 @@ export default function Home({
                 key={part.id}
                 part={part}
                 results={results}
-                attempt={attempts.find((a) => a.key === `part:${part.id}`) || null}
+                attempt={
+                  attempts.find((a) => a.key === `part:${part.id}` || a.key?.startsWith(`part:${part.id}:`)) ||
+                  null
+                }
                 onOpen={onOpenPart}
                 index={i}
                 variant={i}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {EXTRA_PARTS.length > 0 && (
+        <section className="section" style={{ animationDelay: '30ms' }}>
+          <div className="section__head">
+            <div>
+              <h3 className="section__title">
+                <Icon name="layers" size={15} /> {EXTRA_GROUP.label}
+              </h3>
+              <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+                {EXTRA_GROUP.desc}
+              </p>
+            </div>
+            <span className="section__link">
+              {EXTRA_PARTS.reduce((n, p) => n + p.questions.length, 0)} ข้อ · {EXTRA_PARTS.length} ชุด
+            </span>
+          </div>
+          <div className="part-list">
+            {EXTRA_PARTS.map((part, i) => (
+              <PartCard
+                key={part.id}
+                part={part}
+                results={results}
+                attempt={
+                  attempts.find((a) => a.key === `part:${part.id}` || a.key?.startsWith(`part:${part.id}:`)) ||
+                  null
+                }
+                onOpen={onOpenPart}
+                index={i}
+                variant={i + 2}
               />
             ))}
           </div>
@@ -483,7 +569,10 @@ export default function Home({
                 key={part.id}
                 part={part}
                 results={results}
-                attempt={attempts.find((a) => a.key === `part:${part.id}`) || null}
+                attempt={
+                  attempts.find((a) => a.key === `part:${part.id}` || a.key?.startsWith(`part:${part.id}:`)) ||
+                  null
+                }
                 onOpen={onOpenPart}
                 index={i}
                 variant={i}

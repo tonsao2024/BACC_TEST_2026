@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { driveDownload } from '../data/index.js'
 import { formatThaiDateTime, humanTime, mmss } from '../lib/storage.js'
 import { downloadResultImage, downloadResultPdf } from '../lib/pdf.js'
-import { certTier } from '../lib/certs.js'
+import { PASS_SCORE, certTier } from '../lib/certs.js'
+import { computePartCompletion, getBatchProgress } from '../lib/completion.js'
 import { CertificateView, CertSheet } from './Certificate.jsx'
 import { MatchRoomCard } from './FriendArena.jsx'
 import Icon from './Icons.jsx'
@@ -29,6 +30,7 @@ function useCountUp(target, duration = 1200) {
 
 export default function Result({
   result,
+  results = [],
   part,
   profileName,
   match = null,
@@ -55,19 +57,45 @@ export default function Result({
       ? `${result.partLabel} · ${result.partTitle} (${result.batchLabel})`
       : `${result.partLabel} · ${result.partTitle}`
 
+  const effectiveResults = results.some((r) => r?.id === result.id) ? results : [result, ...results]
+  const partCompletion =
+    !isSet && result.partId
+      ? computePartCompletion(part || result.partId, effectiveResults, PASS_SCORE)
+      : null
+
   const totalQuestions = part?.questions?.length || 100
-  const isBatchMode = Boolean(
-    !isSet &&
-      result.partId &&
-      result.subsetCount &&
-      result.subsetCount !== 'all' &&
-      typeof result.batchIndex === 'number',
+  const isMiniSubset = Boolean(
+    !isSet && result.partId && result.subsetCount && result.subsetCount !== 'all',
   )
-  const nextBatchIndex = isBatchMode ? result.batchIndex + 1 : -1
-  const hasNextBatch = isBatchMode && nextBatchIndex * result.subsetCount < totalQuestions
-  const nextBatchStart = hasNextBatch ? nextBatchIndex * result.subsetCount + 1 : 0
-  const nextBatchEnd = hasNextBatch ? Math.min(totalQuestions, (nextBatchIndex + 1) * result.subsetCount) : 0
-  const nextBatchLabel = hasNextBatch ? `ชุดที่ ${nextBatchIndex + 1} (ข้อ ${nextBatchStart}–${nextBatchEnd})` : ''
+  const isBatchMode = Boolean(isMiniSubset && typeof result.batchIndex === 'number')
+  const batchProgress =
+    isBatchMode && part
+      ? getBatchProgress(part, effectiveResults, result.subsetCount, result.sectionKeys || [])
+      : null
+  const nextUndoneBatch = batchProgress?.batches?.find(
+    (b) => !b.done && b.index > result.batchIndex,
+  ) || batchProgress?.batches?.find((b) => !b.done) || null
+
+  const fallbackNextIdx = isBatchMode ? result.batchIndex + 1 : -1
+  const nextBatchIndex = nextUndoneBatch
+    ? nextUndoneBatch.index
+    : fallbackNextIdx * (Number(result.subsetCount) || 0) < totalQuestions
+      ? fallbackNextIdx
+      : -1
+  const hasNextBatch = isBatchMode && nextBatchIndex >= 0 && (!batchProgress || !partCompletion?.isComplete)
+  const nextBatchStart = nextUndoneBatch
+    ? nextUndoneBatch.start
+    : hasNextBatch
+      ? nextBatchIndex * result.subsetCount + 1
+      : 0
+  const nextBatchEnd = nextUndoneBatch
+    ? nextUndoneBatch.end
+    : hasNextBatch
+      ? Math.min(totalQuestions, (nextBatchIndex + 1) * result.subsetCount)
+      : 0
+  const nextBatchLabel = hasNextBatch
+    ? `ชุดที่ ${nextBatchIndex + 1} (ข้อ ${nextBatchStart}–${nextBatchEnd})`
+    : ''
 
   const animated = useCountUp(result.score)
   const [ringP, setRingP] = useState(0)
@@ -76,22 +104,26 @@ export default function Result({
     const id = setTimeout(() => setRingP(Math.max(0, Math.min(100, result.score))), 160)
     return () => clearTimeout(id)
   }, [result.score])
-  const passed = result.score >= 60
+  const passed = result.score >= PASS_SCORE
   const excellent = result.score >= 85
+  const certScore = partCompletion?.bestScore ?? result.score
   const earnedCert =
-    !isSet && passed && result.partId
+    !isSet &&
+    result.partId &&
+    partCompletion?.isComplete &&
+    certScore >= PASS_SCORE
       ? {
           partId: result.partId,
           partLabel: result.partLabel,
           partTitle: result.partTitle,
           partColor: result.partColor || part?.color || '#2563EB',
-          score: result.score,
-          correct: result.correct,
-          total: result.total,
+          score: certScore,
+          correct: partCompletion.bestCorrect ?? result.correct,
+          total: partCompletion.totalQuestions || result.total,
           name: examinee.trim() || result.name || profileName || 'ผู้เข้าสอบ',
           date: result.date,
-          earnedDate: result.date,
-          ...certTier(result.score),
+          earnedDate: partCompletion.firstPassDate || result.date,
+          ...certTier(certScore),
         }
       : null
 
@@ -220,13 +252,42 @@ export default function Result({
           >
             <span className="cert-banner__party" aria-hidden="true">🎉</span>
             <span className="cert-banner__body">
-              <b>เก่งมาก! คุณได้รับเกียรติบัตร {certTier(result.score).medal}</b>
-              <span>สอบผ่านพาร์ท {result.partLabel} · {result.partTitle} — แตะเพื่อดู/ดาวน์โหลดเกียรติบัตร</span>
+              <b>
+                เก่งมาก! ทำครบพาร์ทใหญ่ 100% · รับเกียรติบัตร {certTier(earnedCert.score).medal}
+              </b>
+              <span>
+                สอบผ่านพาร์ท {result.partLabel} · {result.partTitle} ({Math.round(earnedCert.score)}%) — แตะเพื่อดูเกียรติบัตร
+              </span>
             </span>
             <span className="cert-banner__cta">
               <Icon name="medal" size={17} /> เปิดดู
             </span>
           </button>
+        )}
+
+        {!isSet && partCompletion && !partCompletion.isComplete && (
+          <div className="info-card mini-progress-banner" style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <div>
+                <b style={{ fontSize: 13 }}>
+                  ความคืบหน้าพาร์ทใหญ่สะสม · {partCompletion.completionPct}%
+                </b>
+                <p className="sub" style={{ fontSize: 11.5, marginTop: 3 }}>
+                  ทำแล้ว {partCompletion.coveredCount}/{partCompletion.totalQuestions} ข้อ
+                  {batchProgress
+                    ? ` (${batchProgress.doneBatches}/${batchProgress.totalBatches} ชุดย่อย)`
+                    : ''}{' '}
+                  · เหลืออีก {partCompletion.remainingCount} ข้อจะครบพาร์ทใหญ่ 100%
+                </p>
+              </div>
+              <span className="result-badge" style={{ flex: 'none' }}>
+                {partCompletion.completionPct}%
+              </span>
+            </div>
+            <div className="part-progress" style={{ marginTop: 10 }} aria-hidden="true">
+              <i style={{ width: `${partCompletion.completionPct}%` }} />
+            </div>
+          </div>
         )}
 
         <div className="stat-grid">
@@ -477,7 +538,7 @@ export default function Result({
                 background: 'linear-gradient(135deg, #10B981, #059669)',
                 boxShadow: '0 10px 24px -10px rgba(16, 185, 129, 0.5)',
               }}
-              onClick={() => onNextBatch?.(result)}
+              onClick={() => onNextBatch?.(result, nextBatchIndex)}
             >
               <Icon name="play" size={17} /> ลุยชุดถัดไป: {nextBatchLabel}
             </button>

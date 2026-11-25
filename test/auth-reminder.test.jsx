@@ -438,4 +438,188 @@ describe('live race track (ความก้าวหน้าอยู่บ�
     // ป้ายความก้าวหน้าเดิมที่ซ้ำซ้อนกันถูกถอดออกไปแล้ว
     assert.equal(container.querySelector('.quiz-match-pill'), null)
   })
+
+  it('links real user characters to real-time users sorted by highest exam attempts and shares exact colors with avatars', () => {
+    let inspected = null
+    const rawBoard = [
+      { id: 'u-low', name: 'สมชาย', isMe: true, online: true, count: 2, avg: 88, best: 90 },
+      { id: 'u-top', name: 'พิมพ์ชนก', isMe: false, online: false, count: 11, avg: 79, best: 92 },
+      { id: 'u-mid', name: 'ก้องภพ', isMe: false, online: true, activity: 'in-quiz', count: 6, avg: 84, best: 89 },
+    ]
+
+    const { container } = render(
+      <FriendBoard
+        board={rawBoard}
+        matches={[]}
+        meId="u-low"
+        meName="สมชาย"
+        onOpenArena={() => {}}
+        onInspectFriend={(f) => { inspected = f }}
+      />,
+    )
+
+    // รายชื่อผู้ใช้ใต้แบนเนอร์เรียลไทม์เรียงตามจำนวนครั้งที่ทำข้อสอบมากสุด (11 -> 6 -> 2)
+    const rows = [...container.querySelectorAll('.board__row')]
+    assert.deepEqual(rows.map((r) => r.getAttribute('data-user-id')), ['u-top', 'u-mid', 'u-low'])
+
+    // ตัวละครบนลู่วิ่งเป็นของผู้ใช้จริงทั้งหมด และคนทำข้อสอบมากสุด (u-top) อยู่หน้าสุด (rank 1, is-leader)
+    const racers = [...container.querySelectorAll('.mascot-racers .racer[data-user-id]')]
+    assert.equal(racers.length, 3)
+    const leaderRacer = container.querySelector('.mascot-racers .racer[data-rank="1"]')
+    assert.ok(leaderRacer)
+    assert.equal(leaderRacer.getAttribute('data-user-id'), 'u-top')
+    assert.ok(leaderRacer.classList.contains('is-leader'))
+    assert.match(leaderRacer.textContent, /พิมพ์ชนก/)
+    assert.match(leaderRacer.textContent, /สอบ 11 ครั้ง/)
+
+    // สีตัวละครตรงกับสีภาพผู้ใช้ (.board__avatar) ของคนเดียวกันทุกแถว
+    rows.forEach((row) => {
+      const uid = row.getAttribute('data-user-id')
+      const avatar = row.querySelector('.board__avatar')
+      const racer = container.querySelector(`.mascot-racers .racer[data-user-id="${uid}"]`)
+      assert.ok(avatar && racer)
+      assert.ok(avatar.getAttribute('data-user-color'))
+      assert.equal(racer.getAttribute('data-user-color'), avatar.getAttribute('data-user-color'))
+    })
+
+    // ชี้หรือคลิกตัวละครเชื่อมโยงไปยังแถวและสถิติของผู้ใช้จริงด้านล่าง
+    fireEvent.mouseEnter(leaderRacer)
+    assert.ok(rows[0].classList.contains('is-linked'))
+    fireEvent.click(leaderRacer)
+    assert.equal(inspected?.id, 'u-top')
+  })
+})
+
+describe('mini-batch vs full-part 100% UI & extra sets', () => {
+  afterEach(cleanup)
+
+  it('shows partial mini-batch progress (not 100% complete) on Home, PartDetail, and Result until all mini-batches are finished', () => {
+    const part = getPart('1-1')
+    const oneMiniResult = {
+      id: 'mini-1',
+      kind: 'part',
+      partId: '1-1',
+      partLabel: part.label,
+      partTitle: part.title,
+      partColor: part.color,
+      subsetCount: 10,
+      batchIndex: 0,
+      batchLabel: 'ชุดที่ 1 (ข้อ 1–10)',
+      score: 90,
+      correct: 9,
+      wrong: 1,
+      skipped: 0,
+      total: 10,
+      timeUsedSec: 120,
+      date: '2026-11-25T01:00:00Z',
+      items: [],
+      topics: [],
+    }
+
+    // 1) Home: พาร์ทที่ทำแล้วต้องยังเป็น 0/11 และการ์ด 1.1 แสดงสะสมชุดย่อย 10/100 ข้อ (10%)
+    const homeView = render(
+      <Home
+        name="ผู้ทดสอบ"
+        theme="light"
+        results={[oneMiniResult]}
+        attempts={[]}
+        sets={[]}
+        board={[]}
+        matches={[]}
+        onToggleTheme={() => {}}
+        onOpenPart={() => {}}
+        onStartMock={() => {}}
+        onResume={() => {}}
+        onNewSet={() => {}}
+        onOpenSets={() => {}}
+        onOpenResult={() => {}}
+        onOpenHistory={() => {}}
+        onOpenSources={() => {}}
+        onReadAnnouncement={() => {}}
+        onOpenAccount={() => {}}
+        onOpenArena={() => {}}
+        onChallengeFriend={() => {}}
+        onInspectFriend={() => {}}
+        onCreateMatch={() => {}}
+        onOpenMatch={() => {}}
+      />,
+    )
+    assert.match(homeView.container.textContent, /สะสมชุดย่อย 10\/100 ข้อ \(10%\)/)
+    assert.match(homeView.container.textContent, /คลังข้อสอบฝึกฝนเพิ่มเติม/)
+    cleanup()
+
+    // 2) PartDetail: แสดงความคืบหน้าสะสม 10% และเมื่อกดโหมด 10 ข้อ จะติ๊กชุดที่ 1 และเลือกชุดที่ 2 อัตโนมัติ
+    const detailView = render(
+      <PartDetail
+        part={part}
+        results={[oneMiniResult]}
+        attempts={[]}
+        onBack={() => {}}
+        onStart={() => {}}
+        onRestart={() => {}}
+      />,
+    )
+    assert.match(detailView.container.textContent, /ความคืบหน้าพาร์ทใหญ่สะสม · 10%/)
+    fireEvent.click(screen.getByRole('button', { name: /10 ข้อ/ }))
+    assert.match(detailView.container.textContent, /ทำครบแล้ว 1\/10 ชุด · 10%/)
+    assert.match(detailView.container.textContent, /ชุดที่ 1 · ✓ 90%/)
+    cleanup()
+
+    // 3) Result: ไม่ขึ้นเกียรติบัตรพาร์ทใหญ่เมื่อเพิ่งทำชุดย่อย 1 ชุด แต่ขึ้นแถบสะสม 10%
+    const resPartial = render(
+      <Result
+        result={oneMiniResult}
+        results={[oneMiniResult]}
+        part={part}
+        profileName="ผู้ทดสอบ"
+        onHome={() => {}}
+        onRetry={() => {}}
+        onNextBatch={() => {}}
+        onHistory={() => {}}
+        onOpenSources={() => {}}
+      />,
+    )
+    assert.equal(resPartial.container.querySelector('.cert-banner'), null)
+    assert.match(resPartial.container.textContent, /ความคืบหน้าพาร์ทใหญ่สะสม · 10%/)
+    cleanup()
+
+    // 4) เมื่อทำครบทั้ง 10 ชุดย่อย (100/100 ข้อ) จึงจะครบพาร์ทใหญ่ 100% และได้รับเกียรติบัตร
+    const allTen = Array.from({ length: 10 }, (_, idx) => ({
+      ...oneMiniResult,
+      id: `mini-${idx + 1}`,
+      batchIndex: idx,
+      batchLabel: `ชุดที่ ${idx + 1}`,
+    }))
+    const resComplete = render(
+      <Result
+        result={allTen[9]}
+        results={allTen}
+        part={part}
+        profileName="ผู้ทดสอบ"
+        onHome={() => {}}
+        onRetry={() => {}}
+        onNextBatch={() => {}}
+        onHistory={() => {}}
+        onOpenSources={() => {}}
+      />,
+    )
+    assert.ok(resComplete.container.querySelector('.cert-banner'))
+    assert.match(resComplete.container.textContent, /ทำครบพาร์ทใหญ่ 100%/)
+  })
+
+  it('renders extra practice sets without any source document card or copyright reference', () => {
+    const extraPart = getPart('extra-accounting')
+    const { container } = render(
+      <PartDetail
+        part={extraPart}
+        results={[]}
+        attempts={[]}
+        onBack={() => {}}
+        onStart={() => {}}
+        onRestart={() => {}}
+      />,
+    )
+    assert.equal(container.querySelector('.download-card'), null)
+    assert.ok(!container.textContent.includes('.pdf'))
+  })
 })

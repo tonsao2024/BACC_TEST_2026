@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MOCK_PART, PARTS } from '../data/index.js'
+import { EXTRA_PARTS, MOCK_PART, PARTS } from '../data/index.js'
 import { EXAM_SIZES, newSeed } from '../lib/generator.js'
 import { formatThaiDateTime, humanTime, mmss } from '../lib/storage.js'
-import { MAX_CHALLENGE_DECLINES, buildRaceLanes, rankMatchPlayers } from '../lib/friends.js'
+import {
+  MAX_CHALLENGE_DECLINES,
+  buildRaceLanes,
+  ensureFriendColors,
+  rankMatchPlayers,
+  resolveUserTheme,
+  sortFriendsByAttempts,
+} from '../lib/friends.js'
 import { PASS_SCORE, certTier } from '../lib/certs.js'
 import Icon from './Icons.jsx'
 import { MiniRing, Sheet } from './ui.jsx'
@@ -38,8 +45,16 @@ function statusBadgeForPlayer(p) {
 /* ============================================================
    1. Global Challenge Popup (กดดันให้กดยอมรับ + ปุ่มไม่แข่งครบ 3 ครั้งหยุดเตือน)
    ============================================================ */
-export function ChallengePopup({ match, declineCount = 0, onAccept, onDecline, onInspectHost }) {
+export function ChallengePopup({
+  match,
+  declineCount = 0,
+  allFriends = [],
+  onAccept,
+  onDecline,
+  onInspectHost,
+}) {
   if (!match) return null
+  const hostTheme = resolveUserTheme(match.hostUserId, allFriends, 0)
   const strike = Math.min(MAX_CHALLENGE_DECLINES - 1, Math.max(0, declineCount))
   const nextStrike = strike + 1
   const isFinal = nextStrike >= MAX_CHALLENGE_DECLINES
@@ -77,7 +92,15 @@ export function ChallengePopup({ match, declineCount = 0, onAccept, onDecline, o
         <span className={`challenge-pop__badge ${isFinal ? 'is-final' : ''}`}>{stageCopy.badge}</span>
 
         <div className="challenge-pop__vs">
-          <span className="challenge-pop__avatar">{match.hostName?.trim().charAt(0) || 'พ'}</span>
+          <span
+            className="challenge-pop__avatar challenge-pop__avatar--colored"
+            style={{
+              '--user-color': hostTheme.color,
+              '--user-color-2': hostTheme.color2,
+            }}
+          >
+            {match.hostName?.trim().charAt(0) || 'พ'}
+          </span>
           <span className="challenge-pop__swords" aria-hidden="true">⚔️</span>
           <span className="challenge-pop__count">+{Math.max(1, players.length - 1)} คน</span>
         </div>
@@ -165,6 +188,7 @@ export function ChallengePopup({ match, declineCount = 0, onAccept, onDecline, o
    ============================================================ */
 export function FriendStatsSheet({ friend, meStats, onClose, onChallengeFriend }) {
   if (!friend) return null
+  const theme = resolveUserTheme(friend, [], 0)
   const partEntries = [...PARTS, MOCK_PART].map((p) => ({
     part: p,
     stat: friend.partStats?.[p.id] || null,
@@ -184,7 +208,14 @@ export function FriendStatsSheet({ friend, meStats, onClose, onChallengeFriend }
     >
       <div className="fstats">
         <div className="fstats__hero">
-          <span className="fstats__avatar">
+          <span
+            className="fstats__avatar fstats__avatar--colored"
+            data-user-color={theme.color}
+            style={{
+              '--user-color': theme.color,
+              '--user-color-2': theme.color2,
+            }}
+          >
             {friend.name.trim().charAt(0).toUpperCase()}
             <i className={`fstats__dot ${friend.online ? 'is-on' : ''}`} />
           </span>
@@ -338,7 +369,10 @@ export function CreateMatchSheet({
   onClose,
   onSubmit,
 }) {
-  const otherFriends = useMemo(() => friends.filter((f) => !f.isMe), [friends])
+  const otherFriends = useMemo(
+    () => sortFriendsByAttempts(friends).filter((f) => !f.isMe),
+    [friends],
+  )
   const [selectedIds, setSelectedIds] = useState(() => {
     const valid = initialSelectedIds.filter((id) => otherFriends.some((f) => f.id === id))
     if (valid.length) return valid
@@ -464,6 +498,11 @@ export function CreateMatchSheet({
                   พาร์ท {p.label} · {p.title} ({p.questions.length} ข้อ)
                 </option>
               ))}
+              {EXTRA_PARTS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  ชุด{p.label} · {p.title} ({p.questions.length} ข้อ)
+                </option>
+              ))}
             </select>
           )}
 
@@ -539,7 +578,14 @@ export function CreateMatchSheet({
                     aria-pressed={checked}
                   >
                     <span className="friend-pick__check">{checked ? '✓' : ''}</span>
-                    <span className="board__avatar">
+                    <span
+                      className="board__avatar board__avatar--colored"
+                      data-user-color={f.color}
+                      style={{
+                        '--user-color': f.color,
+                        '--user-color-2': f.color2 || f.color,
+                      }}
+                    >
                       {f.name.trim().charAt(0).toUpperCase()}
                       <i className={`fstats__dot ${f.online ? 'is-on' : ''}`} />
                     </span>
@@ -606,9 +652,26 @@ export function MatchRoomCard({
   onInspectFriend,
 }) {
   const [inviteOpen, setInviteOpen] = useState(false)
-  const ranked = useMemo(() => rankMatchPlayers(match.players || []), [match.players])
-  // เลนแข่งขันสด: แต่ละคนได้เลนของตัวเอง + ความก้าวหน้าแสดงบนตัววิ่ง
-  const lanes = useMemo(() => buildRaceLanes(match.players || [], { meId }), [match.players, meId])
+  const coloredFriends = useMemo(() => ensureFriendColors(allFriends), [allFriends])
+  const ranked = useMemo(
+    () => rankMatchPlayers(match.players || [], coloredFriends),
+    [match.players, coloredFriends],
+  )
+  // เลนแข่งขันสด: แต่ละคนได้เลนของตัวเอง + สีตัวละครตรงกับสีภาพผู้ใช้
+  const lanes = useMemo(
+    () =>
+      buildRaceLanes(match.players || [], {
+        meId,
+        totalQuestions: match.examSpec?.totalQuestions || 0,
+        friends: coloredFriends,
+      }),
+    [match.players, match.examSpec?.totalQuestions, meId, coloredFriends],
+  )
+  const laneByUserId = useMemo(() => {
+    const map = new Map()
+    lanes.forEach((l) => map.set(l.userId, l))
+    return map
+  }, [lanes])
   const mePlayer = (match.players || []).find((p) => p.userId === meId)
   const isHost = match.hostUserId === meId
   const pendingGuests = (match.players || []).filter(
@@ -617,7 +680,7 @@ export function MatchRoomCard({
   const acceptedCount = (match.players || []).filter(
     (p) => p.status === 'accepted' || p.status === 'playing' || p.status === 'finished',
   ).length
-  const uninvitedFriends = allFriends.filter(
+  const uninvitedFriends = coloredFriends.filter(
     (f) => !f.isMe && !(match.players || []).some((p) => p.userId === f.id),
   )
 
@@ -663,15 +726,36 @@ export function MatchRoomCard({
       <div className="match-players">
         {ranked.map((p, idx) => {
           const badge = statusBadgeForPlayer(p)
+          const lane = laneByUserId.get(p.userId)
+          const pTheme = lane
+            ? { color: lane.color, color2: lane.color2 || lane.color }
+            : resolveUserTheme(p.userId, coloredFriends, idx)
           return (
             <div
               key={p.userId}
+              data-user-id={p.userId}
+              data-user-color={pTheme.color}
               className={`match-player ${p.userId === meId ? 'is-me' : ''} ${
                 idx === 0 && p.status === 'finished' ? 'is-winner' : ''
               }`}
+              style={{
+                '--user-color': pTheme.color,
+                '--user-color-2': pTheme.color2,
+              }}
             >
               <span className="match-player__rank num">
                 {p.status === 'finished' ? MEDALS[idx] || idx + 1 : p.role === 'host' ? '👑' : idx + 1}
+              </span>
+              <span
+                className="board__avatar board__avatar--colored match-player__avatar"
+                data-user-color={pTheme.color}
+                aria-hidden="true"
+                style={{
+                  '--user-color': pTheme.color,
+                  '--user-color-2': pTheme.color2,
+                }}
+              >
+                {String(p.name || 'ผ').trim().charAt(0).toUpperCase()}
               </span>
               <button
                 type="button"
@@ -786,21 +870,24 @@ export default function FriendArena({
   const [filter, setFilter] = useState('all')
   const [inspectFriendId, setInspectFriendId] = useState(null)
   const [createForIds, setCreateForIds] = useState(null)
+  const [highlightedUserId, setHighlightedUserId] = useState(null)
+
+  const coloredFriends = useMemo(() => ensureFriendColors(friends), [friends])
 
   const inspectFriend = useMemo(
-    () => friends.find((f) => f.id === inspectFriendId) || null,
-    [friends, inspectFriendId],
+    () => coloredFriends.find((f) => f.id === inspectFriendId) || null,
+    [coloredFriends, inspectFriendId],
   )
 
   const filteredFriends = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return friends.filter((f) => {
+    return coloredFriends.filter((f) => {
       if (q && !f.name.toLowerCase().includes(q)) return false
       if (filter === 'online') return f.online
       if (filter === 'tested') return f.count > 0
       return true
     })
-  }, [friends, search, filter])
+  }, [coloredFriends, search, filter])
 
   const activeMatches = useMemo(
     () => matches.filter((m) => m.status === 'waiting' || m.status === 'active'),
@@ -853,11 +940,19 @@ export default function FriendArena({
           </span>
           <h1>ท้าเพื่อนแข่งข้อสอบชุดเดียวกัน</h1>
           <p>
-            เลือกท้าเพื่อนคนเดียวหรือหลายคนพร้อมกันก็ได้ เพื่อนอีกฝ่ายจะมี Popup แจ้งเตือนให้กดยอมรับ
-            และแม้เพื่อนไม่ได้ตอบรับการแข่งขัน คุณยังสามารถกดดูสถิติของเพื่อนทุกคนในระบบได้ด้านล่าง
+            ตัวละครบนลู่วิ่งเชื่อมโยงกับผู้ใช้จริงแบบเรียลไทม์ ใครทำข้อสอบมากสุดวิ่งนำหน้าสุด
+            และใช้สีเดียวกันทั้งตัวละครและภาพผู้ใช้เพื่อให้ดูง่ายขึ้น
           </p>
-          <div className="builder-hero__racers" aria-hidden="true">
-            <RunningRacers height={130} />
+          <div className="builder-hero__racers">
+            <RunningRacers
+              users={coloredFriends}
+              activeMatch={activeMatches[0] || null}
+              meId={meId}
+              highlightedUserId={highlightedUserId}
+              onHoverUser={setHighlightedUserId}
+              onSelectUser={(u) => u?.id && setInspectFriendId(u.id)}
+              height={152}
+            />
           </div>
           <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             <button
@@ -897,7 +992,7 @@ export default function FriendArena({
                   key={m.id}
                   match={m}
                   meId={meId}
-                  allFriends={friends}
+                  allFriends={coloredFriends}
                   onAccept={onAcceptMatch}
                   onStartExam={onStartMatchExam}
                   onNudge={onNudgeMatch}
@@ -973,14 +1068,36 @@ export default function FriendArena({
           </div>
 
           <div className="arena-friends-grid">
-            {filteredFriends.map((f, i) => (
-              <div key={f.id} className={`arena-friend-card ${f.isMe ? 'is-me' : ''}`}>
-                <div className="arena-friend-card__top">
-                  <span className="board__rank">{f.count ? MEDALS[i] || i + 1 : i + 1}</span>
-                  <span className="board__avatar">
-                    {f.name.trim().charAt(0).toUpperCase()}
-                    <i className={`fstats__dot ${f.online ? 'is-on' : ''}`} />
-                  </span>
+            {filteredFriends.map((f, i) => {
+              const isLinked = Boolean(highlightedUserId && highlightedUserId === f.id)
+              return (
+                <div
+                  key={f.id}
+                  data-user-id={f.id}
+                  data-user-color={f.color}
+                  className={`arena-friend-card ${f.isMe ? 'is-me' : ''} ${
+                    isLinked ? 'is-linked' : ''
+                  }`}
+                  style={{
+                    '--user-color': f.color,
+                    '--user-color-2': f.color2 || f.color,
+                  }}
+                  onMouseEnter={() => setHighlightedUserId(f.id)}
+                  onMouseLeave={() => setHighlightedUserId(null)}
+                >
+                  <div className="arena-friend-card__top">
+                    <span className="board__rank">{f.count ? MEDALS[i] || i + 1 : i + 1}</span>
+                    <span
+                      className="board__avatar board__avatar--colored"
+                      data-user-color={f.color}
+                      style={{
+                        '--user-color': f.color,
+                        '--user-color-2': f.color2 || f.color,
+                      }}
+                    >
+                      {f.name.trim().charAt(0).toUpperCase()}
+                      <i className={`fstats__dot ${f.online ? 'is-on' : ''}`} />
+                    </span>
                   <div className="arena-friend-card__info">
                     <b className="arena-friend-card__name">
                       {f.name}
@@ -1027,8 +1144,9 @@ export default function FriendArena({
                     </button>
                   )}
                 </div>
-              </div>
-            ))}
+                </div>
+              )
+            })}
           </div>
         </section>
 
@@ -1043,7 +1161,7 @@ export default function FriendArena({
                   key={m.id}
                   match={m}
                   meId={meId}
-                  allFriends={friends}
+                  allFriends={coloredFriends}
                   onInspectFriend={(uid) => setInspectFriendId(uid)}
                 />
               ))}
@@ -1063,7 +1181,7 @@ export default function FriendArena({
 
       {createForIds !== null && (
         <CreateMatchSheet
-          friends={friends}
+          friends={coloredFriends}
           sets={sets}
           initialSelectedIds={createForIds}
           onClose={() => setCreateForIds(null)}

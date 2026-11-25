@@ -4,14 +4,17 @@ import {
   CHALLENGE_SNOOZE_MS,
   MAX_CHALLENGE_DECLINES,
   buildRaceLanes,
+  buildRealUserRacers,
   computePublicStats,
   createArenaController,
   getChallengePref,
+  normalizeFriendDirectory,
   recordChallengeAccept,
   recordChallengeDecline,
   resetChallengeMute,
-   rankMatchPlayers,
+  rankMatchPlayers,
   shouldShowChallengePopup,
+  sortFriendsByAttempts,
 } from '../src/lib/friends.js'
 
 class MemoryStorage {
@@ -386,3 +389,46 @@ test('เลนแข่งขัน: ห้องที่ยังไม่ม
     [],
   )
 })
+
+test('ตัวละครผู้ใช้จริง & การจัดเรียงตามจำนวนครั้งที่ทำข้อสอบมากสุด + สีตัวละครตรงกับภาพผู้ใช้', () => {
+  const dir = normalizeFriendDirectory(
+    {
+      u1: { id: 'u1', name: 'ก้อง', stats: { count: 2, avg: 95, best: 98 } },
+      u2: { id: 'u2', name: 'พิมพ์', stats: { count: 9, avg: 76, best: 88 } },
+      u3: { id: 'u3', name: 'ต้น', stats: { count: 5, avg: 82, best: 90 } },
+    },
+    new Set(['u1']),
+    'u1',
+  )
+
+  // เรียงตามจำนวนครั้งที่ทำข้อสอบมากสุดก่อนเสมอ (9 -> 5 -> 2)
+  assert.deepEqual(dir.map((u) => u.id), ['u2', 'u3', 'u1'])
+  assert.equal(new Set(dir.map((u) => u.color)).size, 3)
+
+  // ตัวละครบนลู่เป็นของผู้ใช้จริง เรียงคนสอบมากสุดไว้หน้าสุด (x มากสุดใกล้เส้นชัย) และใช้สีเดียวกับผู้ใช้
+  const racers = buildRealUserRacers(dir, { meId: 'u1' })
+  assert.equal(racers.length, 3)
+  assert.equal(racers[0].id, 'u2')
+  assert.equal(racers[0].isLeader, true)
+  assert.equal(racers[0].count, 9)
+  assert.ok(racers[0].x > racers[1].x && racers[1].x > racers[2].x, 'คนที่สอบมากสุดต้องวิ่งอยู่หน้าสุด')
+
+  racers.forEach((r) => {
+    const matchingUser = dir.find((u) => u.id === r.id)
+    assert.equal(r.color, matchingUser.color, 'สีตัวละครต้องตรงกับสีภาพผู้ใช้แบบ 1:1')
+  })
+
+  // เมื่อลงแข่งข้อสอบชุดเดียวกัน สีตัววิ่งบนลู่แข่งสดยังคงตรงกับสีภาพผู้ใช้ของแต่ละคนแม้แซงกัน
+  const lanes = buildRaceLanes(
+    [
+      { userId: 'u1', name: 'ก้อง', role: 'host', status: 'playing', answeredCount: 18, totalQuestions: 20 },
+      { userId: 'u2', name: 'พิมพ์', role: 'guest', status: 'playing', answeredCount: 10, totalQuestions: 20 },
+    ],
+    { meId: 'u1', friends: sortFriendsByAttempts(dir) },
+  )
+  assert.equal(lanes[0].userId, 'u1')
+  assert.equal(lanes[0].color, dir.find((u) => u.id === 'u1').color)
+  assert.equal(lanes[1].userId, 'u2')
+  assert.equal(lanes[1].color, dir.find((u) => u.id === 'u2').color)
+})
+
