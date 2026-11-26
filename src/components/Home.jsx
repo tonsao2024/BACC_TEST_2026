@@ -481,9 +481,10 @@ export default function Home({
       </div>
 
       {SPECIAL_PARTS.length > 0 && (
-        <section className="section" style={{ animationDelay: '0ms' }}>
+        <section className="section section--major section--special" style={{ animationDelay: '0ms' }}>
           <div className="section__head">
             <div>
+              <span className="section__eyebrow">หมวดพิเศษ</span>
               <h3 className="section__title">
                 <Icon name="star" size={15} /> {SPECIAL_GROUP.label}
               </h3>
@@ -515,9 +516,10 @@ export default function Home({
       )}
 
       {EXTRA_PARTS.length > 0 && (
-        <section className="section" style={{ animationDelay: '30ms' }}>
+        <section className="section section--major section--practice" style={{ animationDelay: '30ms' }}>
           <div className="section__head">
             <div>
+              <span className="section__eyebrow">หมวดฝึกฝน</span>
               <h3 className="section__title">
                 <Icon name="layers" size={15} /> {EXTRA_GROUP.label}
               </h3>
@@ -548,9 +550,14 @@ export default function Home({
         </section>
       )}
 
+      <div className="section__major-label section__major-label--core">
+        <span>หมวดฝึกสอบตามโครงสร้างจริง</span>
+        <small>แบ่งตามพาร์ทและเนื้อหาการสอบ</small>
+      </div>
+
       {GROUPS.map((group, gi) => (
         <section
-          className="section"
+          className={`section section--category section--category-${group.key}`}
           key={group.key}
           id={gi === 0 ? 'parts-start' : undefined}
           style={{ animationDelay: `${gi * 60}ms` }}
@@ -558,10 +565,13 @@ export default function Home({
           <div className="section__head">
             <div>
               <h3 className="section__title">{group.label}</h3>
-              <p className="sub" style={{ fontSize: 11.5, marginTop: 2 }}>
+              <p className="sub section__category-desc" style={{ fontSize: 11.5, marginTop: 2 }}>
                 {group.desc}
               </p>
             </div>
+            <span className="section__count">
+              {PARTS.filter((p) => p.group === group.key).length} พาร์ท
+            </span>
           </div>
           <div className="part-list">
             {PARTS.filter((p) => p.group === group.key).map((part, i) => (

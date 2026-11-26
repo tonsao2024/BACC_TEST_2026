@@ -351,6 +351,102 @@ select {
   margin-top: 26px;
   animation: fadeUp 0.6s var(--ease) both;
 }
+/* Strong visual hierarchy for the three exam banks: special, practice, and official structure. */
+.section--major {
+  padding: 14px;
+  border: 1px solid var(--major-border, var(--line));
+  border-top: 3px solid var(--major-accent, var(--viol-500));
+  border-radius: var(--r-xl);
+  background: var(--major-bg, var(--card));
+}
+.section--special { --major-accent: #7c3aed; --major-border: #ddd6fe; --major-bg: #faf7ff; }
+.section--practice { --major-accent: #0891b2; --major-border: #bae6fd; --major-bg: #f2fbff; }
+.section--major .section__head { align-items: center; margin-bottom: 10px; }
+.section__eyebrow {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--major-accent, var(--viol-700));
+  background: #f3f0ff;
+  background: color-mix(in srgb, var(--major-accent, #6d28d9) 10%, white);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.section__major-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 28px 0 2px;
+  padding: 0 2px 9px;
+  border-bottom: 2px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 15px;
+  font-weight: 800;
+}
+.section__major-label small { color: var(--muted, #64748b); font-size: 11px; font-weight: 500; }
+/* Keep the practice list compact while making the syllabus groups unmistakable. */
+.section--category {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--card);
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  box-shadow: var(--shadow-card);
+}
+.section--category .section__head {
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 3px solid var(--viol-500);
+  padding-left: 10px;
+}
+.section--category .section__title {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.section--category .section__category-desc {
+  margin-top: 3px !important;
+  font-size: 10.5px !important;
+  line-height: 1.45;
+}
+.section__count {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--viol-700);
+  background: var(--viol-50);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.section--category-aptitude { --category-accent: #2563eb; --category-soft: #eff6ff; }
+.section--category-detail { --category-accent: #059669; --category-soft: #ecfdf5; }
+.section--category-knowledge { --category-accent: #d97706; --category-soft: #fffbeb; }
+.section--category .section__head { border-left-color: var(--category-accent, var(--viol-500)); }
+.section--category .section__count {
+  color: var(--category-accent, var(--viol-700));
+  background: var(--category-soft, var(--viol-50));
+}
+.section--category .part-list { gap: 7px; }
+.section--category .part-card {
+  padding: 10px 12px;
+  gap: 10px;
+  border-radius: 14px;
+}
+.section--category .part-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+}
+.section--category .part-title { font-size: 13px; }
+.section--category .part-meta { font-size: 10.5px; }
+.section--category .part-status { font-size: 10.5px; margin-top: 3px; }
+.section--category .part-progress { margin-top: 5px; }
 .section__head {
   display: flex;
   align-items: baseline;
